@@ -5,12 +5,19 @@ Google/Zoom/Kuaishou pattern, ufal/whisper_streaming, WhisperLiveKit):
   - DRAFT:  whisper-small-mlx — rýchly, zobrazuje sa okamžite (šedé)
   - FINAL:  whisper-large-v3-turbo — presný, prepíše draft (biele)
 """
+import threading
+
 import numpy as np
 import mlx_whisper
 
 SAMPLE_RATE = 16000
 DRAFT_REPO = "mlx-community/whisper-small-mlx"  # tiny je na SK nepoužiteľný
 FINAL_REPO = "mlx-community/whisper-large-v3-turbo"
+
+# mlx_whisper (Numba workqueue vnútri) NIE JE thread-safe — súbežné volanie
+# z draft aj final vlákna spôsobí crash celej pipeline („Concurrent access
+# has been detected"). Všetky transcribe volania serializujeme.
+_MLX_LOCK = threading.Lock()
 
 
 SK_PROMPT = "Toto je presný prepis hovorovej slovenčiny s diakritikou."
@@ -44,8 +51,11 @@ class ASR:
     def warmup(self):
         self.transcribe(np.zeros(SAMPLE_RATE, dtype=np.float32))
 
-    def transcribe(self, audio: np.ndarray, language="sk"):
+    def transcribe(self, audio: np.ndarray, language="sk", skip_if_busy=False):
         """audio: float32 mono 16 kHz. Vráti list slov (text, start, end).
+
+        skip_if_busy: nečakaj na _MLX_LOCK — vráť None (draft vrstva radšej
+        preskočí kolo, než by čakala sekundy na final dekód).
 
         Filtre halucinácií (vzor whisper_streaming + whisper-guard):
         - segment s no_speech_prob > 0.8 → zahodiť celý
@@ -56,12 +66,20 @@ class ASR:
         kw = {}
         if self.use_prompt:
             kw["initial_prompt"] = SK_PROMPT
-        r = mlx_whisper.transcribe(
-            preprocess(audio), path_or_hf_repo=self.repo, language=language,
-            word_timestamps=True, condition_on_previous_text=False,
-            no_speech_threshold=0.6, temperature=0.0, fp16=True, verbose=None,
-            **kw,
-        )
+        if skip_if_busy:
+            if not _MLX_LOCK.acquire(blocking=False):
+                return None
+        else:
+            _MLX_LOCK.acquire()
+        try:
+            r = mlx_whisper.transcribe(
+                preprocess(audio), path_or_hf_repo=self.repo, language=language,
+                word_timestamps=True, condition_on_previous_text=False,
+                no_speech_threshold=0.6, temperature=0.0, fp16=True, verbose=None,
+                **kw,
+            )
+        finally:
+            _MLX_LOCK.release()
         words = []
         for seg in r["segments"]:
             if seg.get("no_speech_prob", 0.0) > 0.8:

@@ -200,7 +200,11 @@ class TwoTierPipeline:
                     self._emit()
                 time.sleep(DRAFT_STEP_S)
                 continue
-            words = self.draft_asr.transcribe(audio, self.language)
+            words = self.draft_asr.transcribe(audio, self.language,
+                                              skip_if_busy=True)
+            if words is None:      # GPU drží final dekód — preskoč kolo
+                time.sleep(0.1)
+                continue
             # energia gate aj na draft: referencia = naučená úroveň reči
             # (dych/šum nad prahom ticha inak preblikáva ako „Ďakujem!")
             ref = max(self.slevel.level, float(np.sqrt(np.mean(audio ** 2))))
@@ -278,6 +282,10 @@ class TwoTierPipeline:
                 continue
             now = time.monotonic()
             new, pending = self.final_agree.update(words)
+            # anti-loop: nekomituj presne tú istú sekvenciu, aká už je na
+            # konci prepisu (Whisper v slučke opakuje „Ďakujem za pozornosť")
+            if new and self.final_text[-len(new):] == new:
+                new = []
             if new:
                 belongs_to_old_block = False
                 self.final_text.extend(new)
