@@ -23,6 +23,14 @@ SILENCE_RMS = 0.008       # pod týmto = ticho
 SILENCE_CLEAR_S = 0.6     # po toľkých sekundách ticha vyčisti draft
 
 
+def is_silent(tail: np.ndarray, whole: np.ndarray) -> bool:
+    """Ticho = nízky RMS aj peak. Peak drží tichú reč (má špičky),
+    zatiaľ čo mikrofónne ticho/šum pozadia špičky nemá."""
+    t = float(np.sqrt(np.mean(tail ** 2)))
+    p = float(np.max(np.abs(tail))) if len(tail) else 0.0
+    return t < SILENCE_RMS and p < SILENCE_RMS * 3
+
+
 def dedupe_repeats(words, max_rep=2):
     """Kolaps halucinačných slučiek (slovo opakované dookola)."""
     out, rep = [], 0
@@ -149,7 +157,7 @@ class TwoTierPipeline:
             # VAD gate: posledných SILENCE_CLEAR_S ticho → koniec bloku;
             # vyčisti draft aj zobrazenú históriu (stará reč sa už nevracia)
             tail_a = audio[-int(SILENCE_CLEAR_S * SAMPLE_RATE):]
-            if float(np.sqrt(np.mean(tail_a ** 2))) < SILENCE_RMS:
+            if is_silent(tail_a, audio):
                 # koniec bloku: všetko dopovedané pred týmto tichom patrí
                 # do starého bloku — nech final dobehne, ale už NEZOBRAZUJE
                 self.block_start_s = max(self.block_start_s,
@@ -187,6 +195,7 @@ class TwoTierPipeline:
             time.sleep(max(0.0, DRAFT_STEP_S - elapsed))
 
     def _final_loop(self):
+        eof_retries = 0
         while self.running:
             t_start = time.monotonic()
             # vždy od potvrdenej hranice — okno sa neposúva pod agreementom
@@ -196,7 +205,7 @@ class TwoTierPipeline:
                 time.sleep(0.2)
                 continue
             # VAD gate: celé okno ticho → posuň hranicu, nedekóduj (halucinácie!)
-            if len(audio) and float(np.sqrt(np.mean(audio ** 2))) < SILENCE_RMS:
+            if len(audio) and is_silent(audio, audio):
                 self.final_upto_s = total_s
                 self.final_agree.reset()
                 if self.buf.eof:
@@ -226,6 +235,10 @@ class TwoTierPipeline:
                 self.final_agree.prev_words = pending
                 self._emit()
             if self.buf.eof:
+                if self.final_upto_s < total_s - 0.5 and eof_retries < 5:
+                    # ešte je nespracované audio — skús ďalší beh
+                    eof_retries += 1
+                    continue
                 # koniec: potvrď zvyšok z posledného behu
                 if pending:
                     self.final_text.extend(pending)

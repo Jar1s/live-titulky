@@ -1,0 +1,9 @@
+{
+ "tests/normal.wav": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od hluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité.",
+ "tests/fast.wav": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne.",
+ "tests/slow.wav": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne.",
+ "tests/quiet.wav": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od hluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité.",
+ "tests/noisy.wav": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od hluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité.",
+ "tests/pauses.wav": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od hluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité.",
+ "tests/silence.wav": ""
+}
