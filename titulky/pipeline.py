@@ -73,7 +73,8 @@ class TwoTierPipeline:
         self.draft_asr = ASR(draft_repo)
         self.final_asr = ASR(final_repo, use_prompt=True)
         self.final_agree = LocalAgreement()
-        self.final_text: list[str] = []      # potvrdený presný text
+        self.final_text: list[str] = []      # potvrdený presný text (celý)
+        self.display_from = 0                # index prvého slova aktuálneho bloku
         self.final_upto_s = 0.0              # po aký čas audia je final potvrdený
         self.draft_text = ""                 # aktuálny draft za final hranicou
         self.draft_latencies: list[float] = []
@@ -121,7 +122,7 @@ class TwoTierPipeline:
 
     def _emit(self):
         self.on_update({
-            "committed": " ".join(self.final_text),
+            "committed": " ".join(self.final_text[self.display_from:]),
             "pending": self.draft_text,
             "draft_latency_s": self.draft_latencies[-1] if self.draft_latencies else None,
             "avg_draft_latency_s": (sum(self.draft_latencies) / len(self.draft_latencies))
@@ -142,11 +143,18 @@ class TwoTierPipeline:
                     break
                 time.sleep(0.1)
                 continue
-            # VAD gate: posledných SILENCE_CLEAR_S ticho → vyčisti draft, nedekóduj
+            # VAD gate: posledných SILENCE_CLEAR_S ticho → koniec bloku;
+            # vyčisti draft aj zobrazenú históriu (stará reč sa už nevracia)
             tail_a = audio[-int(SILENCE_CLEAR_S * SAMPLE_RATE):]
             if float(np.sqrt(np.mean(tail_a ** 2))) < SILENCE_RMS:
-                if self.draft_text:
+                # históriu vyčisti až keď final dohnal koniec reči — inak by
+                # jeho oneskorené slová „dotiekli" na čistú obrazovku
+                final_caught_up = self.final_upto_s >= total_s - 1.5
+                if self.draft_text or (final_caught_up
+                                       and self.display_from < len(self.final_text)):
                     self.draft_text = ""
+                    if final_caught_up:
+                        self.display_from = len(self.final_text)
                     self._emit()
                 time.sleep(DRAFT_STEP_S)
                 continue
