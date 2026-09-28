@@ -23,6 +23,21 @@ SILENCE_RMS = 0.008       # pod týmto = ticho
 SILENCE_CLEAR_S = 0.6     # po toľkých sekundách ticha vyčisti draft
 
 
+def dedupe_repeats(words, max_rep=2):
+    """Kolaps halucinačných slučiek (slovo opakované dookola)."""
+    out, rep = [], 0
+    for w in words:
+        k = w["text"].strip().lower().strip(".,!?…")
+        if out and k == out[-1]["text"].strip().lower().strip(".,!?…"):
+            rep += 1
+            if rep >= max_rep:
+                continue
+        else:
+            rep = 0
+        out.append(w)
+    return out
+
+
 class SharedBuffer:
     def __init__(self):
         self.lock = threading.Lock()
@@ -167,7 +182,16 @@ class TwoTierPipeline:
             if len(audio) < SAMPLE_RATE * 1.0 and not self.buf.eof:
                 time.sleep(0.2)
                 continue
+            # VAD gate: celé okno ticho → posuň hranicu, nedekóduj (halucinácie!)
+            if len(audio) and float(np.sqrt(np.mean(audio ** 2))) < SILENCE_RMS:
+                self.final_upto_s = total_s
+                self.final_agree.reset()
+                if self.buf.eof:
+                    break
+                time.sleep(FINAL_STEP_S)
+                continue
             words = self.final_asr.transcribe(audio, self.language)
+            words = dedupe_repeats(words)
             now = time.monotonic()
             new, pending = self.final_agree.update(words)
             if new:

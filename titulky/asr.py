@@ -13,9 +13,7 @@ DRAFT_REPO = "mlx-community/whisper-small-mlx"  # tiny je na SK nepoužiteľný
 FINAL_REPO = "mlx-community/whisper-large-v3-turbo"
 
 
-SK_PROMPT = ("Toto je prepis hovorovej slovenčiny s diakritikou. "
-             "Ahoj, blbosti, notebook, titulky, latencia, chybovosť, "
-             "aplikácia, projekt, mikrofón, počúvaj.")
+SK_PROMPT = "Toto je presný prepis hovorovej slovenčiny s diakritikou."
 
 
 def preprocess(audio: np.ndarray) -> np.ndarray:
