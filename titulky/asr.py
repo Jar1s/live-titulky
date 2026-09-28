@@ -45,7 +45,14 @@ class ASR:
         self.transcribe(np.zeros(SAMPLE_RATE, dtype=np.float32))
 
     def transcribe(self, audio: np.ndarray, language="sk"):
-        """audio: float32 mono 16 kHz. Vráti list slov (text, start, end)."""
+        """audio: float32 mono 16 kHz. Vráti list slov (text, start, end).
+
+        Filtre halucinácií (vzor whisper_streaming + whisper-guard):
+        - segment s no_speech_prob > 0.8 → zahodiť celý
+        - segment s avg_logprob < -1.5 → zahodiť celý
+        - slovo s probability < 0.5 A trvaním < 0.15 s → zahodiť
+          (krátke nízko-isté vsuvky typu „No" na hraniciach okien)
+        """
         kw = {}
         if self.use_prompt:
             kw["initial_prompt"] = SK_PROMPT
@@ -57,7 +64,14 @@ class ASR:
         )
         words = []
         for seg in r["segments"]:
+            if seg.get("no_speech_prob", 0.0) > 0.8:
+                continue
+            if seg.get("avg_logprob", 0.0) < -1.5:
+                continue
             for w in seg.get("words", []):
+                dur = w["end"] - w["start"]
+                if w.get("probability", 1.0) < 0.5 and dur < 0.15:
+                    continue
                 words.append({"text": w["word"].strip(),
                               "start": w["start"], "end": w["end"]})
         return words

@@ -214,6 +214,17 @@ class TwoTierPipeline:
                 continue
             words = self.final_asr.transcribe(audio, self.language)
             words = dedupe_repeats(words)
+            # energia gate: slovo, ktorého úsek audia je výrazne tichší než
+            # okolie okna, je halucinácia (Whisper z koncového ticha vymýšľa
+            # „Ďakujem za pozornosť"). Relatívny test drží tichú reč.
+            w_rms = float(np.sqrt(np.mean(audio ** 2))) or 1e-9
+            def word_silent(w):
+                seg = audio[int(w["start"] * SAMPLE_RATE):
+                            int(w["end"] * SAMPLE_RATE)]
+                if not len(seg):
+                    return True
+                return float(np.sqrt(np.mean(seg ** 2))) < 0.15 * w_rms
+            words = [w for w in words if not word_silent(w)]
             now = time.monotonic()
             new, pending = self.final_agree.update(words)
             if new:
@@ -239,9 +250,19 @@ class TwoTierPipeline:
                     # ešte je nespracované audio — skús ďalší beh
                     eof_retries += 1
                     continue
-                # koniec: potvrď zvyšok z posledného behu
+                # koniec: potvrď zvyšok — ale len slová ležiace v reálnej
+                # reči (Whisper z koncového ticha halucinuje „Ďakujem…").
+                # pending zodpovedá chvostu words → timestampy z words.
+                tail = words[-len(pending):] if pending else []
+                kept = []
+                for w in tail:
+                    s = int((off_s + w["start"]) * SAMPLE_RATE)
+                    e = int((off_s + w["end"]) * SAMPLE_RATE)
+                    seg = self.buf.audio[s:e]
+                    if len(seg) and not is_silent(seg, seg):
+                        kept.append(w["text"])
+                self.final_text.extend(kept)
                 if pending:
-                    self.final_text.extend(pending)
                     self.final_upto_s = total_s
                     self.draft_text = ""
                     self._emit()
