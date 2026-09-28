@@ -49,7 +49,11 @@ class ASR:
         self.use_prompt = use_prompt
 
     def warmup(self):
-        self.transcribe(np.zeros(SAMPLE_RATE, dtype=np.float32))
+        # plné okno šumu, nie 1 s ticha — skompiluje Metal kernely na
+        # reálnej veľkosti vstupu, inak má prvý živý dekód „rozbeh"
+        rng = np.random.default_rng(0)
+        self.transcribe(rng.normal(0, 0.01, SAMPLE_RATE * 10)
+                        .astype(np.float32))
 
     def transcribe(self, audio: np.ndarray, language="sk", skip_if_busy=False):
         """audio: float32 mono 16 kHz. Vráti list slov (text, start, end).

@@ -29,7 +29,9 @@ class SpeechLevel:
     Inštancia per pipeline — nesmie prežívať medzi behmi/nahrávkami."""
 
     def __init__(self):
-        self.level = 0.0
+        # štart na úrovni bežnej reči cez MacBook mik — prah je od prvého
+        # okna rozumný; skutočná úroveň sa doučí za pár sekúnd
+        self.level = 0.004
 
     def update(self, whole: np.ndarray) -> None:
         w = float(np.sqrt(np.mean(whole ** 2))) if len(whole) else 0.0
