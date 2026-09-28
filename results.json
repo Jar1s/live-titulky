@@ -1,0 +1,42 @@
+[
+ {
+  "final_step": 1.0,
+  "draft_step": 0.25,
+  "draft_lat_p50": 3.108112999983132,
+  "draft_lat_min": 0.33486954200547187,
+  "final_lat_p50": 4.074677479515318,
+  "wer": 0.03571428571428571,
+  "flicker": 0.1971153846153846,
+  "hyp": "Vitajte pri demonstrácii automatických titulkov v reálnom čase. Tento systém rozpoznáva slovenskú reč a zobrazuje titulky s minimálnym oneskoreným. Architektúra má dve vrstvy. Rýchla vrstva používa malý model a zobrazuje pracovný prepis okamžite. Presná vrstva používa veľký model a text následne opravuje. Meriame latenciu aj presnosť rozpoznávania. Latencia je čas od dopovedania slova po jeho zobrazenie. Presnosť meriame ako podiel správne nerozpoznaných slov oproti referenčnému prepisu. Systém beží lokálne na počítači bez pripojenia na internet. Rozpoznávanie prebieha priebežne, segment po segmente. Ďakujeme za pozornosť."
+ },
+ {
+  "final_step": 1.5,
+  "draft_step": 0.25,
+  "draft_lat_p50": 2.766302500007443,
+  "draft_lat_min": 0.2901899580191821,
+  "final_lat_p50": 3.9004859165244277,
+  "wer": 0.047619047619047616,
+  "flicker": 0.20689655172413793,
+  "hyp": "Vitajte pri demonstrácii automatických titulkov v reálnom čase. Tento systém rozpoznáva slovenskú reč a zobrazuje titulky s minimálnym oneskoreným. Architektúra má dve vrstvy. Rýchla vrstva používa malý model a zobrazuje pracovný prepis okamžite. Presná vrstva používa veľký model a text následne opravuje. Meriame latenciu aj presnosť rozpoznávania. Latencia je čas od dopovedania slova po jeho zobrazenie. Presnosť meriame ako podiel správne rozpoznaných slov oproti referenčnému Prepisu. Systém beží lokálne na počítači bez pripojenia na internet. Rozpoznávanie prebieha priebežne, segment po segmente. Ďakujeme."
+ },
+ {
+  "final_step": 2.0,
+  "draft_step": 0.5,
+  "draft_lat_p50": 2.0820627710071866,
+  "draft_lat_min": 0.3464076250139625,
+  "final_lat_p50": 4.238131583989599,
+  "wer": 0.023809523809523808,
+  "flicker": 0.06741573033707865,
+  "hyp": "Vitajte pri demonstrácií automatických titulkov v reálnom čase. Tento systém rozpoznáva slovenskú reč a zobrazuje titulky s minimálnym oneskoreným. Architektúra má dve vrstvy. Rýchla vrstva používa malý model a zobrazuje pracovný prepis okamžite. Presná vrstva používa veľký model a text následne opravuje. Meriame latenciu aj presnosť rozpoznávania. Latencia je čas od dopovedania slova po jeho zobrazenie. Presnosť meriame ako podiel správne rozpoznaných slov oproti referenčnému Prepisu. Systém beží lokálne na počítači bez pripojenia na internet. Rozpoznávanie prebieha priebežne, segment po segmente. Ďakujeme za pozornosť."
+ },
+ {
+  "final_step": 3.0,
+  "draft_step": 0.5,
+  "draft_lat_p50": 2.0024821044842245,
+  "draft_lat_min": 0.21862150000175462,
+  "final_lat_p50": 5.886032583490015,
+  "wer": 0.023809523809523808,
+  "flicker": 0.05945945945945946,
+  "hyp": "Vitajte pri demonstrácii automatických titulkov v reálnom čase. Tento systém rozpoznáva slovenskú reč a zobrazuje titulky s minimálnym oneskoreným. Architektúra má dve vrstvy. Rýchla vrstva používa malý model a zobrazuje pracovný prepis okamžite. Presná vrstva používa veľký model a text následne opravuje. Meriame latenciu aj presnosť rozpoznávania. Latencia je čas od dopovedania slova po jeho zobrazenie. Presnosť meriame ako podiel správne rozpoznaných slov oproti referenčnému Prepisu. Systém beží lokálne na počítači bez pripojenia na internet. Rozpoznávanie prebieha priebežne, segment po segmente. Ďakujeme za pozornosť."
+ }
+]

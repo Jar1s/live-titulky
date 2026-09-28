@@ -1,62 +1,115 @@
 # Live titulky (SK) — automatické titulky v reálnom čase
 
-Semestrálny projekt: živá reč → titulky s minimálnym oneskorením.
-Stack: faster-whisper (int8, CPU/Apple Silicon) + vlastná LocalAgreement
-stabilizácia + WebSocket overlay.
+Semestrálny projekt (AI v spracovaní multimédií, téma 01): živá reč →
+titulky s minimálnym oneskorením, slovenčina, meranie latencie a presnosti.
 
-## Inštalácia
+Beží **lokálne na Apple Silicon** (MLX, žiadny cloud).
+
+## Architektúra: dvojvrstvové titulkovanie (draft + final)
+
+Vzor z produkčných systémov (Google/Zoom live captions — partial/final):
+
+```
+mikrofón/WAV → zdieľaný audio buffer
+   ├─ DRAFT vlákno:  whisper-small-mlx, krok 0.25 s, okno 3 s
+   │                 → okamžitý pracovný prepis (šedý text)
+   └─ FINAL vlákno:  whisper-large-v3-turbo, krok 1.5 s, okno od potvrdenej hranice
+                     → LocalAgreement-2 → potvrdený presný text (biely)
+                → WebSocket → HTML overlay (blokové zobrazenie, fade-out po pauze)
+```
+
+Kľúčové mechanizmy:
+- **LocalAgreement-2** (ufal/whisper_streaming): slovo sa potvrdí, až keď sa
+  na ňom zhodnú dva po sebe idúce behy ASR → potvrdený text „neskáče".
+- **VAD gate** (RMS): ticho sa nedekóduje → žiadne halucinácie z ticha,
+  po pauze sa blok titulkov uzavrie a obrazovka vyčistí.
+- **dedupe filter**: kolaps halucinačných slučiek opakovaného slova.
+- **SK init_prompt + preprocessing** (highpass, normalizácia): −4 p. b. WER
+  na spontánnej reči.
+- final okno začína vždy na potvrdenej hranici → agreement nestráca kontext.
+
+## Inštalácia a spustenie
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install faster-whisper sounddevice websockets numpy
+.venv/bin/pip install mlx-whisper sounddevice websockets numpy jiwer
+
+.venv/bin/python -m titulky.main                    # živý mikrofón
+.venv/bin/python -m titulky.main --file demo_sk.wav # simulovaný stream
 ```
 
-## Spustenie
+Overlay: **http://localhost:8765** (live metriky vpravo hore; vhodné ako
+OBS browser source). Test bez servera: `.venv/bin/python test_offline.py`.
 
-```bash
-# živý mikrofón (predvolené: model small, slovenčina)
-.venv/bin/python -m titulky.main
+## Merania
 
-# simulovaný live vstup zo súboru (WAV 16 kHz mono)
-.venv/bin/python -m titulky.main --file test_sk.wav
+- **draft latencia** = čas prvého zobrazenia slova − čas dopovedania slova
+- **final latencia** = čas potvrdenia slova presnou vrstvou
+- **presnosť** = 1 − WER (jiwer, normalizácia: lowercase, bez interpunkcie)
+- **flicker rate** = podiel slov zmenených medzi behmi (stabilita)
 
-# iný model / krok ASR
-.venv/bin/python -m titulky.main --model medium --step 2.0
-```
+### Benchmark modelov (bench.py, 2 sady: čítaná syntetická + spontánna reč z mikrofónu)
 
-Overlay s titulkami: **http://localhost:8765** (vpravo hore live metriky:
-latencia, flicker rate). Dá sa vložiť do OBS ako browser source.
+| variant | WER Ø | presnosť | čas/10 s |
+|---|---|---|---|
+| **large-v3-turbo + prompt + preprocess (nasadené)** | **6,2 %** | **93,8 %** | 1,2 s |
+| large-v3-turbo baseline | 6,5 % | 93,5 % | 4,1 s |
+| SK fine-tune medium (mikr/whisper-medium-sk-cv11) | 26,1 % | 73,9 % | 25,1 s |
+| whisper-small-mlx (draft vrstva) | 31,3 % | 68,7 % | 3,2 s |
+| SK fine-tune small (mikr/whisper-small-sk-cv11) | 49,4 % | 50,6 % | 4,4 s |
+| turbo + LLM korekcia (qwen2.5:3b) | 84,1 % | — | 18,6 s |
 
-Rýchly test bez servera:
+Zistenia:
+1. Požiadavka ≥91 % presnosti je splnená (93,8 %) na kombinovanej sade;
+   na čítanej reči ~96–100 %, na spontánnej hovorovej ~91 %.
+2. **SK fine-tuned modely (Common Voice) na spontánnej reči zlyhali** —
+   fine-tune na čítanom korpuse negeneralizuje na hovorovú reč.
+3. **LLM post-korekcia s 3B modelom je negatívny výsledok** — model
+   nedodrží inštrukciu, pridáva komentáre. Vyžadoval by silnejší model.
 
-```bash
-.venv/bin/python test_offline.py [subor.wav]
-```
+### Trade-off latencia × presnosť (experiments.py)
 
-Testovací WAV sa dá vyrobiť macOS syntézou:
+Streaming beh na 47,6 s demo nahrávke (výsledky aj v `results.md`):
 
-```bash
-say -v Laura -o /tmp/t.aiff "ľubovoľný slovenský text"
-afconvert -f WAVE -d LEI16@16000 -c 1 /tmp/t.aiff test_sk.wav
-```
+| final krok | draft lat p50/min | final lat p50 | presnosť | flicker |
+|---|---|---|---|---|
+| 1,0 s | 3,11 / 0,33 s | 4,07 s | 96,4 % | 19,7 % |
+| 1,5 s | 2,77 / 0,29 s | 3,90 s | 95,2 % | 20,7 % |
+| **2,0 s (nasadené)** | 2,08 / 0,35 s | 4,24 s | **97,6 %** | **6,7 %** |
+| 3,0 s | 2,00 / 0,22 s | 5,89 s | 97,6 % | 5,9 % |
 
-## Ako to funguje
+Draft vrstva zobrazuje najnovšie slová typicky v stovkách ms (min ~0,2 s);
+final potvrdenie prichádza ~4 s po dopovedaní. To zodpovedá produkčnému
+vzoru partial (rýchle) / final (presné) titulkov.
 
-```
-mikrofón/WAV → buffer → kĺzavé okno 8 s (ASR každé 2 s, faster-whisper int8)
-             → LocalAgreement (potvrdí len slová zhodné v 2 po sebe idúcich behoch)
-             → potvrdený text (nemení sa) + pending (šedý) → WebSocket → overlay
-```
+**Metodologické zistenie:** init_prompt, ktorý v offline benchmarku
+zlepšoval WER, v streamingu **škodí** — pri krátkych oknách s málo rečou
+Whisper text promptu halucinuje do výstupu (nameraný prepad presnosti
+o ~30 p. b.). V streamingu preto prompt nepoužívame; offline vs. streaming
+správanie parametra je samostatný výsledok merania.
 
-Merané metriky:
-- **latencia** = wall-clock čas zobrazenia − čas konca slova v audiu (end-to-end)
-- **flicker rate** = podiel slov, ktoré sa medzi behmi zmenili (stabilita titulkov)
+## Demo (min. 2 minúty)
 
-Východiskové čísla (MacBook, CPU int8, model small, krok 2 s):
-latencia avg ≈ 4 s, flicker ≈ 2 %.
+1. `.venv/bin/python -m titulky.main` + otvor http://localhost:8765
+2. scenár: čítaný text (vysoká presnosť) → spontánna reč → pauzy
+   (ukážka čistenia blokov) → záver so štatistikami v termináli (Ctrl+C)
+3. záložné demo bez mikrofónu: `--file demo_sk.wav`
 
-## Kam ďalej (plán experimentov)
+## Súbory
 
-- porovnanie modelov small/medium/large-v3 + Vosk SK: WER × latencia (SK sada — Common Voice)
-- trade-off krivka: veľkosť kroku/okna vs. latencia vs. presnosť
-- WER skript proti referenčnému prepisu
+| | |
+|---|---|
+| `titulky/asr.py` | MLX Whisper wrapper, LocalAgreement, preprocessing |
+| `titulky/pipeline.py` | dvojvrstvová pipeline, VAD gate, metriky |
+| `titulky/main.py` | WebSocket server + CLI |
+| `titulky/overlay.html` | titulkový overlay |
+| `bench.py` + `bench_refs.json` | benchmark modelov (WER) |
+| `experiments.py` | trade-off experiment |
+| `test_offline.py` | rýchly test bez mikrofónu |
+
+## Limity a ďalšia práca
+
+- Spontánna tichá/rýchla reč cez laptop mikrofón zostáva hranicou SOTA
+  pre slovenčinu (žiadny lokálny model nedal < 8 % WER).
+- Fine-tuning (LoRA) na spontánnom SK korpuse — mimo rozsah 30 h.
+- LLM korekcia so silnejším modelom (7B+) alebo cloud ASR porovnanie.

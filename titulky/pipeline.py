@@ -17,7 +17,7 @@ from .asr import ASR, LocalAgreement, SAMPLE_RATE, DRAFT_REPO, FINAL_REPO
 
 DRAFT_STEP_S = 0.25
 DRAFT_WINDOW_S = 3.0
-FINAL_STEP_S = 1.5
+FINAL_STEP_S = 2.0   # sweet spot z experiments.py: 97.6 % presnosť, flicker 6.7 %
 FINAL_WINDOW_S = 10.0
 SILENCE_RMS = 0.008       # pod týmto = ticho
 SILENCE_CLEAR_S = 0.6     # po toľkých sekundách ticha vyčisti draft
@@ -71,7 +71,9 @@ class TwoTierPipeline:
         self.on_update = on_update or (lambda d: None)
         self.buf = SharedBuffer()
         self.draft_asr = ASR(draft_repo)
-        self.final_asr = ASR(final_repo, use_prompt=True)
+        # prompt v streamingu NEPOUŽÍVAŤ: pri krátkych oknách ho Whisper
+        # halucinuje do výstupu (zisk promptu bol len ~0.3 p.b., škoda veľká)
+        self.final_asr = ASR(final_repo)
         self.final_agree = LocalAgreement()
         self.final_text: list[str] = []      # potvrdený presný text (celý)
         self.display_from = 0                # index prvého slova aktuálneho bloku
