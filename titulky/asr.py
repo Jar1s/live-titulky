@@ -1,26 +1,39 @@
-"""ASR jadro: faster-whisper + LocalAgreement stabilizácia."""
-import time
+"""ASR jadro: MLX Whisper (Apple GPU/ANE) + LocalAgreement stabilizácia.
+
+Dvojvrstvová architektúra (podľa auditu produkčných riešení —
+Google/Zoom/Kuaishou pattern, ufal/whisper_streaming, WhisperLiveKit):
+  - DRAFT:  whisper-small-mlx — rýchly, zobrazuje sa okamžite (šedé)
+  - FINAL:  whisper-large-v3-turbo — presný, prepíše draft (biele)
+"""
 import numpy as np
-from faster_whisper import WhisperModel
+import mlx_whisper
 
 SAMPLE_RATE = 16000
+DRAFT_REPO = "mlx-community/whisper-tiny"
+FINAL_REPO = "mlx-community/whisper-large-v3-turbo"
 
 
 class ASR:
-    def __init__(self, model_size="small", device="cpu", compute_type="int8"):
-        self.model = WhisperModel(model_size, device=device, compute_type=compute_type)
+    def __init__(self, repo=FINAL_REPO):
+        # lokálna cesta raz — inak mlx_whisper kontaktuje HF hub pri KAŽDOM volaní
+        from huggingface_hub import snapshot_download
+        self.repo = snapshot_download(repo)
+
+    def warmup(self):
+        self.transcribe(np.zeros(SAMPLE_RATE, dtype=np.float32))
 
     def transcribe(self, audio: np.ndarray, language="sk"):
         """audio: float32 mono 16 kHz. Vráti list slov (text, start, end)."""
-        segments, _ = self.model.transcribe(
-            audio, language=language, word_timestamps=True,
-            vad_filter=True, beam_size=1,
-            condition_on_previous_text=False,
+        r = mlx_whisper.transcribe(
+            audio, path_or_hf_repo=self.repo, language=language,
+            word_timestamps=True, condition_on_previous_text=False,
+            no_speech_threshold=0.6, fp16=True, verbose=None,
         )
         words = []
-        for seg in segments:
-            for w in seg.words or []:
-                words.append({"text": w.word, "start": w.start, "end": w.end})
+        for seg in r["segments"]:
+            for w in seg.get("words", []):
+                words.append({"text": w["word"].strip(),
+                              "start": w["start"], "end": w["end"]})
         return words
 
 
@@ -61,6 +74,10 @@ class LocalAgreement:
         self.prev_words = cur
         pending = cur[len(self.committed):]
         return agree, pending
+
+    def reset(self):
+        self.prev_words = []
+        self.committed = []
 
     def flicker_rate(self) -> float:
         return self.flicker / self.total if self.total else 0.0

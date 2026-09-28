@@ -29,7 +29,7 @@ ws.onmessage = e => {
   c.textContent = words.slice(-18).join(' ');
   p.textContent = d.pending;
   s.textContent =
-    `lat ${d.latency_s?.toFixed(2) ?? '–'} s · avg ${d.avg_latency_s?.toFixed(2) ?? '–'} s · ` +
+    `draft ${d.draft_latency_s?.toFixed(2) ?? '–'} s · final ${d.final_latency_s?.toFixed(2) ?? '–'} s · ` +
     `flicker ${(d.flicker_rate*100).toFixed(0)} % · audio ${d.audio_s} s`;
 };
 ws.onclose = () => s.textContent = 'odpojené';
