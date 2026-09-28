@@ -26,7 +26,24 @@ Kľúčové mechanizmy:
 - **dedupe filter**: kolaps halucinačných slučiek opakovaného slova.
 - **SK init_prompt + preprocessing** (highpass, normalizácia): −4 p. b. WER
   na spontánnej reči.
+- **Filtre halucinácií podľa OSS praxe** (ufal/whisper_streaming,
+  whisper-guard, WhisperLiveKit): segment gate (no_speech_prob > 0.8,
+  avg_logprob < −1.5), word gate (probability < 0.5 ∧ < 0.15 s) a
+  relatívny energia gate (slovo v úseku < 15 % RMS okna = halucinácia
+  z ticha). Nameraný efekt: pauses 19,4 → 6,5 % WER, noisy 22,6 → 12,9 %.
 - final okno začína vždy na potvrdenej hranici → agreement nestráca kontext.
+
+### Regresná sada (make_tests.py + test_suite.py)
+
+| scenár | WER | draft p50 | final p50 |
+|---|---|---|---|
+| normal | 6,5 % | 2,5 s | 4,2 s |
+| fast (280 wpm) | 0 % | 1,8 s | 3,6 s |
+| slow (120 wpm) | 0 % | 2,0 s | 3,9 s |
+| quiet (5 % hlasitosti) | 6,5 % | 2,7 s | 4,3 s |
+| noisy (SNR 10 dB) | 12,9 % | 2,6 s | 3,9 s |
+| pauses (3 s medzery) | 6,5 % | 2,0 s | 4,3 s |
+| silence (15 s ticha) | 0 halucinovaných slov | — | — |
 
 ## Inštalácia a spustenie
 
