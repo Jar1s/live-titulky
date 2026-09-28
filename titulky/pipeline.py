@@ -20,16 +20,31 @@ DRAFT_WINDOW_S = 3.0
 DRAFT_HOLD_S = 0.8        # min interval prekreslenia draftu (stabilita očí)
 FINAL_STEP_S = 2.0   # sweet spot z experiments.py: 97.6 % presnosť, flicker 6.7 %
 FINAL_WINDOW_S = 10.0
-SILENCE_RMS = 0.008       # pod týmto = ticho
+SILENCE_RMS = 0.008       # horná hranica prahu ticha (hlasný mik)
+SILENCE_RMS_MIN = 3e-4    # dolná hranica (tichý MacBook mik: reč ~1e-3)
 SILENCE_CLEAR_S = 0.6     # po toľkých sekundách ticha vyčisti draft
+
+_speech_level = 0.0       # bežiaci odhad úrovne reči (EMA cez peaky RMS)
+
+
+def _adaptive_thr() -> float:
+    """Prah ticha = 25 % naučenej úrovne reči, ohraničený zdola aj zhora."""
+    return float(np.clip(0.25 * _speech_level, SILENCE_RMS_MIN, SILENCE_RMS))
 
 
 def is_silent(tail: np.ndarray, whole: np.ndarray) -> bool:
-    """Ticho = nízky RMS aj peak. Peak drží tichú reč (má špičky),
-    zatiaľ čo mikrofónne ticho/šum pozadia špičky nemá."""
-    t = float(np.sqrt(np.mean(tail ** 2)))
+    """Ticho = RMS aj peak pod adaptívnym prahom. Prah sa učí z úrovne
+    reči (MacBook mik dáva RMS ~0.001, headset ~0.05 — pevný prah nejde)."""
+    global _speech_level
+    w = float(np.sqrt(np.mean(whole ** 2))) if len(whole) else 0.0
+    if w > _speech_level:
+        _speech_level = w                      # rýchly nábeh
+    else:
+        _speech_level += 0.02 * (w - _speech_level)   # pomalý pokles
+    thr = _adaptive_thr()
+    t = float(np.sqrt(np.mean(tail ** 2))) if len(tail) else 0.0
     p = float(np.max(np.abs(tail))) if len(tail) else 0.0
-    return t < SILENCE_RMS and p < SILENCE_RMS * 3
+    return t < thr and p < thr * 3
 
 
 def dedupe_repeats(words, max_rep=2):
