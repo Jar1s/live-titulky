@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<title>Live titulky</title>
+<style>
+  body { margin:0; background:#111; color:#fff; font-family:-apple-system,system-ui,sans-serif;
+         display:flex; flex-direction:column; justify-content:flex-end; height:100vh; }
+  #subs { padding:24px 32px 48px; font-size:42px; line-height:1.35; text-align:center;
+          text-shadow:0 2px 8px #000; }
+  #pending { color:#aaa; }
+  #stats { position:fixed; top:8px; right:12px; font-size:13px; color:#8f8;
+           font-variant-numeric:tabular-nums; text-align:right; }
+</style>
+</head>
+<body>
+<div id="stats">čakám na spojenie…</div>
+<div id="subs"><span id="committed"></span> <span id="pending"></span></div>
+<script>
+const ws = new WebSocket(`ws://${location.host}/ws`);
+const c = document.getElementById('committed');
+const p = document.getElementById('pending');
+const s = document.getElementById('stats');
+ws.onopen = () => s.textContent = 'pripojené';
+ws.onmessage = e => {
+  const d = JSON.parse(e.data);
+  // zobraz posledné ~2 riadky potvrdeného textu
+  const words = d.committed.split(' ');
+  c.textContent = words.slice(-18).join(' ');
+  p.textContent = d.pending;
+  s.textContent =
+    `lat ${d.latency_s?.toFixed(2) ?? '–'} s · avg ${d.avg_latency_s?.toFixed(2) ?? '–'} s · ` +
+    `flicker ${(d.flicker_rate*100).toFixed(0)} % · audio ${d.audio_s} s`;
+};
+ws.onclose = () => s.textContent = 'odpojené';
+</script>
+</body>
+</html>
