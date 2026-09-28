@@ -77,6 +77,7 @@ class TwoTierPipeline:
         self.final_agree = LocalAgreement()
         self.final_text: list[str] = []      # potvrdený presný text (celý)
         self.display_from = 0                # index prvého slova aktuálneho bloku
+        self.block_start_s = 0.0             # čas audia, kde začína aktuálny blok
         self.final_upto_s = 0.0              # po aký čas audia je final potvrdený
         self.draft_text = ""                 # aktuálny draft za final hranicou
         self.draft_latencies: list[float] = []
@@ -149,9 +150,11 @@ class TwoTierPipeline:
             # vyčisti draft aj zobrazenú históriu (stará reč sa už nevracia)
             tail_a = audio[-int(SILENCE_CLEAR_S * SAMPLE_RATE):]
             if float(np.sqrt(np.mean(tail_a ** 2))) < SILENCE_RMS:
-                # históriu vyčisti až keď final dohnal koniec reči — inak by
-                # jeho oneskorené slová „dotiekli" na čistú obrazovku
-                final_caught_up = self.final_upto_s >= total_s - 1.5
+                # koniec bloku: všetko dopovedané pred týmto tichom patrí
+                # do starého bloku — nech final dobehne, ale už NEZOBRAZUJE
+                self.block_start_s = max(self.block_start_s,
+                                         total_s - SILENCE_CLEAR_S)
+                final_caught_up = self.final_upto_s >= self.block_start_s - 0.3
                 if self.draft_text or (final_caught_up
                                        and self.display_from < len(self.final_text)):
                     self.draft_text = ""
@@ -205,6 +208,7 @@ class TwoTierPipeline:
             now = time.monotonic()
             new, pending = self.final_agree.update(words)
             if new:
+                belongs_to_old_block = False
                 self.final_text.extend(new)
                 idx = len(self.final_agree.committed) - 1
                 if idx < len(words):
@@ -212,6 +216,11 @@ class TwoTierPipeline:
                     lat = (now - self.buf.t0) - self.final_upto_s
                     if 0 < lat < 60:
                         self.final_latencies.append(lat)
+                    belongs_to_old_block = self.final_upto_s <= self.block_start_s
+                # oneskorené slová zo starého bloku (pred pauzou) nezobrazuj —
+                # do bežiacej novej reči nesmie „dotiecť minulosť"
+                if belongs_to_old_block:
+                    self.display_from = len(self.final_text)
                 # hranica sa posunula → ďalší beh začína inde; zarovnaj agreement
                 self.final_agree.reset()
                 self.final_agree.prev_words = pending
