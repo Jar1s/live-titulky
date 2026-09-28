@@ -24,27 +24,39 @@ SILENCE_RMS = 0.008       # horná hranica prahu ticha (hlasný mik)
 SILENCE_RMS_MIN = 3e-4    # dolná hranica (tichý MacBook mik: reč ~1e-3)
 SILENCE_CLEAR_S = 0.6     # po toľkých sekundách ticha vyčisti draft
 
-_speech_level = 0.0       # bežiaci odhad úrovne reči (EMA cez peaky RMS)
+class SpeechLevel:
+    """Bežiaci odhad úrovne reči (rýchly nábeh, pomalý pokles).
+    Inštancia per pipeline — nesmie prežívať medzi behmi/nahrávkami."""
+
+    def __init__(self):
+        self.level = 0.0
+
+    def update(self, whole: np.ndarray) -> None:
+        w = float(np.sqrt(np.mean(whole ** 2))) if len(whole) else 0.0
+        if w > self.level:
+            self.level = w
+        else:
+            self.level += 0.02 * (w - self.level)
+
+    def thr(self) -> float:
+        """Prah ticha = 25 % úrovne reči, ohraničený zdola aj zhora."""
+        return float(np.clip(0.25 * self.level, SILENCE_RMS_MIN, SILENCE_RMS))
+
+    def is_silent(self, tail: np.ndarray, whole: np.ndarray) -> bool:
+        self.update(whole)
+        t = float(np.sqrt(np.mean(tail ** 2))) if len(tail) else 0.0
+        p = float(np.max(np.abs(tail))) if len(tail) else 0.0
+        thr = self.thr()
+        return t < thr and p < thr * 3
 
 
-def _adaptive_thr() -> float:
-    """Prah ticha = 25 % naučenej úrovne reči, ohraničený zdola aj zhora."""
-    return float(np.clip(0.25 * _speech_level, SILENCE_RMS_MIN, SILENCE_RMS))
-
-
-def is_silent(tail: np.ndarray, whole: np.ndarray) -> bool:
-    """Ticho = RMS aj peak pod adaptívnym prahom. Prah sa učí z úrovne
-    reči (MacBook mik dáva RMS ~0.001, headset ~0.05 — pevný prah nejde)."""
-    global _speech_level
-    w = float(np.sqrt(np.mean(whole ** 2))) if len(whole) else 0.0
-    if w > _speech_level:
-        _speech_level = w                      # rýchly nábeh
-    else:
-        _speech_level += 0.02 * (w - _speech_level)   # pomalý pokles
-    thr = _adaptive_thr()
-    t = float(np.sqrt(np.mean(tail ** 2))) if len(tail) else 0.0
-    p = float(np.max(np.abs(tail))) if len(tail) else 0.0
-    return t < thr and p < thr * 3
+def word_energy_ok(audio: np.ndarray, w: dict, ref_rms: float) -> bool:
+    """Slovo musí ležať v úseku s energiou aspoň 15 % referenčnej úrovne
+    reči — inak je to halucinácia z ticha/dychu."""
+    seg = audio[int(w["start"] * SAMPLE_RATE):int(w["end"] * SAMPLE_RATE)]
+    if not len(seg):
+        return False
+    return float(np.sqrt(np.mean(seg ** 2))) >= 0.15 * ref_rms
 
 
 def dedupe_repeats(words, max_rep=2):
@@ -99,6 +111,7 @@ class TwoTierPipeline:
         # halucinuje do výstupu (zisk promptu bol len ~0.3 p.b., škoda veľká)
         self.final_asr = ASR(final_repo)
         self.final_agree = LocalAgreement()
+        self.slevel = SpeechLevel()
         self.final_text: list[str] = []      # potvrdený presný text (celý)
         self.display_from = 0                # index prvého slova aktuálneho bloku
         self.block_start_s = 0.0             # čas audia, kde začína aktuálny blok
@@ -173,7 +186,7 @@ class TwoTierPipeline:
             # VAD gate: posledných SILENCE_CLEAR_S ticho → koniec bloku;
             # vyčisti draft aj zobrazenú históriu (stará reč sa už nevracia)
             tail_a = audio[-int(SILENCE_CLEAR_S * SAMPLE_RATE):]
-            if is_silent(tail_a, audio):
+            if self.slevel.is_silent(tail_a, audio):
                 # koniec bloku: všetko dopovedané pred týmto tichom patrí
                 # do starého bloku — nech final dobehne, ale už NEZOBRAZUJE
                 self.block_start_s = max(self.block_start_s,
@@ -188,6 +201,10 @@ class TwoTierPipeline:
                 time.sleep(DRAFT_STEP_S)
                 continue
             words = self.draft_asr.transcribe(audio, self.language)
+            # energia gate aj na draft: referencia = naučená úroveň reči
+            # (dych/šum nad prahom ticha inak preblikáva ako „Ďakujem!")
+            ref = max(self.slevel.level, float(np.sqrt(np.mean(audio ** 2))))
+            words = [w for w in words if word_energy_ok(audio, w, ref)]
             now = time.monotonic()
             # draft = slová za final hranicou
             tail = [w for w in words if off_s + w["end"] > self.final_upto_s]
@@ -234,7 +251,7 @@ class TwoTierPipeline:
                 time.sleep(0.2)
                 continue
             # VAD gate: celé okno ticho → posuň hranicu, nedekóduj (halucinácie!)
-            if len(audio) and is_silent(audio, audio):
+            if len(audio) and self.slevel.is_silent(audio, audio):
                 self.final_upto_s = total_s
                 self.final_agree.reset()
                 if self.buf.eof:
@@ -243,17 +260,12 @@ class TwoTierPipeline:
                 continue
             words = self.final_asr.transcribe(audio, self.language)
             words = dedupe_repeats(words)
-            # energia gate: slovo, ktorého úsek audia je výrazne tichší než
-            # okolie okna, je halucinácia (Whisper z koncového ticha vymýšľa
-            # „Ďakujem za pozornosť"). Relatívny test drží tichú reč.
-            w_rms = float(np.sqrt(np.mean(audio ** 2))) or 1e-9
-            def word_silent(w):
-                seg = audio[int(w["start"] * SAMPLE_RATE):
-                            int(w["end"] * SAMPLE_RATE)]
-                if not len(seg):
-                    return True
-                return float(np.sqrt(np.mean(seg ** 2))) < 0.15 * w_rms
-            words = [w for w in words if not word_silent(w)]
+            # energia gate: referencia = max(RMS okna, naučená úroveň reči) —
+            # v prevažne tichom okne by samotný RMS okna prepustil
+            # halucinácie z ticha („Ďakujem za pozornosť")
+            ref = max(float(np.sqrt(np.mean(audio ** 2))) if len(audio) else 0.0,
+                      self.slevel.level)
+            words = [w for w in words if word_energy_ok(audio, w, ref)]
             # okno plné šumu/ticha, filtre zahodili všetko → posuň hranicu,
             # inak final navždy melie to isté okno a nikdy nedobehne reč
             if not words:
@@ -298,7 +310,7 @@ class TwoTierPipeline:
                     s = int((off_s + w["start"]) * SAMPLE_RATE)
                     e = int((off_s + w["end"]) * SAMPLE_RATE)
                     seg = self.buf.audio[s:e]
-                    if len(seg) and not is_silent(seg, seg):
+                    if len(seg) and not self.slevel.is_silent(seg, seg):
                         kept.append(w["text"])
                 self.final_text.extend(kept)
                 if pending:
