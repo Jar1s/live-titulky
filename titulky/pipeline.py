@@ -17,8 +17,10 @@ from .asr import ASR, LocalAgreement, SAMPLE_RATE, DRAFT_REPO, FINAL_REPO
 
 DRAFT_STEP_S = 0.25
 DRAFT_WINDOW_S = 3.0
-FINAL_STEP_S = 2.0
-FINAL_WINDOW_S = 12.0
+FINAL_STEP_S = 1.5
+FINAL_WINDOW_S = 10.0
+SILENCE_RMS = 0.008       # pod týmto = ticho
+SILENCE_CLEAR_S = 0.6     # po toľkých sekundách ticha vyčisti draft
 
 
 class SharedBuffer:
@@ -54,7 +56,7 @@ class TwoTierPipeline:
         self.on_update = on_update or (lambda d: None)
         self.buf = SharedBuffer()
         self.draft_asr = ASR(draft_repo)
-        self.final_asr = ASR(final_repo)
+        self.final_asr = ASR(final_repo, use_prompt=True)
         self.final_agree = LocalAgreement()
         self.final_text: list[str] = []      # potvrdený presný text
         self.final_upto_s = 0.0              # po aký čas audia je final potvrdený
@@ -124,6 +126,14 @@ class TwoTierPipeline:
                 if self.buf.eof:
                     break
                 time.sleep(0.1)
+                continue
+            # VAD gate: posledných SILENCE_CLEAR_S ticho → vyčisti draft, nedekóduj
+            tail_a = audio[-int(SILENCE_CLEAR_S * SAMPLE_RATE):]
+            if float(np.sqrt(np.mean(tail_a ** 2))) < SILENCE_RMS:
+                if self.draft_text:
+                    self.draft_text = ""
+                    self._emit()
+                time.sleep(DRAFT_STEP_S)
                 continue
             words = self.draft_asr.transcribe(audio, self.language)
             now = time.monotonic()

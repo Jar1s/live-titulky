@@ -9,25 +9,53 @@ import numpy as np
 import mlx_whisper
 
 SAMPLE_RATE = 16000
-DRAFT_REPO = "mlx-community/whisper-tiny"
+DRAFT_REPO = "mlx-community/whisper-small-mlx"  # tiny je na SK nepoužiteľný
 FINAL_REPO = "mlx-community/whisper-large-v3-turbo"
 
 
+SK_PROMPT = ("Toto je prepis hovorovej slovenčiny s diakritikou. "
+             "Ahoj, blbosti, notebook, titulky, latencia, chybovosť, "
+             "aplikácia, projekt, mikrofón, počúvaj.")
+
+
+def preprocess(audio: np.ndarray) -> np.ndarray:
+    """Highpass (odstráni dunenie) + normalizácia hlasitosti. Vektorizované."""
+    # highpass ~80 Hz: odčítanie kĺzavého priemeru (okno 12.5 ms)
+    win = 200
+    if len(audio) > win:
+        c = np.cumsum(np.insert(audio, 0, 0.0))
+        mov = (c[win:] - c[:-win]) / win
+        out = audio.copy()
+        out[win // 2: win // 2 + len(mov)] -= mov
+    else:
+        out = audio.copy()
+    peak = float(np.max(np.abs(out)) or 1.0)
+    if peak > 0.001:
+        out *= min(0.95 / peak, 10.0)   # normalizuj, max gain 10×
+    return out
+
+
 class ASR:
-    def __init__(self, repo=FINAL_REPO):
+    def __init__(self, repo=FINAL_REPO, beam=1, use_prompt=False):
         # lokálna cesta raz — inak mlx_whisper kontaktuje HF hub pri KAŽDOM volaní
         from huggingface_hub import snapshot_download
         self.repo = snapshot_download(repo)
+        self.beam = beam
+        self.use_prompt = use_prompt
 
     def warmup(self):
         self.transcribe(np.zeros(SAMPLE_RATE, dtype=np.float32))
 
     def transcribe(self, audio: np.ndarray, language="sk"):
         """audio: float32 mono 16 kHz. Vráti list slov (text, start, end)."""
+        kw = {}
+        if self.use_prompt:
+            kw["initial_prompt"] = SK_PROMPT
         r = mlx_whisper.transcribe(
-            audio, path_or_hf_repo=self.repo, language=language,
+            preprocess(audio), path_or_hf_repo=self.repo, language=language,
             word_timestamps=True, condition_on_previous_text=False,
-            no_speech_threshold=0.6, fp16=True, verbose=None,
+            no_speech_threshold=0.6, temperature=0.0, fp16=True, verbose=None,
+            **kw,
         )
         words = []
         for seg in r["segments"]:
