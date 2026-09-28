@@ -17,6 +17,7 @@ from .asr import ASR, LocalAgreement, SAMPLE_RATE, DRAFT_REPO, FINAL_REPO
 
 DRAFT_STEP_S = 0.25
 DRAFT_WINDOW_S = 3.0
+DRAFT_HOLD_S = 0.8        # min interval prekreslenia draftu (stabilita očí)
 FINAL_STEP_S = 2.0   # sweet spot z experiments.py: 97.6 % presnosť, flicker 6.7 %
 FINAL_WINDOW_S = 10.0
 SILENCE_RMS = 0.008       # pod týmto = ticho
@@ -175,7 +176,19 @@ class TwoTierPipeline:
             now = time.monotonic()
             # draft = slová za final hranicou
             tail = [w for w in words if off_s + w["end"] > self.final_upto_s]
-            self.draft_text = " ".join(w["text"] for w in tail)
+            new_text = " ".join(w["text"] for w in tail)
+            # stabilizácia zobrazenia: prekresli len keď text zmysluplne
+            # narástol, alebo raz za DRAFT_HOLD_S (inak drafty „skáču")
+            grew = new_text.startswith(self.draft_text) or \
+                self.draft_text.startswith(new_text[:max(len(new_text) - 12, 0)])
+            if not hasattr(self, "_last_draft_redraw"):
+                self._last_draft_redraw = 0.0
+            if grew or (now - self._last_draft_redraw) >= DRAFT_HOLD_S:
+                self.draft_text = new_text
+                self._last_draft_redraw = now
+                changed = True
+            else:
+                changed = False
             # draft latencia: prvé zobrazenie nového slova
             # kľúč toleruje jitter timestampov (zaokrúhlenie na 1 s)
             for w in tail:
@@ -185,7 +198,8 @@ class TwoTierPipeline:
                     lat = (now - self.buf.t0) - (off_s + w["end"])
                     if 0 < lat < 30:
                         self.draft_latencies.append(lat)
-            self._emit()
+            if changed:
+                self._emit()
             if self.buf.eof and total_s - off_s - len(audio) / SAMPLE_RATE <= 0 \
                and self.buf.audio is not None and self.buf.eof:
                 # súbor dočítaný a spracovaný — draft končí až keď final dobehne
