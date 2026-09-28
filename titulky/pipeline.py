@@ -225,6 +225,16 @@ class TwoTierPipeline:
                     return True
                 return float(np.sqrt(np.mean(seg ** 2))) < 0.15 * w_rms
             words = [w for w in words if not word_silent(w)]
+            # okno plné šumu/ticha, filtre zahodili všetko → posuň hranicu,
+            # inak final navždy melie to isté okno a nikdy nedobehne reč
+            if not words:
+                if len(audio) >= FINAL_WINDOW_S * SAMPLE_RATE * 0.95:
+                    self.final_upto_s = total_s - 1.0
+                    self.final_agree.reset()
+                if self.buf.eof:
+                    break
+                time.sleep(FINAL_STEP_S)
+                continue
             now = time.monotonic()
             new, pending = self.final_agree.update(words)
             if new:
