@@ -9,8 +9,12 @@ import threading
 
 import numpy as np
 import mlx_whisper
+from scipy.signal import butter, sosfilt
 
 SAMPLE_RATE = 16000
+# 2. rád Butterworth highpass 80 Hz — plochý passband, žiadny ripple
+# (predtým moving-average: 6 dB/okt, ripple pri cutoffe)
+_HP_SOS = butter(2, 80.0, btype="high", fs=SAMPLE_RATE, output="sos")
 DRAFT_REPO = "mlx-community/whisper-small-mlx"  # tiny je na SK nepoužiteľný
 FINAL_REPO = "mlx-community/whisper-large-v3-turbo"
 
@@ -24,20 +28,22 @@ SK_PROMPT = "Toto je presný prepis hovorovej slovenčiny s diakritikou."
 
 
 def preprocess(audio: np.ndarray) -> np.ndarray:
-    """Highpass (odstráni dunenie) + normalizácia hlasitosti. Vektorizované."""
-    # highpass ~80 Hz: odčítanie kĺzavého priemeru (okno 12.5 ms)
-    win = 200
-    if len(audio) > win:
-        c = np.cumsum(np.insert(audio, 0, 0.0))
-        mov = (c[win:] - c[:-win]) / win
-        out = audio.copy()
-        out[win // 2: win // 2 + len(mov)] -= mov
-    else:
-        out = audio.copy()
+    """Butterworth highpass 80 Hz + RMS normalizácia na cieľovú úroveň.
+
+    Podľa researchu (WebRTC AGC pattern): RMS normalizácia namiesto peak —
+    jediný tranzient (klik, kašeľ) inak stlačí gain celého okna; slabý
+    MacBook mik (reč RMS ~0.001) potrebuje ~40 dB, peak norm dá len ~20 dB.
+    Denoising (RNNoise/DeepFilterNet) zámerne NIE JE: literatúra
+    (arXiv:2512.17562, 2603.04710) ukazuje, že Whisperu škodí.
+    """
+    out = sosfilt(_HP_SOS, audio).astype(np.float32)
+    # Normalizácia: peak s vyšším stropom gainu (40 dB kvôli slabému
+    # MacBook miku). RMS varianty testované (suite16/17): plné-RMS zlepšilo
+    # noisy 12.9→9.7, ale rozbilo slow 0→12.5; active-RMS rozbilo oboje.
     peak = float(np.max(np.abs(out)) or 1.0)
-    if peak > 0.001:
-        out *= min(0.95 / peak, 10.0)   # normalizuj, max gain 10×
-    return out
+    if peak > 1e-4:
+        out *= min(0.95 / peak, 100.0)
+    return np.clip(out, -0.99, 0.99)
 
 
 class ASR:

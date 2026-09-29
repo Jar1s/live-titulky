@@ -61,6 +61,23 @@ def word_energy_ok(audio: np.ndarray, w: dict, ref_rms: float) -> bool:
     return float(np.sqrt(np.mean(seg ** 2))) >= 0.15 * ref_rms
 
 
+def dedup_boundary(words, committed_tail, max_ngram=5):
+    """ufal/whisper_streaming insert() vzor: ak nový dekód začína n-gramom
+    zhodným s koncom už potvrdeného textu (posun timestampov medzi oknami),
+    prekryv odstráň — inak by agreement videl slová dvakrát."""
+    if not words or not committed_tail:
+        return words
+
+    def norm(w):
+        return w.strip().lower().strip(".,!?…")
+
+    for n in range(min(len(words), len(committed_tail), max_ngram), 0, -1):
+        if [norm(w["text"]) for w in words[:n]] == \
+           [norm(t) for t in committed_tail[-n:]]:
+            return words[n:]
+    return words
+
+
 def dedupe_repeats(words, max_rep=2):
     """Kolaps halucinačných slučiek (slovo opakované dookola)."""
     out, rep = [], 0
@@ -120,6 +137,7 @@ class TwoTierPipeline:
         self.final_upto_s = 0.0              # po aký čas audia je final potvrdený
         self.draft_text = ""                 # aktuálny draft za final hranicou
         self.draft_latencies: list[float] = []
+        self.compute_s = 0.0                 # súčet dekódovacieho času (RTF)
         self.final_latencies: list[float] = []
         self._seen_draft_words: dict[tuple, float] = {}
         self.running = False
@@ -173,6 +191,8 @@ class TwoTierPipeline:
             "avg_final_latency_s": (sum(self.final_latencies) / len(self.final_latencies))
                                    if self.final_latencies else None,
             "flicker_rate": self.final_agree.flicker_rate(),
+            "rtf": round(self.compute_s / max(len(self.buf.audio) / SAMPLE_RATE,
+                                              0.1), 2),
             "audio_s": round(len(self.buf.audio) / SAMPLE_RATE, 1),
         })
 
@@ -207,6 +227,7 @@ class TwoTierPipeline:
             if words is None:      # GPU drží final dekód — preskoč kolo
                 time.sleep(0.1)
                 continue
+            self.compute_s += time.monotonic() - t_start
             # energia gate aj na draft: referencia = naučená úroveň reči
             # (dych/šum nad prahom ticha inak preblikáva ako „Ďakujem!")
             ref = max(self.slevel.level, float(np.sqrt(np.mean(audio ** 2))))
@@ -265,7 +286,9 @@ class TwoTierPipeline:
                 time.sleep(FINAL_STEP_S)
                 continue
             words = self.final_asr.transcribe(audio, self.language)
+            self.compute_s += time.monotonic() - t_start
             words = dedupe_repeats(words)
+            words = dedup_boundary(words, self.final_text)
             # energia gate: referencia = max(RMS okna, naučená úroveň reči) —
             # v prevažne tichom okne by samotný RMS okna prepustil
             # halucinácie z ticha („Ďakujem za pozornosť")
