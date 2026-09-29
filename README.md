@@ -37,13 +37,33 @@ Kľúčové mechanizmy:
 
 | scenár | WER | draft p50 | final p50 |
 |---|---|---|---|
-| normal | 6,5 % | 2,5 s | 4,2 s |
-| fast (280 wpm) | 0 % | 1,8 s | 3,6 s |
-| slow (120 wpm) | 0 % | 2,0 s | 3,9 s |
-| quiet (5 % hlasitosti) | 6,5 % | 2,7 s | 4,3 s |
-| noisy (SNR 10 dB) | 12,9 % | 2,6 s | 3,9 s |
-| pauses (3 s medzery) | 6,5 % | 2,0 s | 4,3 s |
+| normal | 6,5 % | 1,8 s | 3,8 s |
+| fast (280 wpm) | 0 % | 0,9 s | 3,6 s |
+| slow (120 wpm) | 0 % | 1,2 s | 3,5 s |
+| quiet (5 % hlasitosti) | 6,5 % | 1,5 s | 3,8 s |
+| noisy (SNR 10 dB) | 12,9 % | 1,8 s | 5,1 s |
+| pauses (3 s medzery) | 3,2 % | 1,4 s | 4,0 s |
 | silence (15 s ticha) | 0 halucinovaných slov | — | — |
+
+### Metriky v štandardnej terminológii (pre porovnateľnosť)
+
+- draft latencia = *Word First Correct* (Baumann et al., NAACL 2009)
+- final latencia = *Word First Final* (tamtiež)
+- flicker ≈ *Unstable Partial Word Ratio* (Shangguan et al., Interspeech 2020)
+- RTF (real-time factor) meraný live v overlayi; < 1,0 = beží v reálnom čase
+
+### Negatívne výsledky (vlastné merania)
+
+1. **initial_prompt v streamingu**: na krátkych oknách prompt halucinuje do
+   výstupu (−30 p. b.); ufal ho používa len s orezaným bufferom (text mimo
+   okna). Nechané len v offline benchmarku.
+2. **LLM korekcia (qwen2.5:3b)**: WER 84 % — 3B model nezvláda inštrukcie.
+3. **RMS AGC namiesto peak normalizácie** (WebRTC vzor): noisy 12,9 → 9,7 %,
+   ale slow 0 → 12,5 % (gain riadený pomerom reč/ticho deformuje pomalú
+   reč). Variant „RMS z aktívnych vzoriek" zhoršil oboje. Peak norm ostáva.
+4. **Denoising pred Whisperom zámerne nie je**: literatúra (arXiv:2512.17562,
+   arXiv:2603.04710) — enhancement zvyšuje WER Whispera o 3–17 p. b.
+   (distribution shift; Whisper je trénovaný na šumených dátach).
 
 ## Inštalácia a spustenie
 
