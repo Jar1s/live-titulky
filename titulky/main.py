@@ -13,8 +13,8 @@ import statistics
 import threading
 
 import websockets
-from websockets.http11 import Response
 from websockets.datastructures import Headers
+from websockets.http11 import Response
 
 from .pipeline import TwoTierPipeline
 

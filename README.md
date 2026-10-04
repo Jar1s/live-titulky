@@ -64,6 +64,12 @@ Kľúčové mechanizmy:
 4. **Denoising pred Whisperom zámerne nie je**: literatúra (arXiv:2512.17562,
    arXiv:2603.04710) — enhancement zvyšuje WER Whispera o 3–17 p. b.
    (distribution shift; Whisper je trénovaný na šumených dátach).
+5. **SloPal SK fine-tuny (NaiveNeuron, 2 806 h parlamentu, LREC 2026)**:
+   na čítanej reči small-sk výborný (3,7 %), ale na spontánnej reči
+   turbo-sk 39,1 % vs vanilla turbo 13,0 % — doménový fine-tune mimo
+   domény prehráva s multitask pretrainingom. Čínske modely (SenseVoice,
+   Paraformer, Qwen-Audio, Kimi-Audio, Dolphin…) slovenčinu nepodporujú
+   vôbec (overené v model cards a zdrojákoch).
 
 ## Inštalácia a spustenie
 

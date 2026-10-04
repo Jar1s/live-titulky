@@ -7,8 +7,8 @@ Google/Zoom/Kuaishou pattern, ufal/whisper_streaming, WhisperLiveKit):
 """
 import threading
 
-import numpy as np
 import mlx_whisper
+import numpy as np
 from scipy.signal import butter, sosfilt
 
 SAMPLE_RATE = 16000

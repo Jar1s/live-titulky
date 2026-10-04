@@ -86,8 +86,9 @@ def main():
         "turbo+prompt+pre": v_mlx("mlx-community/whisper-large-v3-turbo",
                                   prompt=True, pre=True),
         "small-mlx (draft)": v_mlx("mlx-community/whisper-small-mlx"),
-        "sk-ft medium cv11": v_hf("mikr/whisper-medium-sk-cv11"),
-        "sk-ft small cv11": v_hf("mikr/whisper-small-sk-cv11"),
+        # SloPal (NaiveNeuron, LREC 2026): fine-tune na 2806 h SK parlamentu
+        "slopal turbo-sk": v_hf("NaiveNeuron/whisper-large-v3-turbo-sk"),
+        "slopal small-sk": v_hf("NaiveNeuron/whisper-small-sk"),
     }
     results = {}
     for wav, ref in refs.items():

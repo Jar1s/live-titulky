@@ -8,12 +8,12 @@ Latencia sa meria pre draft (čas zobrazenia prvej hypotézy slova)
 aj pre final (čas potvrdenia). Vzor: produkčné partial/final captioning
 (Google/Zoom), ufal/whisper_streaming, WhisperLiveKit.
 """
-import queue
 import threading
 import time
+
 import numpy as np
 
-from .asr import ASR, LocalAgreement, SAMPLE_RATE, DRAFT_REPO, FINAL_REPO
+from .asr import ASR, DRAFT_REPO, FINAL_REPO, SAMPLE_RATE, LocalAgreement
 
 DRAFT_STEP_S = 0.25
 DRAFT_WINDOW_S = 3.0
