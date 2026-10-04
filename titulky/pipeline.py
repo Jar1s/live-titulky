@@ -99,24 +99,40 @@ class SharedBuffer:
         self.audio = np.zeros(0, dtype=np.float32)
         self.eof = False
         self.t0: float = 0.0  # wall-clock štart audia
+        self.offset_s = 0.0   # koľko sekúnd audia bolo orezaných zo začiatku
 
     def append(self, chunk):
         with self.lock:
             self.audio = np.concatenate([self.audio, chunk])
 
+    def trim_before(self, keep_from_s: float, pre_context_s: float = 0.5):
+        """Orež audio pred keep_from_s (ufal vzor): pamäť O(1) pri dlhých
+        sessions a žiadny mel-padding drift. Časové súradnice navonok
+        ostávajú absolútne (offset_s)."""
+        with self.lock:
+            cut_s = keep_from_s - pre_context_s - self.offset_s
+            cut = int(cut_s * SAMPLE_RATE)
+            if cut > 0:
+                self.audio = self.audio[cut:]
+                self.offset_s += cut / SAMPLE_RATE
+
     def snapshot(self, window_s):
         with self.lock:
             n = len(self.audio)
             start = max(0, n - int(window_s * SAMPLE_RATE))
-            return self.audio[start:].copy(), start / SAMPLE_RATE, n / SAMPLE_RATE
+            return (self.audio[start:].copy(),
+                    self.offset_s + start / SAMPLE_RATE,
+                    self.offset_s + n / SAMPLE_RATE)
 
     def snapshot_from(self, start_s, max_s):
-        """Audio od start_s, max max_s sekúnd."""
+        """Audio od start_s (absolútne sekundy), max max_s sekúnd."""
         with self.lock:
             n = len(self.audio)
-            start = min(int(start_s * SAMPLE_RATE), n)
+            start = min(max(0, int((start_s - self.offset_s) * SAMPLE_RATE)), n)
             end = min(start + int(max_s * SAMPLE_RATE), n)
-            return self.audio[start:end].copy(), start / SAMPLE_RATE, n / SAMPLE_RATE
+            return (self.audio[start:end].copy(),
+                    self.offset_s + start / SAMPLE_RATE,
+                    self.offset_s + n / SAMPLE_RATE)
 
 
 class TwoTierPipeline:
@@ -191,9 +207,10 @@ class TwoTierPipeline:
             "avg_final_latency_s": (sum(self.final_latencies) / len(self.final_latencies))
                                    if self.final_latencies else None,
             "flicker_rate": self.final_agree.flicker_rate(),
-            "rtf": round(self.compute_s / max(len(self.buf.audio) / SAMPLE_RATE,
-                                              0.1), 2),
-            "audio_s": round(len(self.buf.audio) / SAMPLE_RATE, 1),
+            "rtf": round(self.compute_s / max(
+                self.buf.offset_s + len(self.buf.audio) / SAMPLE_RATE, 0.1), 2),
+            "audio_s": round(
+                self.buf.offset_s + len(self.buf.audio) / SAMPLE_RATE, 1),
         })
 
     def _draft_loop(self):
@@ -328,6 +345,11 @@ class TwoTierPipeline:
                 # hranica sa posunula → ďalší beh začína inde; zarovnaj agreement
                 self.final_agree.reset()
                 self.final_agree.prev_words = pending
+                # dlhé sessions: audio pred potvrdenou hranicou už netreba
+                # (ufal vzor) — pamäť O(1). Trim len pri veľkom buffri:
+                # na krátkych behoch drobný posun okien zvyšoval flicker.
+                if len(self.buf.audio) > 60 * SAMPLE_RATE:
+                    self.buf.trim_before(self.final_upto_s, pre_context_s=2.0)
                 self._emit()
             if self.buf.eof:
                 if self.final_upto_s < total_s - 0.5 and eof_retries < 5:
@@ -340,8 +362,8 @@ class TwoTierPipeline:
                 tail = words[-len(pending):] if pending else []
                 kept = []
                 for w in tail:
-                    s = int((off_s + w["start"]) * SAMPLE_RATE)
-                    e = int((off_s + w["end"]) * SAMPLE_RATE)
+                    s = int((off_s + w["start"] - self.buf.offset_s) * SAMPLE_RATE)
+                    e = int((off_s + w["end"] - self.buf.offset_s) * SAMPLE_RATE)
                     seg = self.buf.audio[s:e]
                     if len(seg) and not self.slevel.is_silent(seg, seg):
                         kept.append(w["text"])
@@ -352,7 +374,13 @@ class TwoTierPipeline:
                     self._emit()
                 break
             elapsed = time.monotonic() - t_start
-            time.sleep(max(0.0, FINAL_STEP_S - elapsed))
+            # dynamický krok: ak sme commitli a stále je backlog reči,
+            # pokračuj hneď (final dobieha). Bez commitu čakaj plný krok —
+            # hammering nezhodného (noisy) okna len zvyšuje flicker.
+            backlog = total_s - self.final_upto_s
+            step = 0.0 if (new and backlog > FINAL_WINDOW_S * 0.5) \
+                else FINAL_STEP_S
+            time.sleep(max(0.0, step - elapsed))
 
     # ---- riadenie -----------------------------------------------------
     def warmup(self):
