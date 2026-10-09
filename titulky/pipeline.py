@@ -157,6 +157,20 @@ class TwoTierPipeline:
         self.final_latencies: list[float] = []
         self._seen_draft_words: dict[tuple, float] = {}
         self.running = False
+        # asynchrónna slovná korekcia (Azure ensemble; bez kľúča sa vypne)
+        from .correction import CorrectionWorker
+        self.corrector = CorrectionWorker(self._apply_corrections)
+        self.corrections = 0
+
+    def _apply_corrections(self, start_idx: int, changes: list[dict]):
+        """Callback z CorrectionWorker — opraví committed slová a emitne."""
+        for ch in changes:
+            idx = start_idx + ch["i"]
+            if 0 <= idx < len(self.final_text) \
+                    and self.final_text[idx] == ch["from"]:
+                self.final_text[idx] = ch["to"]
+                self.corrections += 1
+        self._emit()
 
     # ---- vstupy -------------------------------------------------------
     def start_mic(self):
@@ -330,6 +344,8 @@ class TwoTierPipeline:
                 new = []
             if new:
                 belongs_to_old_block = False
+                commit_start_idx = len(self.final_text)
+                seg_start_s = self.final_upto_s
                 self.final_text.extend(new)
                 idx = len(self.final_agree.committed) - 1
                 if idx < len(words):
@@ -350,6 +366,11 @@ class TwoTierPipeline:
                 # na krátkych behoch drobný posun okien zvyšoval flicker.
                 if len(self.buf.audio) > 60 * SAMPLE_RATE:
                     self.buf.trim_before(self.final_upto_s, pre_context_s=2.0)
+                # korekčná vrstva: committed dávka + jej audio (asynchrónne)
+                if self.corrector.enabled:
+                    seg, _, _ = self.buf.snapshot_from(
+                        seg_start_s, max(0.5, self.final_upto_s - seg_start_s))
+                    self.corrector.submit(commit_start_idx, new, seg)
                 self._emit()
             if self.buf.eof:
                 if self.final_upto_s < total_s - 0.5 and eof_retries < 5:

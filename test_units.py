@@ -10,6 +10,7 @@ sys.modules.setdefault("mlx_whisper", types.ModuleType("mlx_whisper"))
 sys.modules.setdefault("sounddevice", types.ModuleType("sounddevice"))
 
 from titulky.asr import LocalAgreement, preprocess
+from titulky.correction import levenshtein, merge_words
 from titulky.pipeline import (
     SpeechLevel,
     dedup_boundary,
@@ -89,3 +90,56 @@ def test_preprocess_normalizes_weak_signal():
     out = preprocess(weak)
     assert float(np.max(np.abs(out))) > 0.3   # gain (strop 100×) zosilnil
     assert float(np.max(np.abs(out))) <= 0.99
+
+
+# ---- korekčná vrstva (gated ensemble merge) ------------------------------
+
+def test_levenshtein():
+    assert levenshtein("tým", "tím") == 1
+    assert levenshtein("nežňašam", "neznášam") == 0  # diakritika sa ignoruje
+    assert levenshtein("ahoj", "ahoj") == 0
+
+
+def test_merge_corrects_oov_with_close_azure_word():
+    # whisper halucinácia mimo slovníka, azure blízke slovo v slovníku
+    whisper = ["to", "proste", "nežňašam"]
+    azure = "to proste neznášam"
+    changes = merge_words(whisper, azure, unknown={"nežňašam"})
+    assert len(changes) == 1
+    assert changes[0]["from"] == "nežňašam" and changes[0]["to"] == "neznášam"
+
+
+def test_merge_never_touches_valid_word():
+    # whisper slovo je v slovníku → nemení sa, aj keď azure nesúhlasí
+    changes = merge_words(["mám", "rád", "hudbu"], "mám rada hudbu",
+                          unknown=set())
+    assert changes == []
+
+
+def test_merge_gate_levenshtein_blocks_distant_word():
+    # azure úplne iné slovo (halucinácia v slovníku) → gate 3 blokuje
+    changes = merge_words(["krátke", "nežňašam"], "krátke stolička",
+                          unknown={"nežňašam"})
+    assert changes == []
+
+
+def test_merge_gate_proper_noun_protected():
+    # proprium s veľkým písmenom sa nikdy nemení
+    changes = merge_words(["Nežňašam"], "Neznášam", unknown={"nežňašam"})
+    assert changes == []
+
+
+def test_merge_never_valid_to_invalid():
+    # azure slovo mimo slovníka nesmie nahradiť nič
+    changes = merge_words(["neznášam"], "nežňašam",
+                          unknown={"nežňašam"})
+    assert changes == []
+
+
+def test_merge_preserves_punctuation_and_case():
+    changes = merge_words(["Nežňašam,"], "neznášam",
+                          unknown={"nežňašam"})
+    # veľké písmeno → proprium gate blokuje; over malé s interpunkciou
+    changes = merge_words(["nežňašam,"], "neznášam",
+                          unknown={"nežňašam"})
+    assert changes and changes[0]["to"] == "neznášam,"
