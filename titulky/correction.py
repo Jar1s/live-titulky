@@ -34,6 +34,7 @@ import numpy as np
 SAMPLE_RATE = 16000
 CORRECTION_WINDOW_S = 10.0   # staršie slová sa nemenia (UX)
 MIN_BATCH_S = 4.0            # Azure volanie až keď je aspoň toľko audia
+AZURE_TIMEOUT_S = 8          # max čakanie na Azure/hunspell (bolo 30 s; znižuje latency pri fallback)
 HUNSPELL_DICT = "sk_SK"
 _WORD_RE = re.compile(r"[^\w]+", re.UNICODE)
 
@@ -98,7 +99,7 @@ def hunspell_unknown(words: list[str], dic: str = HUNSPELL_DICT) -> set[str] | N
     try:
         out = subprocess.run([exe, "-d", dic, "-l"],
                              input="\n".join(toks) + "\n",
-                             capture_output=True, text=True, timeout=30,
+                             capture_output=True, text=True, timeout=AZURE_TIMEOUT_S,
                              check=False).stdout
     except (subprocess.SubprocessError, OSError):
         return None
@@ -272,7 +273,7 @@ class CorrectionWorker:
             rec.canceled.connect(lambda e: done.update(v=True))
             t0 = time.time()
             rec.start_continuous_recognition()
-            while not done["v"] and time.time() - t0 < 30:
+            while not done["v"] and time.time() - t0 < AZURE_TIMEOUT_S:
                 time.sleep(0.1)
             rec.stop_continuous_recognition()
             return " ".join(p for p in parts if p).strip()

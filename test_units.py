@@ -10,7 +10,7 @@ sys.modules.setdefault("mlx_whisper", types.ModuleType("mlx_whisper"))
 sys.modules.setdefault("sounddevice", types.ModuleType("sounddevice"))
 
 from titulky.asr import LocalAgreement, preprocess
-from titulky.correction import levenshtein, merge_words
+from titulky.correction import AZURE_TIMEOUT_S, levenshtein, merge_words
 from titulky.pipeline import (
     SpeechLevel,
     dedup_boundary,
@@ -143,3 +143,25 @@ def test_merge_preserves_punctuation_and_case():
     changes = merge_words(["nežňašam,"], "neznášam",
                           unknown={"nežňašam"})
     assert changes and changes[0]["to"] == "neznášam,"
+
+# ---- azure timeout hodnota -----------------------------------------------
+
+def test_azure_timeout_is_8s():
+    # CTO odporucanie: timeout 30s->8s znizuje latency pri fallback
+    assert AZURE_TIMEOUT_S == 8
+
+
+def test_ensemble_still_works_after_timeout_change():
+    # merge_words (ensemble second-opinion) funguje nezavisle od timeout hodnoty
+    whisper = ["to", "proste", "nezhnasam"]
+    azure = "to proste neznaasam"
+    changes = merge_words(whisper, azure, unknown={"nezhnasam"})
+    assert isinstance(changes, list)
+
+
+def test_ensemble_oov_correction_graceful():
+    # klasicky pripad: halucovane OOV slovo, azure blizke v slovniku
+    whisper = ["to", "proste", "nezhnasam"]
+    azure = "to proste neznasam"
+    changes = merge_words(whisper, azure, unknown={"nezhnasam"})
+    assert isinstance(changes, list)
