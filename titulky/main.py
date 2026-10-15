@@ -21,6 +21,7 @@ from .pipeline import TwoTierPipeline
 CLIENTS = set()
 LOOP = None
 HTML = (pathlib.Path(__file__).parent / "overlay.html").read_bytes()
+FLOW = (pathlib.Path(__file__).parent / "flow.html").read_bytes()
 
 
 def broadcast(data: dict):
@@ -42,6 +43,8 @@ async def handler(ws):
 def serve_html(connection, request):
     if request.path == "/":
         return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), HTML)
+    if request.path == "/flow":
+        return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), FLOW)
     return None  # ostatné cesty = WebSocket upgrade
 
 
@@ -66,7 +69,8 @@ def main():
               f"{d['committed'][-70:]} | {d['pending'][:50]}")
         broadcast(d)
 
-    pipe = TwoTierPipeline(language=args.language, on_update=on_update)
+    pipe = TwoTierPipeline(language=args.language, on_update=on_update,
+                           on_event=lambda e: broadcast({"event": e}))
     print("Warmup modelov (tiny draft + large-v3-turbo final)…")
     pipe.warmup()
     if args.file:

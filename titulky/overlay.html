@@ -19,6 +19,8 @@
 </style>
 </head>
 <body>
+<a href="/flow" style="position:fixed;top:10px;right:12px;color:#444;text-decoration:none;
+   font:12px ui-monospace,monospace;z-index:9">⚙ flow</a>
 <div id="stats">čakám na spojenie…</div>
 <div id="subs"><span id="committed"></span> <span id="pending"></span></div>
 <script>
@@ -32,6 +34,7 @@ let hideTimer = null;
 ws.onopen = () => s.textContent = 'pripojené';
 ws.onmessage = e => {
   const d = JSON.parse(e.data);
+  if (!('committed' in d)) return;  // event správy patria /flow stránke
   // znakový limit ~84 znakov (2 riadky × 42, BBC) namiesto počtu slov
   const words = d.committed.split(' ');
   let shown = [];

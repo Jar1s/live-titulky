@@ -8,6 +8,7 @@ Latencia sa meria pre draft (čas zobrazenia prvej hypotézy slova)
 aj pre final (čas potvrdenia). Vzor: produkčné partial/final captioning
 (Google/Zoom), ufal/whisper_streaming, WhisperLiveKit.
 """
+import os
 import threading
 import time
 
@@ -136,10 +137,11 @@ class SharedBuffer:
 
 
 class TwoTierPipeline:
-    def __init__(self, language="sk", on_update=None,
+    def __init__(self, language="sk", on_update=None, on_event=None,
                  draft_repo=DRAFT_REPO, final_repo=FINAL_REPO):
         self.language = language
         self.on_update = on_update or (lambda d: None)
+        self.on_event = on_event or (lambda e: None)
         self.buf = SharedBuffer()
         self.draft_asr = ASR(draft_repo)
         # prompt v streamingu NEPOUŽÍVAŤ: pri krátkych oknách ho Whisper
@@ -159,7 +161,10 @@ class TwoTierPipeline:
         self.running = False
         # asynchrónna slovná korekcia (Azure ensemble; bez kľúča sa vypne)
         from .correction import CorrectionWorker
-        self.corrector = CorrectionWorker(self._apply_corrections)
+        self.corrector = CorrectionWorker(
+            self._apply_corrections,
+            log=lambda m: (print(m),
+                           self.on_event({"t": "korekcia", "msg": m})))
         self.corrections = 0
 
     def _apply_corrections(self, start_idx: int, changes: list[dict]):
@@ -170,15 +175,28 @@ class TwoTierPipeline:
                     and self.final_text[idx] == ch["from"]:
                 self.final_text[idx] = ch["to"]
                 self.corrections += 1
+                self.on_event({"t": "corr", "from": ch["from"],
+                               "to": ch["to"]})
         self._emit()
 
     # ---- vstupy -------------------------------------------------------
     def start_mic(self):
         import sounddevice as sd
+        dev = os.environ.get("TITULKY_DEVICE")
+        if dev is not None:
+            sd.default.device = (int(dev), None)
+            print(f"Mikrofón: {sd.query_devices(int(dev))['name']}")
         self.buf.t0 = time.monotonic()
 
         def cb(indata, frames, t, status):
-            self.buf.append(indata[:, 0].copy())
+            a = indata[:, 0].copy()
+            self.buf.append(a)
+            now = time.monotonic()
+            if now - getattr(self, "_last_rms_ev", 0) >= 0.5:
+                self._last_rms_ev = now
+                self.on_event({"t": "audio",
+                               "rms": round(float(np.sqrt(np.mean(a**2))), 4),
+                               "thr": round(self.slevel.thr(), 4)})
 
         self.stream = sd.InputStream(
             samplerate=SAMPLE_RATE, channels=1, dtype="float32",
@@ -250,6 +268,8 @@ class TwoTierPipeline:
                     self.draft_text = ""
                     if final_caught_up:
                         self.display_from = len(self.final_text)
+                    self.on_event({"t": "vad",
+                                   "msg": "ticho 0.6s → blok uzavretý"})
                     self._emit()
                 time.sleep(DRAFT_STEP_S)
                 continue
@@ -277,6 +297,9 @@ class TwoTierPipeline:
                 self.draft_text = new_text
                 self._last_draft_redraw = now
                 changed = True
+                if new_text:
+                    self.on_event({"t": "draft", "text": new_text[-80:],
+                                   "dur": round(now - t_start, 2)})
             else:
                 changed = False
             # draft latencia: prvé zobrazenie nového slova
@@ -371,6 +394,11 @@ class TwoTierPipeline:
                     seg, _, _ = self.buf.snapshot_from(
                         seg_start_s, max(0.5, self.final_upto_s - seg_start_s))
                     self.corrector.submit(commit_start_idx, new, seg)
+                self.on_event({
+                    "t": "final", "words": " ".join(new),
+                    "lat": round(self.final_latencies[-1], 2)
+                           if self.final_latencies else None,
+                    "corr": "→ korekcia" if self.corrector.enabled else ""})
                 self._emit()
             if self.buf.eof:
                 if self.final_upto_s < total_s - 0.5 and eof_retries < 5:

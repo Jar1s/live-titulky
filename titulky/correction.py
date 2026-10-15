@@ -237,14 +237,19 @@ class CorrectionWorker:
                     time.sleep(0.5)
                     continue
             try:
+                self.log(f"[korekcia] azure ← {len(audio)/SAMPLE_RATE:.1f}s audia "
+                         f"({len(words)} slov)")
                 azure_text = self._azure(audio, tempfile.gettempdir())
             except Exception as e:  # noqa: BLE001 — sieť/kvóta, best-effort
                 self.log(f"[korekcia] azure zlyhalo: {str(e)[:120]}")
                 continue
             if time.monotonic() - t_commit > CORRECTION_WINDOW_S:
+                self.log("[korekcia] mimo okna 10s — zahadzujem")
                 continue  # neskoro — slová už nemeníme (UX)
             if not azure_text:
+                self.log("[korekcia] azure nič nerozpoznal")
                 continue
+            self.log(f"[korekcia] azure → {azure_text[:90]}")
             unknown = hunspell_unknown(words + azure_text.split())
             if unknown is None or not unknown:
                 continue  # hunspell odpadol alebo niet čo opravovať
