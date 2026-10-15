@@ -408,15 +408,22 @@ class TwoTierPipeline:
                 if len(self.buf.audio) > 60 * SAMPLE_RATE:
                     self.buf.trim_before(self.final_upto_s, pre_context_s=2.0)
                 # korekčná vrstva: committed dávka + jej audio (asynchrónne)
+                seg, _, _ = self.buf.snapshot_from(
+                    seg_start_s, max(0.5, self.final_upto_s - seg_start_s))
                 if self.corrector.enabled:
-                    seg, _, _ = self.buf.snapshot_from(
-                        seg_start_s, max(0.5, self.final_upto_s - seg_start_s))
                     self.corrector.submit(commit_start_idx, new, seg)
+                seg_rms = float(np.sqrt(np.mean(seg ** 2))) if len(seg) else 0.0
                 self.on_event({
                     "t": "final", "words": " ".join(new),
                     "lat": round(self.final_latencies[-1], 2)
                            if self.final_latencies else None,
-                    "corr": "→ korekcia" if self.corrector.enabled else ""})
+                    "corr": "→ korekcia" if self.corrector.enabled else "",
+                    # audit: audio úseku + kontext (main zapíše artefakt,
+                    # broadcast tieto polia odstráni — nejdú do JSON)
+                    "_audio": seg,
+                    "audio_t0_s": round(seg_start_s, 2),
+                    "audio_dur_s": round(len(seg) / SAMPLE_RATE, 2),
+                    "rms": round(seg_rms, 4)})
                 self._emit()
             if self.buf.eof:
                 if self.final_upto_s < total_s - 0.5 and eof_retries < 5:

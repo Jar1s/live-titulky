@@ -82,17 +82,39 @@ def main():
                                         "last_final_seq": None}
 
     def trace_event(e):
-        broadcast({"event": e})
+        # _audio a np polia nejdú do websocket JSON — odstráň pred broadcastom
+        pub = {k: v for k, v in e.items() if not k.startswith("_")}
+        broadcast({"event": pub})
         try:
             if e["t"] == "final":
                 words = e["words"]
+                zdroj = ""
+                seg = e.get("_audio")
+                if seg is not None and len(seg):
+                    import wave
+
+                    import numpy as np
+                    adir = os.path.join(tr.dir, "audio")
+                    os.makedirs(adir, exist_ok=True)
+                    zdroj = os.path.join(
+                        adir, f"{e.get('audio_t0_s', 0):08.2f}s.wav")
+                    with wave.open(zdroj, "wb") as wf:
+                        wf.setnchannels(1)
+                        wf.setsampwidth(2)
+                        wf.setframerate(16000)
+                        wf.writeframes(
+                            (np.clip(seg, -1, 1) * 32767).astype("<i2")
+                            .tobytes())
                 _tr_state["last_final_seq"] = tr.krok(
                     f"final: {words[:36]}" + ("…" if len(words) > 36 else ""),
                     t0=time.time(), stav="ok",
                     parent=_tr_state["vstup_seq"],
-                    vystup=rt.vystup("text", words,
+                    vystup=rt.vystup("text", words, zdroj=zdroj,
                                      pocet=len(words.split())),
-                    meta={"lat_s": e.get("lat")})
+                    meta={"lat_s": e.get("lat"),
+                          "audio_t0_s": e.get("audio_t0_s"),
+                          "audio_dur_s": e.get("audio_dur_s"),
+                          "rms": e.get("rms")})
             elif e["t"] == "corr":
                 tr.krok(f"korekcia: {e['from']} → {e['to']}",
                         t0=time.time(), stav="ok",
@@ -138,7 +160,15 @@ def main():
                                  " ".join(pipe.final_text)[:300],
                                  pocet=len(pipe.final_text),
                                  korekcie=pipe.corrections),
-                meta={"flicker": round(pipe.final_agree.flicker_rate(), 3)})
+                meta={"flicker": round(pipe.final_agree.flicker_rate(), 3),
+                      "final_lat_avg_s": round(statistics.mean(
+                          pipe.final_latencies), 2)
+                          if pipe.final_latencies else None,
+                      "final_lat_max_s": round(max(pipe.final_latencies), 2)
+                          if pipe.final_latencies else None,
+                      "draft_lat_avg_s": round(statistics.mean(
+                          pipe.draft_latencies), 2)
+                          if pipe.draft_latencies else None})
         for name, xs in (("DRAFT", pipe.draft_latencies), ("FINAL", pipe.final_latencies)):
             if xs:
                 print(f"\n{name} latencia avg={statistics.mean(xs):.2f}s "
