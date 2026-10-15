@@ -8,14 +8,17 @@ Overlay: otvor http://localhost:8765 v prehliadači.
 import argparse
 import asyncio
 import json
+import os
 import pathlib
 import statistics
 import threading
+import time
 
 import websockets
 from websockets.datastructures import Headers
 from websockets.http11 import Response
 
+from . import trace as rt
 from .pipeline import TwoTierPipeline
 
 CLIENTS = set()
@@ -71,12 +74,45 @@ def main():
 
     pipe = TwoTierPipeline(language=args.language, on_update=on_update,
                            on_event=lambda e: broadcast({"event": e}))
+
+    # run-trace: beh viditeľný v Projektovník BUILD tab Flow
+    tr = rt.RunTrace("titulky", spustil="rucne")
+    _t_ses = time.time()
+
+    def trace_event(e):
+        broadcast({"event": e})
+        try:
+            if e["t"] == "final":
+                tr.krok("final commit", t0=time.time(), stav="ok",
+                        vystup=rt.vystup("text", e["words"],
+                                         pocet=len(e["words"].split())),
+                        meta={"lat_s": e.get("lat")})
+            elif e["t"] == "corr":
+                tr.krok("korekcia slova", t0=time.time(), stav="ok",
+                        vystup=rt.vystup("diff",
+                                         f"- {e['from']}\n+ {e['to']}"))
+            elif e["t"] == "korekcia" and "zlyhalo" in e.get("msg", ""):
+                tr.krok("azure volanie", t0=time.time(), stav="chyba",
+                        chyba={"sprava": e["msg"], "stack": None})
+        except OSError:
+            pass  # trace nesmie zhodiť pipeline
+
+    pipe.on_event = trace_event
     print("Warmup modelov (tiny draft + large-v3-turbo final)…")
+    _t0 = time.time()
     pipe.warmup()
+    tr.krok("warmup modelov", t0=_t0,
+            vystup=rt.vystup("modely", "small draft + large-v3-turbo final"))
     if args.file:
         pipe.play_file(args.file)
+        tr.krok("vstup", t0=time.time(),
+                vstupy=[rt.vstup("audio", typ="path", zdroj=args.file)])
     else:
         pipe.start_mic()
+        tr.krok("vstup", t0=time.time(),
+                vstupy=[rt.vstup("audio", typ="mic",
+                                 zdroj=os.environ.get("TITULKY_DEVICE",
+                                                      "default"))])
         print("Počúvam mikrofón — hovor.")
 
     threading.Thread(target=pipe.run, daemon=True).start()
@@ -86,6 +122,12 @@ def main():
         pass
     finally:
         pipe.stop()
+        tr.krok("koniec behu", t0=_t_ses,
+                vystup=rt.vystup("summary",
+                                 " ".join(pipe.final_text)[:300],
+                                 pocet=len(pipe.final_text),
+                                 korekcie=pipe.corrections),
+                meta={"flicker": round(pipe.final_agree.flicker_rate(), 3)})
         for name, xs in (("DRAFT", pipe.draft_latencies), ("FINAL", pipe.final_latencies)):
             if xs:
                 print(f"\n{name} latencia avg={statistics.mean(xs):.2f}s "

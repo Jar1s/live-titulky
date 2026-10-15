@@ -3,3 +3,4 @@ __pycache__/
 *.wav
 *.aiff
 .azure_key
+.runs/
