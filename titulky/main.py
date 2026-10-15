@@ -78,21 +78,30 @@ def main():
     # run-trace: beh viditeľný v Projektovník BUILD tab Flow
     tr = rt.RunTrace("titulky", spustil="rucne")
     _t_ses = time.time()
+    _tr_state: dict[str, int | None] = {"vstup_seq": None,
+                                        "last_final_seq": None}
 
     def trace_event(e):
         broadcast({"event": e})
         try:
             if e["t"] == "final":
-                tr.krok("final commit", t0=time.time(), stav="ok",
-                        vystup=rt.vystup("text", e["words"],
-                                         pocet=len(e["words"].split())),
-                        meta={"lat_s": e.get("lat")})
+                words = e["words"]
+                _tr_state["last_final_seq"] = tr.krok(
+                    f"final: {words[:36]}" + ("…" if len(words) > 36 else ""),
+                    t0=time.time(), stav="ok",
+                    parent=_tr_state["vstup_seq"],
+                    vystup=rt.vystup("text", words,
+                                     pocet=len(words.split())),
+                    meta={"lat_s": e.get("lat")})
             elif e["t"] == "corr":
-                tr.krok("korekcia slova", t0=time.time(), stav="ok",
+                tr.krok(f"korekcia: {e['from']} → {e['to']}",
+                        t0=time.time(), stav="ok",
+                        parent=_tr_state["last_final_seq"],
                         vystup=rt.vystup("diff",
                                          f"- {e['from']}\n+ {e['to']}"))
             elif e["t"] == "korekcia" and "zlyhalo" in e.get("msg", ""):
                 tr.krok("azure volanie", t0=time.time(), stav="chyba",
+                        parent=_tr_state["vstup_seq"],
                         chyba={"sprava": e["msg"], "stack": None})
         except OSError:
             pass  # trace nesmie zhodiť pipeline
@@ -105,14 +114,16 @@ def main():
             vystup=rt.vystup("modely", "small draft + large-v3-turbo final"))
     if args.file:
         pipe.play_file(args.file)
-        tr.krok("vstup", t0=time.time(),
-                vstupy=[rt.vstup("audio", typ="path", zdroj=args.file)])
+        _tr_state["vstup_seq"] = tr.krok(
+            "vstup", t0=time.time(),
+            vstupy=[rt.vstup("audio", typ="path", zdroj=args.file)])
     else:
         pipe.start_mic()
-        tr.krok("vstup", t0=time.time(),
-                vstupy=[rt.vstup("audio", typ="mic",
-                                 zdroj=os.environ.get("TITULKY_DEVICE",
-                                                      "default"))])
+        _tr_state["vstup_seq"] = tr.krok(
+            "vstup", t0=time.time(),
+            vstupy=[rt.vstup("audio", typ="mic",
+                             zdroj=os.environ.get("TITULKY_DEVICE",
+                                                  "default"))])
         print("Počúvam mikrofón — hovor.")
 
     threading.Thread(target=pipe.run, daemon=True).start()

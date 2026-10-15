@@ -50,7 +50,25 @@ class SpeechLevel:
         t = float(np.sqrt(np.mean(tail ** 2))) if len(tail) else 0.0
         p = float(np.max(np.abs(tail))) if len(tail) else 0.0
         thr = self.thr()
-        return t < thr and p < thr * 3
+        if t < thr and p < thr * 3:
+            return True
+        # dynamický gate: reč má dynamiku (pauzy medzi slovami), ustálený
+        # šum (ventilátor, hum) je plochý. Merané: reč dyn 2.7–24, šum 1.67.
+        # Bez tohto sa šum „naučí" ako úroveň reči a final dekóduje
+        # halucinácie donekonečna („Ďakujem za pozornosť" × 11).
+        return not has_speech_dynamics(whole)
+
+
+def has_speech_dynamics(audio: np.ndarray, thr: float = 1.8) -> bool:
+    """p95/p20 pomer 100ms frame RMS — reč ≥ 1.95, ustálený šum ~1.67.
+    Prah 1.8 = stred medzery (2.0 zabíjalo prvé okno súvislej čítanej reči)."""
+    n = int(SAMPLE_RATE * 0.1)
+    if len(audio) < 5 * n:
+        return True  # prikrátke okno na úsudok — nechaj prejsť
+    fr = np.sqrt(np.mean(
+        audio[:len(audio) // n * n].reshape(-1, n) ** 2, axis=1))
+    return float(np.percentile(fr, 95)) > thr * max(
+        float(np.percentile(fr, 20)), 1e-6)
 
 
 def word_energy_ok(audio: np.ndarray, w: dict, ref_rms: float) -> bool:

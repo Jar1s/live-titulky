@@ -69,12 +69,18 @@ def test_dedup_boundary_no_match_keeps_all():
 
 def test_speech_level_learns_and_thresholds():
     sl = SpeechLevel()
-    loud = np.random.default_rng(0).normal(0, 0.1, 16000).astype(np.float32)
+    rng = np.random.default_rng(0)
+    # reč = bursty signál (slová s pauzami), nie uniformný šum —
+    # ten by dynamický gate správne označil za ticho
+    loud = rng.normal(0, 0.004, 16000).astype(np.float32)
+    for s in (0.1, 0.5):
+        i = int(s * 16000)
+        loud[i:i + 4000] += rng.normal(0, 0.1, 4000).astype(np.float32)
     sl.update(loud)
     assert sl.level > 0.004          # naučil sa vyššiu úroveň
     silence = np.zeros(4800, dtype=np.float32)
     assert sl.is_silent(silence, loud)
-    assert not sl.is_silent(loud[:4800], loud)
+    assert not sl.is_silent(loud[1600:6400], loud)
 
 
 def test_word_energy_ok_rejects_silence_word():
@@ -165,3 +171,18 @@ def test_ensemble_oov_correction_graceful():
     azure = "to proste neznasam"
     changes = merge_words(whisper, azure, unknown={"nezhnasam"})
     assert isinstance(changes, list)
+
+
+def test_speech_dynamics_gate():
+    """Plochý šum = ticho (halucinačný bug z 15.10.), reč prejde."""
+    import numpy as np
+    from titulky.pipeline import has_speech_dynamics
+    rng = np.random.default_rng(7)
+    noise = (rng.normal(0, 0.006, 16000 * 4)).astype(np.float32)
+    assert not has_speech_dynamics(noise)
+    speech = noise.copy()
+    for s in (0.5, 1.8, 3.1):  # slová: krátke energetické úseky
+        i = int(s * 16000)
+        speech[i:i + 6000] += (rng.normal(0, 0.08, 6000)).astype(np.float32)
+    assert has_speech_dynamics(speech)
+    assert has_speech_dynamics(noise[:4000])  # prikrátke okno -> prejde
