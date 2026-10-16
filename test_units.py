@@ -176,6 +176,7 @@ def test_ensemble_oov_correction_graceful():
 def test_speech_dynamics_gate():
     """Plochý šum = ticho (halucinačný bug z 15.10.), reč prejde."""
     import numpy as np
+
     from titulky.pipeline import has_speech_dynamics
     rng = np.random.default_rng(7)
     noise = (rng.normal(0, 0.006, 16000 * 4)).astype(np.float32)

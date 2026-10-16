@@ -13,7 +13,7 @@ import socket
 import subprocess
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _lock = threading.Lock()
@@ -32,7 +32,7 @@ class RunTrace:
     """Jeden beh = jedna inštancia. Thread-safe append do trace.jsonl."""
 
     def __init__(self, nazov: str, spustil: str = "rucne"):
-        ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+        ts = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S")
         self.run = f"{nazov}-{ts}-{secrets.token_hex(2)}"
         self.dir = os.path.join(BASE, ".runs", self.run)
         os.makedirs(self.dir, exist_ok=True)
