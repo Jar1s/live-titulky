@@ -18,6 +18,7 @@ from .asr import ASR, DRAFT_REPO, FINAL_REPO, SAMPLE_RATE, LocalAgreement
 
 DRAFT_STEP_S = 0.08
 DRAFT_WINDOW_S = 1.2
+DRAFT_MAX_WINDOW_S = 5.0  # strop dynamického okna (dlhá súvislá reč)
 DRAFT_HOLD_S = 0.10        # min interval prekreslenia draftu (stabilita očí)
 # ^ exp_grid 22.10.: base w1.5 s0.15 h0.3 → draft p50 0.73s (z 1.76s),
 #   p90 1.54s, flicker 11.5% (baseline 14.9%). Plná tabuľka:
@@ -295,7 +296,17 @@ class TwoTierPipeline:
     def _draft_loop(self):
         while self.running:
             t_start = time.monotonic()
-            audio, off_s, total_s = self.buf.snapshot(DRAFT_WINDOW_S)
+            # stitch: krátke okno každý krok (čerstvé slová, nízka latencia),
+            # dlhé okno max 1× za sekundu (pokrytie medzery po final hranicu)
+            _, _, now_s = self.buf.snapshot(0.1)
+            gap_s = now_s - self.final_upto_s
+            if not hasattr(self, "_last_long_dec"):
+                self._last_long_dec = 0.0
+                self._prefix = []   # [(abs_end_s, slovo)] z dlhého dekódu
+            long_turn = (gap_s > DRAFT_WINDOW_S + 0.5
+                         and time.monotonic() - self._last_long_dec > 1.5)
+            win = min(DRAFT_MAX_WINDOW_S, gap_s) if long_turn else DRAFT_WINDOW_S
+            audio, off_s, total_s = self.buf.snapshot(win)
             if len(audio) < SAMPLE_RATE * 0.3:
                 if self.buf.eof:
                     break
@@ -320,6 +331,7 @@ class TwoTierPipeline:
                 if self.draft_text or (final_caught_up
                                        and self.display_from < len(self.final_text)):
                     self.draft_text = ""
+                    self._prefix = []
                     if final_caught_up:
                         self.display_from = len(self.final_text)
                     self.on_event({"t": "vad",
@@ -345,7 +357,18 @@ class TwoTierPipeline:
             now = time.monotonic()
             # draft = slová za final hranicou
             tail = [w for w in words if off_s + w["end"] > self.final_upto_s]
-            new_text = " ".join(w["text"] for w in tail)
+            if long_turn:
+                # dlhý dekód: ulož prefix (slová PRED krátkym oknom) na
+                # stitch s nasledujúcimi krátkymi dekódmi
+                self._last_long_dec = now
+                cut = total_s - DRAFT_WINDOW_S + 0.2
+                self._prefix = [(off_s + w["end"], w["text"])
+                                for w in tail if off_s + w["end"] <= cut]
+                new_text = " ".join(w["text"] for w in tail)
+            else:
+                # krátky dekód: prefix (živý, filtrovaný final hranicou) + fresh
+                pref = [t for (e, t) in self._prefix if e > self.final_upto_s]
+                new_text = " ".join(pref + [w["text"] for w in tail])
             # stabilizácia zobrazenia: prekresli len keď text zmysluplne
             # narástol, alebo raz za DRAFT_HOLD_S (inak drafty „skáču")
             grew = new_text.startswith(self.draft_text) or \

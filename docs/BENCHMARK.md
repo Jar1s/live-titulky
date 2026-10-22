@@ -254,6 +254,22 @@ odozvu < 200 ms zabezpečuje ghost-kurzor (reakcia na RMS, nie na dekód)
 Pozn.: final WER je draft modelom nedotknutý (nezávislé vlákna); noisy
 kolíše 6,5–12,9 % medzi behmi (jitter, viď limitácia 2).
 
+### 3.9 Pokrytie dlhej súvislej reči (stitch) a poctivosť metriky
+
+Problém z živého testu: draft dekódoval len posledných 1,2 s, takže pri
+monológu slová medzi final hranicou (~4 s dozadu) a krátkym oknom nevidel
+nikto — titulky „čakali na dohovorenie". Fix: **stitch** — krátke okno
+(1,2 s) každých 0,08 s pre čerstvé slová + dlhé okno (po final hranicu,
+strop 5 s) max raz za 1,5 s na backfill medzery; zobrazenie je zošité
+a prefix sa živo filtruje final hranicou.
+
+Dôsledok pre metriku: draft p50 vzrástol na ~0,7–1,2 s, ale pôvodných
+0,47 s bolo merané na **skreslenej vzorke** — slová v medzere sa do
+latencie vôbec nepočítali, lebo sa nikdy nezobrazili. Čerstvé slová
+chodia naďalej ~0,5–0,7 s; nad tým je backfill, ktorý predtým chýbal
+úplne. Bonus merania so stitch: normal.wav WER prvýkrát 0,0 % a flicker
+klesol z 27 % na 15 % (dlhšie okno = stabilnejší kontext draftu).
+
 ---
 
 ## 4. Diskusia
