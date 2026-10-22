@@ -485,6 +485,14 @@ function showCaption() {
   captionWrap.classList.remove('hidden');
   clearTimeout(hideTimer);
 }
+// prázdny panel = škaredá prázdna "pilulka" → skry ho, kým nie je čo ukázať
+function updateEmptyState() {
+  const mode = cfg.mode;
+  const hasText = mode === 'titulky'
+    ? (l1.textContent.trim() || l2t.textContent.trim())
+    : (c.textContent.trim() || p.textContent.trim());
+  captionWrap.classList.toggle('hidden', captionHidden || !hasText);
+}
 function scheduleHide() {
   hideTimer = setTimeout(() => {
     captionHidden = true;
@@ -583,6 +591,7 @@ function onMessage(d) {
     showCaption();
     scheduleHide();
   }
+  updateEmptyState();
 
   /* — Status pills — */
   const dl = d.draft_latency_s;
