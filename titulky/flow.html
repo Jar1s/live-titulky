@@ -99,8 +99,15 @@ const esc = s => (s??'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;');
 const ts = () => new Date().toLocaleTimeString('sk',{hour12:false});
 let paused=false, ncorr=0;
 const drafts=[];            // {ts, text, dur}
+const replays={};           // wav -> rows z A/B replay
 const dlats=[], flats=[];   // latencie pre graf
 const buf=[];               // eventy počas pauzy
+
+function renderReplay(el, rows){
+  el.innerHTML='<div class="kv"><b>A/B replay</b> (offline, celý úsek):</div>'+
+    rows.map(r=>'<div class="dr"><b style="color:var(--blue)">'+esc(r.model)+'</b> '+
+      '<span class="m">('+r.dec_s+'s)</span><br>'+esc(r.text)+'</div>').join('');
+}
 
 $('pause').onclick = () => { paused=!paused;
   $('pause').textContent = paused?'▶ pokračuj':'⏸ pauza';
@@ -145,10 +152,19 @@ function addSeg(v){
 function fillDetail(d,v){
   const det=d.querySelector('.detail'); det.innerHTML='';
   if(v.wav){ const a=document.createElement('audio'); a.controls=true; a.src='/audio/'+v.wav;
-    det.appendChild(a); }
+    det.appendChild(a);
+    const b=document.createElement('button'); b.textContent='⚖ A/B replay (base/kinit/turbo)';
+    b.onclick=()=>{ b.textContent='⏳ dekódujem…'; fetch('/replay?wav='+encodeURIComponent(v.wav)); };
+    det.appendChild(b);
+    const ab=document.createElement('div'); ab.className='abres'; ab.dataset.wav=v.wav;
+    det.appendChild(ab);
+    if(replays[v.wav]) renderReplay(ab, replays[v.wav]); }
   det.insertAdjacentHTML('beforeend',
     '<div class="kv">úsek <b>'+(v.audio_t0_s??'—')+' s</b> · dĺžka <b>'+(v.audio_dur_s??'—')+' s</b>'+
     ' · commit latencia <b>'+(v.lat??'—')+' s</b> · rms <b>'+(v.rms??'—')+'</b>'+
+    (v.lock!=null?' · GPU lock <b>'+v.lock+' s</b>':'')+
+    (v.dec!=null?' · dekód <b>'+v.dec+' s</b>':'')+
+    (v.flush?' · <b style="color:var(--green)">flush (celý blok)</b>':' · streaming agreement')+
     (v.wav?'':' · <i>audio artefakt nedostupný</i>')+'</div>');
   // drafty tesne pred commitom tohto segmentu (okno = latencia + dĺžka + 2 s)
   const t1=+d.dataset.ts, win=((v.lat||4)+(v.audio_dur_s||3)+2)*1000;
@@ -216,6 +232,15 @@ function handle(d){
       ncorr++; $('ncorr').textContent=ncorr;
       row('t-corr','corr','✏ '+esc(v.from)+' → '+esc(v.to));
       markCorr(v.from,v.to);
+    } else if(v.t==='drop'){
+      row('t-av','vad','🗑 gate '+esc(v.reason)+': „'+esc(v.text)+'"');
+    } else if(v.t==='crash'){
+      row('t-av','corr','💥 CRASH '+esc(v.thread)+' vlákna! pozri log');
+      $('wsstat').textContent='💥 crash';
+    } else if(v.t==='replay'){
+      replays[v.wav]=v.rows;
+      document.querySelectorAll('.abres[data-wav="'+v.wav+'"]')
+        .forEach(el=>renderReplay(el,v.rows));
     }
     return;
   }

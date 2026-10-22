@@ -7,6 +7,7 @@ Google/Zoom/Kuaishou pattern, ufal/whisper_streaming, WhisperLiveKit):
 """
 import os
 import threading
+import time
 
 import mlx_whisper
 import numpy as np
@@ -90,11 +91,13 @@ class ASR:
         kw = {}
         if self.use_prompt:
             kw["initial_prompt"] = SK_PROMPT
+        t_req = time.monotonic()
         if skip_if_busy:
             if not _MLX_LOCK.acquire(blocking=False):
                 return None
         else:
             _MLX_LOCK.acquire()
+        t_lock = time.monotonic()
         try:
             r = mlx_whisper.transcribe(
                 preprocess(audio), path_or_hf_repo=self.repo, language=language,
@@ -105,17 +108,25 @@ class ASR:
         finally:
             _MLX_LOCK.release()
         words = []
+        drops = []   # (dôvod, text) — do trace/studia, nech gaty nie sú tiché
         for seg in r["segments"]:
             if seg.get("no_speech_prob", 0.0) > 0.8:
+                drops.append(("no_speech>0.8", seg.get("text", "").strip()))
                 continue
             if seg.get("avg_logprob", 0.0) < -1.5:
+                drops.append(("logprob<-1.5", seg.get("text", "").strip()))
                 continue
             for w in seg.get("words", []):
                 dur = w["end"] - w["start"]
                 if w.get("probability", 1.0) < 0.5 and dur < 0.15:
+                    drops.append(("p<0.5∧<0.15s", w["word"].strip()))
                     continue
                 words.append({"text": w["word"].strip(),
                               "start": w["start"], "end": w["end"]})
+        # profilovanie posledného behu — čítajú si ho pipeline loops
+        self.last_stats = {"lock_wait_s": round(t_lock - t_req, 3),
+                           "decode_s": round(time.monotonic() - t_lock, 3),
+                           "drops": drops}
         return words
 
 

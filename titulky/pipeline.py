@@ -194,6 +194,7 @@ class TwoTierPipeline:
         self.display_from = 0                # index prvého slova aktuálneho bloku
         self.block_start_s = 0.0             # čas audia, kde začína aktuálny blok
         self.final_upto_s = 0.0              # po aký čas audia je final potvrdený
+        self.errors: list[str] = []          # pády vlákien — testy ich MUSIA vidieť
         self.flush_upto_s = 0.0              # VAD uzavrel blok → final ho má
                                              # dekódovať celý naraz (plný kontext)
         self.draft_text = ""                 # aktuálny draft za final hranicou
@@ -354,8 +355,11 @@ class TwoTierPipeline:
                 self._last_draft_redraw = now
                 changed = True
                 if new_text:
+                    st = getattr(self.draft_asr, "last_stats", {})
                     self.on_event({"t": "draft", "text": new_text[-80:],
-                                   "dur": round(now - t_start, 2)})
+                                   "dur": round(now - t_start, 2),
+                                   "lock": st.get("lock_wait_s"),
+                                   "dec": st.get("decode_s")})
             else:
                 changed = False
             # draft latencia: meriame čas ZOBRAZENIA slova (nie dekódu) —
@@ -412,6 +416,11 @@ class TwoTierPipeline:
                 time.sleep(FINAL_STEP_S)
                 continue
             words = self.final_asr.transcribe(audio, self.language)
+            for reason, txt in getattr(self.final_asr, "last_stats",
+                                       {}).get("drops", []):
+                if txt:
+                    self.on_event({"t": "drop", "src": "final",
+                                   "reason": reason, "text": txt[:80]})
             self.compute_s += time.monotonic() - t_start
             words = dedupe_repeats(words)
             words = dedup_boundary(words, self.final_text)
@@ -483,8 +492,12 @@ class TwoTierPipeline:
                 if self.corrector.enabled:
                     self.corrector.submit(commit_start_idx, new, seg)
                 seg_rms = float(np.sqrt(np.mean(seg ** 2))) if len(seg) else 0.0
+                st = getattr(self.final_asr, "last_stats", {})
                 self.on_event({
                     "t": "final", "words": " ".join(new),
+                    "flush": bool(flush_mode),
+                    "lock": st.get("lock_wait_s"),
+                    "dec": st.get("decode_s"),
                     "lat": round(self.final_latencies[-1], 2)
                            if self.final_latencies else None,
                     "corr": "→ korekcia" if self.corrector.enabled else "",
@@ -533,8 +546,25 @@ class TwoTierPipeline:
 
     def run(self):
         self.running = True
-        td = threading.Thread(target=self._draft_loop, daemon=True)
-        tf = threading.Thread(target=self._final_loop, daemon=True)
+
+        def guarded(fn, name):
+            # pád vlákna NIKDY nesmie byť tichý — zapíš, ohlás, zastav beh
+            def w():
+                try:
+                    fn()
+                except Exception:  # noqa: BLE001 — chceme každý pád
+                    import traceback
+                    tb = traceback.format_exc()
+                    self.errors.append(f"{name}: {tb}")
+                    self.on_event({"t": "crash", "thread": name, "tb": tb})
+                    print(f"[CRASH] {name} vlákno spadlo:\n{tb}")
+                    self.running = False
+            return w
+
+        td = threading.Thread(target=guarded(self._draft_loop, "draft"),
+                              daemon=True)
+        tf = threading.Thread(target=guarded(self._final_loop, "final"),
+                              daemon=True)
         td.start()
         tf.start()
         tf.join()

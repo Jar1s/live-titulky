@@ -59,7 +59,53 @@ def serve_html(connection, request):
                                 Headers({"Content-Type": "audio/wav"}),
                                 fh.read())
         return Response(404, "Not Found", Headers({"Content-Type": "text/plain"}), b"not found")
+    if request.path.startswith("/replay") and AUDIO_DIR:
+        # A/B replay uloženého úseku cez viac modelov — výsledok príde
+        # ako websocket event {t:'replay'}, nech handler neblokuje loop
+        from urllib.parse import parse_qs, urlparse
+        q = parse_qs(urlparse(request.path).query)
+        name = os.path.basename(q.get("wav", [""])[0])
+        if name.endswith(".wav") and os.path.isfile(os.path.join(AUDIO_DIR, name)):
+            threading.Thread(target=_replay_worker, args=(name,),
+                             daemon=True).start()
+            return Response(200, "OK", Headers({"Content-Type": "application/json"}),
+                            b'{"ok": true}')
+        return Response(404, "Not Found", Headers({"Content-Type": "text/plain"}), b"no wav")
     return None  # ostatné cesty = WebSocket upgrade
+
+
+_REPLAY_ASR = {}
+
+
+def _replay_worker(name):
+    """Prežene uložený WAV úseku viacerými modelmi a broadcastne porovnanie."""
+    import wave as wv
+
+    import numpy as np
+
+    from .asr import ASR, DRAFT_REPO, FINAL_REPO
+    try:
+        with wv.open(os.path.join(AUDIO_DIR, name)) as wf:
+            audio = (np.frombuffer(wf.readframes(wf.getnframes()), dtype="<i2")
+                     .astype("float32") / 32768.0)
+        rows = []
+        for label, repo, beam in (
+                ("draft (base)", DRAFT_REPO, 1),
+                ("final (kinit)", FINAL_REPO, 5),
+                ("turbo (vanilla)", "mlx-community/whisper-large-v3-turbo", 5)):
+            key = (repo, beam)
+            if key not in _REPLAY_ASR:
+                _REPLAY_ASR[key] = ASR(repo=repo, beam=beam)
+            t0 = time.monotonic()
+            words = _REPLAY_ASR[key].transcribe(audio) or []
+            rows.append({"model": label,
+                         "text": " ".join(w["text"] for w in words),
+                         "dec_s": round(time.monotonic() - t0, 2)})
+        broadcast({"event": {"t": "replay", "wav": name, "rows": rows}})
+    except Exception as ex:  # noqa: BLE001 — debug nástroj, chybu ukáž v UI
+        broadcast({"event": {"t": "replay", "wav": name,
+                             "rows": [{"model": "CHYBA", "text": str(ex),
+                                       "dec_s": 0}]}})
 
 
 async def ws_main(host, port):
