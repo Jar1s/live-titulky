@@ -414,3 +414,9 @@ slovník; jiwer; FLEURS dáta; draft/final UX vzor z produkčných systémov.
   s auditnými WAV artefaktmi per commit;
 - empirický výber konfigurácie (11-bodový grid) a modelu (3 nezávislé
   testové sady) namiesto defaultov.
+
+## Audit stacku (23.10.) — slepé uličky zdokumentované
+- word_timestamps approx (segmentové delenie): dekód −1,1 s, ale WER 3→15 % (agreement sa rozpadá) — default `exact`, prepínač `TITULKY_WORD_TS`
+- kinit int4 kvantizácia (MLX, g64): 2,89 s vs fp16 2,69 s/dekód + horší text — int4 dequant réžia pri batch-1 preváži, fp16 na M-GPU je optimum
+- mŕtve závislosti: faster-whisper/ctranslate2/torch/transformers — CPU draft backend porazený ANE (whisper.cpp)
+- draft latencia vyriešená ANE backendom (0,13–0,17 s dekód), final 3,5 s = strop architektúry pri 1,5 s kroku a 2× agreemente
