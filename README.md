@@ -11,12 +11,17 @@ Vzor z produkčných systémov (Google/Zoom live captions — partial/final):
 
 ```
 mikrofón/WAV → zdieľaný audio buffer
-   ├─ DRAFT vlákno:  whisper-small-mlx, krok 0.25 s, okno 3 s
-   │                 → okamžitý pracovný prepis (šedý text)
-   └─ FINAL vlákno:  whisper-large-v3-turbo, krok 1.5 s, okno od potvrdenej hranice
+   ├─ DRAFT vlákno:  whisper-base-mlx, krok 0.15 s, okno 1.5 s
+   │                 → okamžitý pracovný prepis (šedý text), p50 0.73 s
+   └─ FINAL vlákno:  kinit-whisper-turbo-sk (SK fine-tune), krok 2 s, okno od potvrdenej hranice
                      → LocalAgreement-2 → potvrdený presný text (biely)
-                → WebSocket → HTML overlay (blokové zobrazenie, fade-out po pauze)
+                → WebSocket → HTML overlay (ghost cursor ▊ < 0.2 s od začiatku reči,
+                  blokové zobrazenie, fade-out po pauze)
 ```
+
+**Výsledky meraní (22. 10.): [docs/BENCHMARK.md](docs/BENCHMARK.md)** — model
+A/B (FLEURS SK: kinit 5,81 % vs turbo 10,54 % WER), grid 11 draft konfigurácií,
+E2E tabuľky, história šumového gate-u, limitácie, reprodukcia.
 
 Kľúčové mechanizmy:
 - **LocalAgreement-2** (ufal/whisper_streaming): slovo sa potvrdí, až keď sa
