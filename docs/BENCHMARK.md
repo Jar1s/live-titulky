@@ -191,11 +191,25 @@ ho energy gate slov + anti-loop detekcia.
 
 ### 3.6 Systém D vs E: prínos Azure korekčnej vrstvy
 
-*(doplní sa po behu `TITULKY_NO_AZURE=1 test_suite.py` — meranie beží)*
+Jeden beh celej sady bez korekcie (`TITULKY_NO_AZURE=1`) vs s ňou; ostatná
+konfigurácia zhodná (base/1,5/0,15/0,3 + kinit final).
 
-| test | WER bez korekcie (D) | WER s korekciou (E) |
+| test | D: bez korekcie | E: s korekciou |
 |---|---|---|
-| … | … | … |
+| normal | 9,7 % | **3,2 %** |
+| fast | 0,0 % | 0,0 % |
+| slow | 0,0 % | 0,0 % |
+| quiet | **0,0 %** | 3,2 % |
+| noisy | 9,7 % | 9,7 % |
+| pauses | 9,7 % | **3,2 %** |
+| silence (halluc) | 0 | 0 |
+
+Interpretácia: pri 31-slovových referenciách je 1 slovo = 3,2 p. b., takže
+jednotlivé rozdiely sú na hranici run-to-run šumu final dekódu (§5 bod 1).
+Vzor je však konzistentný s dizajnom vrstvy: korekcia pomohla na testoch
+s OOV preklepmi (normal, pauses), nič nepokazila na fast/slow/noisy a na
+quiet jeden zásah uškodil. Systém je plne funkčný aj offline (D) — korekcia
+je voliteľné spresnenie, nie závislosť.
 
 ---
 
