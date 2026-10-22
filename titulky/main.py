@@ -129,11 +129,11 @@ def main():
             pass  # trace nesmie zhodiť pipeline
 
     pipe.on_event = trace_event
-    print("Warmup modelov (tiny draft + large-v3-turbo final)…")
+    print("Warmup modelov (base draft + kinit-turbo-sk final)…")
     _t0 = time.time()
     pipe.warmup()
     tr.krok("warmup modelov", t0=_t0,
-            vystup=rt.vystup("modely", "small draft + large-v3-turbo final"))
+            vystup=rt.vystup("modely", "base draft + kinit-turbo-sk final"))
     if args.file:
         pipe.play_file(args.file)
         _tr_state["vstup_seq"] = tr.krok(
