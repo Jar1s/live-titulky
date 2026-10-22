@@ -23,6 +23,7 @@ from .pipeline import TwoTierPipeline
 
 CLIENTS = set()
 LOOP = None
+AUDIO_DIR = None  # nastaví main() po vytvorení trace adresára
 HTML = (pathlib.Path(__file__).parent / "overlay.html").read_bytes()
 FLOW = (pathlib.Path(__file__).parent / "flow.html").read_bytes()
 
@@ -48,6 +49,16 @@ def serve_html(connection, request):
         return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), HTML)
     if request.path == "/flow":
         return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), FLOW)
+    if request.path.startswith("/audio/") and AUDIO_DIR:
+        # audit WAV segmentov — len basename, žiadne traverzovanie
+        name = os.path.basename(request.path[len("/audio/"):])
+        p = os.path.join(AUDIO_DIR, name)
+        if name.endswith(".wav") and os.path.isfile(p):
+            with open(p, "rb") as fh:
+                return Response(200, "OK",
+                                Headers({"Content-Type": "audio/wav"}),
+                                fh.read())
+        return Response(404, "Not Found", Headers({"Content-Type": "text/plain"}), b"not found")
     return None  # ostatné cesty = WebSocket upgrade
 
 
@@ -77,6 +88,8 @@ def main():
 
     # run-trace: beh viditeľný v Projektovník BUILD tab Flow
     tr = rt.RunTrace("titulky", spustil="rucne")
+    global AUDIO_DIR
+    AUDIO_DIR = os.path.join(tr.dir, "audio")
     _t_ses = time.time()
     _tr_state: dict[str, int | None] = {"vstup_seq": None,
                                         "last_final_seq": None}
@@ -84,11 +97,10 @@ def main():
     def trace_event(e):
         # _audio a np polia nejdú do websocket JSON — odstráň pred broadcastom
         pub = {k: v for k, v in e.items() if not k.startswith("_")}
-        broadcast({"event": pub})
+        zdroj = ""
         try:
             if e["t"] == "final":
                 words = e["words"]
-                zdroj = ""
                 seg = e.get("_audio")
                 if seg is not None and len(seg):
                     import wave
@@ -105,6 +117,7 @@ def main():
                         wf.writeframes(
                             (np.clip(seg, -1, 1) * 32767).astype("<i2")
                             .tobytes())
+                    pub["wav"] = os.path.basename(zdroj)  # pre /audio/ v UI
                 _tr_state["last_final_seq"] = tr.krok(
                     f"final: {words[:36]}" + ("…" if len(words) > 36 else ""),
                     t0=time.time(), stav="ok",
@@ -127,6 +140,7 @@ def main():
                         chyba={"sprava": e["msg"], "stack": None})
         except OSError:
             pass  # trace nesmie zhodiť pipeline
+        broadcast({"event": pub})
 
     pipe.on_event = trace_event
     print("Warmup modelov (base draft + kinit-turbo-sk final)…")

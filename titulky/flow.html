@@ -2,100 +2,235 @@
 <html lang="sk">
 <head>
 <meta charset="utf-8">
-<title>titulky — flow debug</title>
+<title>titulky — studio</title>
 <style>
-  body{margin:0;background:#0d1117;color:#e6edf3;font:13px/1.45 ui-monospace,Menlo,monospace}
-  header{display:flex;gap:18px;padding:8px 14px;background:#161b22;border-bottom:1px solid #30363d;
-         position:sticky;top:0;align-items:center;flex-wrap:wrap}
-  header b{color:#58a6ff}
-  .m{color:#8b949e}.m b{color:#e6edf3}
-  #cols{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#30363d;min-height:calc(100vh - 42px)}
-  .col{background:#0d1117;padding:10px;overflow-y:auto;max-height:calc(100vh - 42px)}
-  .col h2{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#8b949e;
-          border-bottom:1px solid #21262d;padding-bottom:6px}
-  .ev{padding:4px 6px;margin:2px 0;border-radius:4px;background:#161b22;border-left:3px solid #30363d;
-      word-break:break-word;animation:in .3s}
+  :root{--bg:#0d1117;--card:#161b22;--bd:#30363d;--mut:#8b949e;--fg:#e6edf3;
+        --blue:#58a6ff;--green:#3fb950;--red:#f85149;--yel:#d29922;--pur:#bc8cff}
+  body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.45 ui-monospace,Menlo,monospace}
+  header{display:flex;gap:14px;padding:8px 14px;background:var(--card);border-bottom:1px solid var(--bd);
+         position:sticky;top:0;z-index:5;align-items:center;flex-wrap:wrap}
+  header b{color:var(--blue)} .m{color:var(--mut)} .m b{color:var(--fg)}
+  #vu{width:110px;height:10px;background:#21262d;border-radius:5px;overflow:hidden}
+  #vu i{display:block;height:100%;width:0;background:var(--green);transition:width .25s}
+  #vu.low i{background:var(--red)}
+  button{background:#21262d;color:var(--fg);border:1px solid var(--bd);border-radius:6px;
+         padding:3px 10px;cursor:pointer;font:inherit}
+  button:hover{border-color:var(--blue)} button.on{background:#1f3d2b;border-color:var(--green)}
+  input#filter{background:#0d1117;border:1px solid var(--bd);border-radius:6px;color:var(--fg);
+         padding:3px 8px;font:inherit;width:160px}
+  #wrap{display:grid;grid-template-columns:3fr 2fr;gap:1px;background:var(--bd);
+        min-height:calc(100vh - 44px)}
+  .pane{background:var(--bg);padding:10px;overflow-y:auto;max-height:calc(100vh - 44px)}
+  h2{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);
+     border-bottom:1px solid #21262d;padding-bottom:6px}
+  /* final segment cards */
+  .seg{background:var(--card);border:1px solid var(--bd);border-left:3px solid var(--blue);
+       border-radius:6px;padding:7px 9px;margin:6px 0;cursor:pointer;animation:in .25s}
+  .seg:hover{border-color:var(--blue)}
+  .seg.open{border-color:var(--blue);background:#101a2b}
+  .seg .hd{display:flex;gap:10px;align-items:center;color:var(--mut);font-size:11px;margin-bottom:3px}
+  .seg .txt{font-size:14px}
+  .seg .txt .corrw{color:var(--pur);text-decoration:underline dotted}
+  .lat{color:var(--green)} .lat.slow{color:var(--red)}
+  .badge{background:#21262d;border-radius:10px;padding:0 7px;font-size:11px}
+  .detail{display:none;margin-top:8px;border-top:1px dashed var(--bd);padding-top:8px;cursor:auto}
+  .seg.open .detail{display:block}
+  .detail audio{width:100%;height:30px;margin:4px 0}
+  .kv{color:var(--mut);font-size:11px;margin:2px 0}
+  .kv b{color:var(--fg)}
+  .dr{color:var(--mut);font-size:12px;padding:2px 0 2px 10px;border-left:2px solid #21262d}
+  .ed{color:var(--pur);font-size:12px;padding:2px 0 2px 10px;border-left:2px solid var(--pur)}
   @keyframes in{from{opacity:0;transform:translateY(-3px)}to{opacity:1}}
-  .ev .ts{color:#8b949e;font-size:11px;margin-right:6px}
-  .ev.audio{border-left-color:#3fb950}.ev.vad{border-left-color:#d29922;color:#d29922}
-  .ev.draft{border-left-color:#8b949e}
-  .ev.final{border-left-color:#58a6ff}
-  .ev.korekcia{border-left-color:#bc8cff;color:#bc8cff}
-  .ev.corr{border-left-color:#f85149;background:#2d1517;font-weight:600}
-  #vu{width:120px;height:10px;background:#21262d;border-radius:5px;overflow:hidden}
-  #vu i{display:block;height:100%;width:0;background:#3fb950;transition:width .3s}
-  #vu.low i{background:#f85149}
-  .lat{color:#3fb950}.lat.slow{color:#f85149}
+  /* right tabs */
+  .tabs{display:flex;gap:4px;margin-bottom:8px}
+  .tabs button{font-size:11px;padding:3px 8px}
+  .tab{display:none} .tab.act{display:block}
+  .ev{padding:3px 6px;margin:2px 0;border-radius:4px;background:var(--card);
+      border-left:3px solid var(--bd);word-break:break-word;font-size:12px}
+  .ev .ts{color:var(--mut);font-size:10px;margin-right:6px}
+  .ev.draft{border-left-color:var(--mut)} .ev.vad{border-left-color:var(--yel);color:var(--yel)}
+  .ev.audio{border-left-color:var(--green)} .ev.korekcia{border-left-color:var(--pur);color:var(--pur)}
+  .ev.corr{border-left-color:var(--red);background:#2d1517;font-weight:600}
+  canvas{width:100%;height:130px;background:var(--card);border:1px solid var(--bd);border-radius:6px}
+  .legend{font-size:11px;color:var(--mut);margin:4px 0}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 4px 0 10px;vertical-align:-1px}
 </style>
 </head>
 <body>
 <header>
-  <b>FLOW</b>
-  <span class="m">audio <span id="vu"><i></i></span> rms <b id="rms">—</b> / prah <b id="thr">—</b></span>
-  <span class="m">draft lat <b id="dlat">—</b></span>
-  <span class="m">final lat <b id="flat">—</b></span>
-  <span class="m">RTF <b id="rtf">—</b></span>
+  <b>STUDIO</b>
+  <span class="m">audio <span id="vu"><i></i></span> rms <b id="rms">—</b>/<b id="thr">—</b></span>
+  <span class="m">draft <b id="dlat">—</b></span>
+  <span class="m">final <b id="flat">—</b></span>
   <span class="m">flicker <b id="flick">—</b></span>
   <span class="m">korekcie <b id="ncorr">0</b></span>
-  <span class="m" id="wsstat">⏳ pripájam…</span>
-  <a href="/" style="color:#58a6ff;text-decoration:none;margin-left:auto">◱ overlay</a>
+  <span class="m" id="wsstat">⏳</span>
+  <button id="pause">⏸ pauza</button>
+  <button id="clear">🗑 vyčistiť</button>
+  <input id="filter" placeholder="filter textu…">
+  <a href="/" style="color:var(--blue);text-decoration:none;margin-left:auto">◱ overlay</a>
 </header>
-<div id="cols">
-  <div class="col"><h2>1 · Audio / VAD</h2><div id="c-audio"></div></div>
-  <div class="col"><h2>2 · Draft (small, ~1.5 s)</h2><div id="c-draft"></div></div>
-  <div class="col"><h2>3 · Final (turbo, commit)</h2><div id="c-final"></div></div>
-  <div class="col"><h2>4 · Korekcia (Azure+gaty)</h2><div id="c-corr"></div></div>
+<div id="wrap">
+  <div class="pane">
+    <h2>Prepis — klikni segment pre detail (audio, drafty, meta)</h2>
+    <div id="segs"></div>
+  </div>
+  <div class="pane">
+    <div class="tabs">
+      <button data-t="t-draft" class="on">Draft</button>
+      <button data-t="t-corr">Korekcia</button>
+      <button data-t="t-av">Audio/VAD</button>
+      <button data-t="t-lat">Latencie</button>
+    </div>
+    <div id="t-draft" class="tab act"></div>
+    <div id="t-corr" class="tab"></div>
+    <div id="t-av" class="tab"></div>
+    <div id="t-lat" class="tab">
+      <div class="legend">draft<i style="background:var(--mut)"></i>final<i style="background:var(--blue)"></i>
+        — každý bod = 1 commit/draft, os y = latencia [s]</div>
+      <canvas id="chart" width="600" height="130"></canvas>
+      <div class="kv" id="latsum"></div>
+    </div>
+  </div>
 </div>
 <script>
 const $ = id => document.getElementById(id);
-let ncorr = 0;
-function row(col, cls, html){
-  const d = document.createElement('div');
-  d.className = 'ev ' + cls;
-  d.innerHTML = '<span class="ts">' + new Date().toLocaleTimeString('sk',{hour12:false}) + '</span>' + html;
-  const c = $(col); c.prepend(d);
-  while (c.children.length > 120) c.removeChild(c.lastChild);
-}
 const esc = s => (s??'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;');
-const ws = new WebSocket('ws://' + location.host + '/ws');
-ws.onopen = () => $('wsstat').textContent = '🟢 live';
-ws.onclose = () => $('wsstat').textContent = '🔴 odpojené';
-let lastVad = 0, lastAudioRow = 0;
-ws.onmessage = e => {
-  const d = JSON.parse(e.data);
-  if (d.event){
-    const v = d.event;
-    if (v.t === 'audio'){
-      $('rms').textContent = v.rms.toFixed(3);
-      $('thr').textContent = v.thr.toFixed(3);
-      const vu = $('vu');
-      vu.firstElementChild.style.width = Math.min(100, v.rms*400) + '%';
-      vu.className = v.rms < v.thr ? 'low' : '';
-      if (Date.now() - lastAudioRow > 5000){ lastAudioRow = Date.now();
-        row('c-audio','audio','rms ' + v.rms.toFixed(3) + (v.rms < v.thr ? ' <b style="color:#f85149">pod prahom</b>' : ' ✓ reč')); }
-    } else if (v.t === 'vad'){
-      if (Date.now() - lastVad > 1500){ lastVad = Date.now(); row('c-audio','vad','✂ ' + esc(v.msg)); }
-    } else if (v.t === 'draft'){
-      row('c-draft','draft', esc(v.text) + ' <span class="m">(' + v.dur + 's dekód)</span>');
-    } else if (v.t === 'final'){
-      const lat = v.lat ? '<span class="lat' + (v.lat > 6 ? ' slow' : '') + '"> ' + v.lat + 's</span>' : '';
-      row('c-final','final','✔ ' + esc(v.words) + lat + ' <span class="m">' + esc(v.corr) + '</span>');
-    } else if (v.t === 'korekcia'){
-      row('c-corr','korekcia', esc(v.msg.replace('[korekcia] ','')));
-    } else if (v.t === 'corr'){
-      ncorr++; $('ncorr').textContent = ncorr;
-      row('c-corr','corr','✏ ' + esc(v.from) + ' → ' + esc(v.to));
-      row('c-final','corr','✏ oprava: ' + esc(v.from) + ' → ' + esc(v.to));
+const ts = () => new Date().toLocaleTimeString('sk',{hour12:false});
+let paused=false, ncorr=0;
+const drafts=[];            // {ts, text, dur}
+const dlats=[], flats=[];   // latencie pre graf
+const buf=[];               // eventy počas pauzy
+
+$('pause').onclick = () => { paused=!paused;
+  $('pause').textContent = paused?'▶ pokračuj':'⏸ pauza';
+  $('pause').classList.toggle('on',paused);
+  if(!paused){ buf.splice(0).forEach(handle); } };
+$('clear').onclick = () => { $('segs').innerHTML=''; ['t-draft','t-corr','t-av'].forEach(i=>$(i).innerHTML='');
+  dlats.length=flats.length=0; drawChart(); };
+$('filter').oninput = () => { const q=$('filter').value.toLowerCase();
+  [...$('segs').children].forEach(s=>{ s.style.display = s.textContent.toLowerCase().includes(q)?'':'none'; }); };
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('act'));
+  b.classList.add('on'); $(b.dataset.t).classList.add('act');
+  if(b.dataset.t==='t-lat') drawChart(); });
+
+function row(col, cls, html){
+  const d=document.createElement('div'); d.className='ev '+cls;
+  d.innerHTML='<span class="ts">'+ts()+'</span>'+html;
+  const c=$(col); c.prepend(d);
+  while(c.children.length>150) c.removeChild(c.lastChild);
+}
+
+function addSeg(v){
+  const d=document.createElement('div'); d.className='seg'; d.dataset.ts=Date.now();
+  const lat=v.lat!=null?'<span class="lat'+(v.lat>6?' slow':'')+'">'+v.lat+' s</span>':'';
+  d.innerHTML =
+    '<div class="hd"><span>'+ts()+'</span>'+lat+
+    '<span class="badge">'+(v.audio_t0_s!=null?v.audio_t0_s+'s → +'+v.audio_dur_s+'s':'')+'</span>'+
+    (v.rms!=null?'<span class="badge">rms '+v.rms+'</span>':'')+'</div>'+
+    '<div class="txt">'+esc(v.words)+'</div>'+
+    '<div class="detail"></div>';
+  d.querySelector('.detail').onclick=e=>e.stopPropagation();
+  d.onclick=()=>{ const was=d.classList.contains('open');
+    if(was){ d.classList.remove('open'); return; }
+    d.classList.add('open'); fillDetail(d,v); };
+  const c=$('segs'); c.prepend(d);
+  while(c.children.length>200) c.removeChild(c.lastChild);
+  const q=$('filter').value.toLowerCase();
+  if(q && !d.textContent.toLowerCase().includes(q)) d.style.display='none';
+}
+
+function fillDetail(d,v){
+  const det=d.querySelector('.detail'); det.innerHTML='';
+  if(v.wav){ const a=document.createElement('audio'); a.controls=true; a.src='/audio/'+v.wav;
+    det.appendChild(a); }
+  det.insertAdjacentHTML('beforeend',
+    '<div class="kv">úsek <b>'+(v.audio_t0_s??'—')+' s</b> · dĺžka <b>'+(v.audio_dur_s??'—')+' s</b>'+
+    ' · commit latencia <b>'+(v.lat??'—')+' s</b> · rms <b>'+(v.rms??'—')+'</b>'+
+    (v.wav?'':' · <i>audio artefakt nedostupný</i>')+'</div>');
+  // drafty tesne pred commitom tohto segmentu (okno = latencia + dĺžka + 2 s)
+  const t1=+d.dataset.ts, win=((v.lat||4)+(v.audio_dur_s||3)+2)*1000;
+  const rel=drafts.filter(x=>x.ts<=t1 && x.ts>=t1-win);
+  det.insertAdjacentHTML('beforeend','<div class="kv"><b>'+rel.length+'</b> draft verzií pred commitom:</div>');
+  rel.slice(-12).forEach(x=>det.insertAdjacentHTML('beforeend',
+    '<div class="dr">'+esc(x.text)+' <span class="m">('+x.dur+'s)</span></div>'));
+  (d._edits||[]).forEach(e=>det.insertAdjacentHTML('beforeend',
+    '<div class="ed">✏ '+esc(e.from)+' → '+esc(e.to)+'</div>'));
+}
+
+function markCorr(from,to){
+  // nájdi najnovší segment obsahujúci slovo a zvýrazni ho
+  for(const s of $('segs').children){
+    const t=s.querySelector('.txt');
+    const re=new RegExp('\\b'+from.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b');
+    if(re.test(t.textContent)){
+      t.innerHTML=t.innerHTML.replace(re,'<span class="corrw" title="pôvodne: '+esc(from)+'">'+esc(to)+'</span>');
+      (s._edits=s._edits||[]).push({from,to});
+      if(s.classList.contains('open')) s.click(), s.click();
+      break; } }
+}
+
+function drawChart(){
+  const cv=$('chart'), g=cv.getContext('2d');
+  cv.width=cv.clientWidth||600;
+  g.clearRect(0,0,cv.width,cv.height);
+  const all=[...dlats,...flats]; if(!all.length) return;
+  const max=Math.max(6,...all), W=cv.width, H=cv.height, n=Math.max(dlats.length,flats.length,2);
+  g.strokeStyle='#21262d'; g.beginPath();
+  for(let y=1;y<=Math.floor(max);y+=Math.ceil(max/5)){ const py=H-y/max*H;
+    g.moveTo(0,py); g.lineTo(W,py);} g.stroke();
+  g.fillStyle='#8b949e'; g.font='10px monospace';
+  g.fillText(max.toFixed(0)+'s',2,10);
+  const plot=(xs,color)=>{ g.strokeStyle=color; g.beginPath();
+    xs.forEach((v,i)=>{ const x=i/(n-1)*(W-10)+5, y=H-v/max*H;
+      i?g.lineTo(x,y):g.moveTo(x,y); }); g.stroke(); };
+  plot(dlats,'#8b949e'); plot(flats,'#58a6ff');
+  const med=a=>a.length?[...a].sort((x,y)=>x-y)[a.length>>1].toFixed(2):'—';
+  $('latsum').innerHTML='p50: draft <b>'+med(dlats)+' s</b> · final <b>'+med(flats)+' s</b> · bodov '+n;
+}
+
+function handle(d){
+  if(d.event){
+    const v=d.event;
+    if(v.t==='audio'){
+      $('rms').textContent=v.rms.toFixed(3); $('thr').textContent=v.thr.toFixed(3);
+      const vu=$('vu'); vu.firstElementChild.style.width=Math.min(100,v.rms*400)+'%';
+      vu.className=v.rms<v.thr?'low':'';
+      if(Date.now()-(handle._ar||0)>5000){ handle._ar=Date.now();
+        row('t-av','audio','rms '+v.rms.toFixed(3)+(v.rms<v.thr?' <b style="color:var(--red)">pod prahom</b>':' ✓ reč')); }
+    } else if(v.t==='vad'){
+      if(Date.now()-(handle._vd||0)>1500){ handle._vd=Date.now(); row('t-av','vad','✂ '+esc(v.msg)); }
+    } else if(v.t==='draft'){
+      drafts.push({ts:Date.now(),text:v.text,dur:v.dur});
+      if(drafts.length>500) drafts.shift();
+      row('t-draft','draft',esc(v.text)+' <span class="m">('+v.dur+'s)</span>');
+    } else if(v.t==='final'){
+      addSeg(v);
+      if(v.lat!=null){ flats.push(v.lat); if(flats.length>300) flats.shift();
+        if($('t-lat').classList.contains('act')) drawChart(); }
+    } else if(v.t==='korekcia'){
+      row('t-corr','korekcia',esc((v.msg||'').replace('[korekcia] ','')));
+    } else if(v.t==='corr'){
+      ncorr++; $('ncorr').textContent=ncorr;
+      row('t-corr','corr','✏ '+esc(v.from)+' → '+esc(v.to));
+      markCorr(v.from,v.to);
     }
     return;
   }
-  if ('committed' in d){
-    if (d.draft_latency_s)  $('dlat').textContent  = d.avg_draft_latency_s.toFixed(1) + 's';
-    if (d.final_latency_s)  $('flat').textContent  = d.avg_final_latency_s.toFixed(1) + 's';
-    if (d.rtf != null)      $('rtf').textContent   = d.rtf;
-    if (d.flicker_rate != null) $('flick').textContent = (d.flicker_rate*100).toFixed(0) + '%';
+  if('committed' in d){
+    if(d.avg_draft_latency_s!=null) $('dlat').textContent=d.avg_draft_latency_s.toFixed(1)+'s';
+    if(d.avg_final_latency_s!=null) $('flat').textContent=d.avg_final_latency_s.toFixed(1)+'s';
+    if(d.flicker_rate!=null) $('flick').textContent=(d.flicker_rate*100).toFixed(0)+'%';
+    if(d.draft_latency_s!=null){ dlats.push(d.draft_latency_s); if(dlats.length>300) dlats.shift(); }
   }
-};
+}
+
+const ws=new WebSocket('ws://'+location.host+'/ws');
+ws.onopen =()=>$('wsstat').textContent='🟢 live';
+ws.onclose=()=>$('wsstat').textContent='🔴 odpojené';
+ws.onmessage=e=>{ const d=JSON.parse(e.data); if(paused){ buf.push(d); if(buf.length>800) buf.shift(); return;} handle(d); };
 </script>
 </body>
 </html>
