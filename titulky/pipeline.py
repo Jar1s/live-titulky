@@ -270,6 +270,7 @@ class TwoTierPipeline:
         self.on_update({
             "committed": " ".join(self.final_text[self.display_from:]),
             "pending": self.draft_text,
+            "speaking": getattr(self, "speaking", False),
             "draft_latency_s": self.draft_latencies[-1] if self.draft_latencies else None,
             "avg_draft_latency_s": (sum(self.draft_latencies) / len(self.draft_latencies))
                                    if self.draft_latencies else None,
@@ -296,6 +297,9 @@ class TwoTierPipeline:
             # vyčisti draft aj zobrazenú históriu (stará reč sa už nevracia)
             tail_a = audio[-int(SILENCE_CLEAR_S * SAMPLE_RATE):]
             if self.slevel.is_silent(tail_a, audio):
+                if getattr(self, "speaking", False):
+                    self.speaking = False
+                    self._emit()   # zhasni ghost cursor
                 # koniec bloku: všetko dopovedané pred týmto tichom patrí
                 # do starého bloku — nech final dobehne, ale už NEZOBRAZUJE
                 self.block_start_s = max(self.block_start_s,
@@ -311,6 +315,11 @@ class TwoTierPipeline:
                     self._emit()
                 time.sleep(DRAFT_STEP_S)
                 continue
+            if not getattr(self, "speaking", False):
+                # ghost cursor: reč detegovaná (VAD prešiel) — ukáž ▊ hneď,
+                # PRED dekódom; vnímaná odozva < DRAFT_STEP_S + emit
+                self.speaking = True
+                self._emit()
             words = self.draft_asr.transcribe(audio, self.language,
                                               skip_if_busy=True)
             if words is None:      # GPU drží final dekód — preskoč kolo
@@ -340,16 +349,20 @@ class TwoTierPipeline:
                                    "dur": round(now - t_start, 2)})
             else:
                 changed = False
-            # draft latencia: prvé zobrazenie nového slova
-            # kľúč toleruje jitter timestampov (zaokrúhlenie na 1 s)
-            for w in tail:
-                key = (round(off_s + w["start"]), self._norm_key(w["text"]))
-                if key not in self._seen_draft_words:
-                    self._seen_draft_words[key] = now
-                    lat = (now - self.buf.t0) - (off_s + w["end"])
-                    if 0 < lat < 30:
-                        self.draft_latencies.append(lat)
+            # draft latencia: meriame čas ZOBRAZENIA slova (nie dekódu) —
+            # slovo sa počíta, až keď je naozaj v draft_text na obrazovke.
+            # Kľúč toleruje jitter timestampov (zaokrúhlenie na 1 s).
             if changed:
+                shown = self.draft_text
+                for w in tail:
+                    if w["text"] not in shown:
+                        continue
+                    key = (round(off_s + w["start"]), self._norm_key(w["text"]))
+                    if key not in self._seen_draft_words:
+                        self._seen_draft_words[key] = now
+                        lat = (now - self.buf.t0) - (off_s + w["end"])
+                        if 0 < lat < 30:
+                            self.draft_latencies.append(lat)
                 self._emit()
             if self.buf.eof and total_s - off_s - len(audio) / SAMPLE_RATE <= 0 \
                and self.buf.audio is not None and self.buf.eof:

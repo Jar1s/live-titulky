@@ -24,14 +24,19 @@ TESTS = {
 }
 
 CONFIGS = [
-    # name, draft_repo, window_s, step_s
-    ("small w3.0 s0.25 (baseline)", "mlx-community/whisper-small-mlx", 3.0, 0.25),
-    ("small w2.0 s0.25", "mlx-community/whisper-small-mlx", 2.0, 0.25),
-    ("small w1.5 s0.25", "mlx-community/whisper-small-mlx", 1.5, 0.25),
-    ("small w1.5 s0.15", "mlx-community/whisper-small-mlx", 1.5, 0.15),
-    ("small w2.0 s0.15", "mlx-community/whisper-small-mlx", 2.0, 0.15),
-    ("base w2.0 s0.25", "mlx-community/whisper-base-mlx", 2.0, 0.25),
-    ("base w1.5 s0.15", "mlx-community/whisper-base-mlx", 1.5, 0.15),
+    # name, draft_repo, window_s, step_s, hold_s
+    ("small w3.0 s0.25 (baseline)", "mlx-community/whisper-small-mlx", 3.0, 0.25, 0.8),
+    ("small w2.0 s0.25", "mlx-community/whisper-small-mlx", 2.0, 0.25, 0.8),
+    ("small w1.5 s0.25", "mlx-community/whisper-small-mlx", 1.5, 0.25, 0.8),
+    ("small w1.5 s0.15", "mlx-community/whisper-small-mlx", 1.5, 0.15, 0.8),
+    ("small w2.0 s0.15", "mlx-community/whisper-small-mlx", 2.0, 0.15, 0.8),
+    ("base w2.0 s0.25", "mlx-community/whisper-base-mlx", 2.0, 0.25, 0.8),
+    ("base w1.5 s0.15", "mlx-community/whisper-base-mlx", 1.5, 0.15, 0.8),
+    # v2: zobrazovacia latencia — hold dole, krok dole
+    ("base w1.5 s0.10 h0.2", "mlx-community/whisper-base-mlx", 1.5, 0.10, 0.2),
+    ("base w2.0 s0.10 h0.2", "mlx-community/whisper-base-mlx", 2.0, 0.10, 0.2),
+    ("small w1.5 s0.10 h0.2", "mlx-community/whisper-small-mlx", 1.5, 0.10, 0.2),
+    ("base w1.5 s0.15 h0.3", "mlx-community/whisper-base-mlx", 1.5, 0.15, 0.3),
 ]
 
 
@@ -46,9 +51,10 @@ def load_refs():
     return out
 
 
-def run_config(name, repo, window, step, refs):
+def run_config(name, repo, window, step, hold, refs):
     pl.DRAFT_WINDOW_S = window
     pl.DRAFT_STEP_S = step
+    pl.DRAFT_HOLD_S = hold
     agg = {"draft_lats": [], "final_lats": [], "wers": [], "flickers": []}
     hyps = {}
     for path, ref in refs.items():
@@ -92,12 +98,13 @@ def main():
             done.add(json.loads(line)["config"])
     except FileNotFoundError:
         pass
-    for name, repo, window, step in configs:
+    for name, repo, window, step, hold in configs:
         if name in done:
             print(f"== {name}: už zmerané, preskakujem")
             continue
         print(f"== {name}")
-        row = run_config(name, repo, window, step, refs)
+        row = run_config(name, repo, window, step, hold, refs)
+        row["hold_s"] = hold
         with open("exp_grid_results.jsonl", "a") as f:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
         print({k: v for k, v in row.items() if k != "hyps"})

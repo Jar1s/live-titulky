@@ -12,6 +12,9 @@
           text-align:left; max-width:26ch; margin:0 auto;
           text-shadow:0 2px 8px #000; transition:opacity .6s; }
   #pending { color:#9a9a9a; }
+  /* ghost cursor: reč detegovaná, slová ešte nedorazili — okamžitá odozva */
+  #cursor { color:#9a9a9a; display:none; animation: blink .9s steps(2) infinite; }
+  @keyframes blink { 50% {opacity:0} }
   #subs .w { animation: fadein .09s ease-out; display:inline; }
   @keyframes fadein { from {opacity:0} to {opacity:1} }
   #stats { position:fixed; top:8px; right:12px; font-size:13px; color:#8f8;
@@ -22,7 +25,7 @@
 <a href="/flow" style="position:fixed;top:10px;right:12px;color:#444;text-decoration:none;
    font:12px ui-monospace,monospace;z-index:9">⚙ flow</a>
 <div id="stats">čakám na spojenie…</div>
-<div id="subs"><span id="committed"></span> <span id="pending"></span></div>
+<div id="subs"><span id="committed"></span> <span id="pending"></span><span id="cursor">▊</span></div>
 <script>
 const ws = new WebSocket(`ws://${location.host}/ws`);
 const c = document.getElementById('committed');
@@ -59,8 +62,11 @@ ws.onmessage = e => {
     }
   }
   p.textContent = d.pending ? ' ' + d.pending : '';
+  // ghost cursor: hovorí sa, ale draft ešte prázdny → blikajúci ▊
+  const cur = document.getElementById('cursor');
+  cur.style.display = (d.speaking && !d.pending) ? 'inline' : 'none';
   // nový obsah (nové final slová alebo živý draft) → ukáž a resetni timer
-  if (d.committed !== lastCommitted || d.pending) {
+  if (d.committed !== lastCommitted || d.pending || d.speaking) {
     lastCommitted = d.committed;
     subs.style.opacity = 1;
     clearTimeout(hideTimer);
