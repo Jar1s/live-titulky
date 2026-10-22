@@ -17,7 +17,7 @@
 | Inferencia | mlx-whisper 0.4.3, MLX 0.32.2 (Apple GPU/Metal), float16 |
 | Python | 3.12.5 |
 | Draft model | `mlx-community/whisper-base-mlx` |
-| Final model | `kinit/whisper-large-v3-turbo-sk` (MLX konverzia, float16), beam 5 |
+| Final model | `kinit/whisper-large-v3-turbo-sk` (MLX konverzia, float16), greedy dekód — pozn.: mlx_whisper 0.4.3 beam search nepodporuje; skorší zápis „beam 5" bol omyl (parameter sa ticho ignoroval) |
 | Korekčná vrstva | Azure Speech STT (voliteľná, asynchrónna) |
 
 Všetko okrem voliteľnej Azure korekcie beží **lokálne, bez siete a bez GPU
@@ -269,6 +269,19 @@ latencie vôbec nepočítali, lebo sa nikdy nezobrazili. Čerstvé slová
 chodia naďalej ~0,5–0,7 s; nad tým je backfill, ktorý predtým chýbal
 úplne. Bonus merania so stitch: normal.wav WER prvýkrát 0,0 % a flicker
 klesol z 27 % na 15 % (dlhšie okno = stabilnejší kontext draftu).
+
+### 3.10 Ladenie final latencie (final grid)
+
+6 konfigurácií krok × okno (`exp_final_results.jsonl`), 3 testy každá.
+Nasadené: **krok 1,5 s, okno 8 s** → final p50 3,94 → **3,56 s** pri
+najlepšom WER (2,2 %) aj flickeri (4 %). Plus flush budí final slučku
+okamžite (Event) — po pauze v reči odpadá až 2 s spánku.
+
+Dno final latencie tohto prístupu je ~3,4 s: dekód large modelu na 8 s
+okna trvá ~1,5–2 s a LocalAgreement vyžaduje dve zhodné čítania → 
+2 × (dekód + krok). Ďalšie zrýchlenie = menší final model alebo commit
+z jedného čítania — oboje obchoduje presnosť, ktorá je tvrdým cieľom
+(§1). Vedomé rozhodnutie: ostať na 3,5 s.
 
 ---
 

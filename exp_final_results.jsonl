@@ -1,0 +1,6 @@
+{"config": "step2.0 w10 (baseline)", "step_s": 2.0, "window_s": 10.0, "final_p50": 3.94, "wer_avg": 0.0323, "wer_max": 0.0645, "flicker_avg": 0.107}
+{"config": "step1.0 w10", "step_s": 1.0, "window_s": 10.0, "final_p50": 3.66, "wer_avg": 0.0323, "wer_max": 0.0645, "flicker_avg": 0.047}
+{"config": "step1.0 w8", "step_s": 1.0, "window_s": 8.0, "final_p50": 3.42, "wer_avg": 0.043, "wer_max": 0.0645, "flicker_avg": 0.072}
+{"config": "step1.0 w6", "step_s": 1.0, "window_s": 6.0, "final_p50": 3.86, "wer_avg": 0.0215, "wer_max": 0.0645, "flicker_avg": 0.059}
+{"config": "step0.5 w6", "step_s": 0.5, "window_s": 6.0, "final_p50": 3.68, "wer_avg": 0.0323, "wer_max": 0.0645, "flicker_avg": 0.05}
+{"config": "step1.5 w8", "step_s": 1.5, "window_s": 8.0, "final_p50": 3.56, "wer_avg": 0.0215, "wer_max": 0.0323, "flicker_avg": 0.04}

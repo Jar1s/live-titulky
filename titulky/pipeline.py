@@ -23,8 +23,8 @@ DRAFT_HOLD_S = 0.10        # min interval prekreslenia draftu (stabilita očí)
 # ^ exp_grid 22.10.: base w1.5 s0.15 h0.3 → draft p50 0.73s (z 1.76s),
 #   p90 1.54s, flicker 11.5% (baseline 14.9%). Plná tabuľka:
 #   exp_grid_results.jsonl + docs/BENCHMARK.md
-FINAL_STEP_S = 2.0   # sweet spot z experiments.py: 97.6 % presnosť, flicker 6.7 %
-FINAL_WINDOW_S = 10.0
+FINAL_STEP_S = 1.5   # exp_final_grid 22.10.: p50 3.56s, WER 2.2%, flicker 4%
+FINAL_WINDOW_S = 8.0
 SILENCE_RMS = 0.008       # horná hranica prahu ticha (hlasný mik)
 SILENCE_RMS_MIN = 3e-4    # dolná hranica (tichý MacBook mik: reč ~1e-3)
 SILENCE_CLEAR_S = 0.6     # po toľkých sekundách ticha vyčisti draft
