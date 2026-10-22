@@ -98,9 +98,10 @@ Greedy dekód, `condition_on_previous_text=False`, normalizácia §1.4.
 
 **Rozhodnutie:** final = `kinit-whisper-turbo-sk` — na verejnom korpuse
 reálnych rečníkov znižuje chybovosť o **45 % relatívne** a na čítanej reči je
-bezchybný. Výhrada: na jedinej 10 s spontánnej nahrávke z miku bol horší
-(n = 1 → štatisticky nepriekazné; limitácia §5, bod 3). Architektúra je
-identická s turbo (809 M parametrov), takže latencia sa nemení.
+bezchybný. Výhrada z 10 s mic_test sa na väčšej vzorke nepotvrdila —
+na 3 min reálnej podcastovej slovenčiny je kinit zreteľne lepší (§3.7).
+Architektúra je identická s turbo (809 M parametrov), takže latencia sa
+nemení.
 
 Publikované hodnoty konzistentné s naším meraním: KInIT reportuje CV24 WER
 9,29 % (fine-tune) vs 29,23 % (base turbo); SLAIH leaderboard uvádza pre base
@@ -211,6 +212,28 @@ s OOV preklepmi (normal, pauses), nič nepokazila na fast/slow/noisy a na
 quiet jeden zásah uškodil. Systém je plne funkčný aj offline (D) — korekcia
 je voliteľné spresnenie, nie závislosť.
 
+### 3.7 Reálna spontánna reč — podcast (bez zlatej referencie)
+
+4 × 90 s z epizód LEADER X PODCAST (16 kHz mono z produkčných stôp), offline
+prepis oboma modelmi. Zlatá referencia neexistuje, preto kvalitatívna analýza
+nezhôd + miera vzájomnej nezhody modelov (25,8 % slov).
+
+**Slovenský rečník (2 klipy, čistá mikrofónová stopa):** kinit konzistentne
+správne slovenské tvary a propriá („išiel", „nepraje", „míľnik", „podľa mňa",
+„Svätý Jur", „v Bratislave", „priebojnosti"), turbo tie isté miesta komolí
+(„išel", „neprája", „poľa mea", „svetho júra", „bátislave", „vzáraníčne").
+Opačný vzor len pri anglicizmoch: turbo „hard techno", „Afromelodic" vs kinit
+„hartéchno", „afromelody" — kandidát na slovníkovú korekčnú vrstvu. Toto
+**prevracia indíciu z §3.1** (10 s mic_test, kde turbo vyzeral lepšie):
+na 3 minútach reálnej spontánnej slovenčiny je kinit zreteľne presnejší,
+takže voľba final modelu platí aj pre spontánnu reč.
+
+**Mimo zadania:** pri česky hovoriacom hosťovi sa SK fine-tune rozpadá
+(opakovacie slučky), turbo češtinu drží. Projekt cieli výlučne slovenčinu,
+preto bez riešenia; prepínač `TITULKY_FINAL_REPO` existuje.
+
+Surové prepisy: `podcast_test/hyps.json`, nezhody: `podcast_test/REVIEW.md`.
+
 ---
 
 ## 4. Diskusia
@@ -257,9 +280,9 @@ iteráciu (confidence-gating draft slov pod RMS prahom).
    šum odhadom ±0,1 s (draft) / ±0,5 s (final).
 2. **Syntetické referencie** (TTS) pre 6 zo 7 E2E testov — ideálna
    výslovnosť; reálna reč je ťažšia (viď mic_test).
-3. **Spontánna reč: n = 1** (10 s). Záver §3.1 o kinit na hovorovej reči je
-   indícia, nie dôkaz. Ďalší krok: 5–10 min reálnych nahrávok s overenými
-   referenciami.
+3. **Spontánna reč bez zlatej referencie** — podcastové klipy (§3.7) majú len
+   pseudo-referencie (zhoda modelov ~74 %); kvalitatívny verdikt je jasný,
+   presný WER by vyžadoval ručne overený prepis.
 4. Common Voice SK nemerané priamo (gated); čísla prevzaté z literatúry.
 5. Azure korekčná vrstva vyžaduje sieť a kľúč — systém bez nej beží plne
    lokálne (§3.6).
