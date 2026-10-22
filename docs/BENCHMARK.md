@@ -420,3 +420,10 @@ slovník; jiwer; FLEURS dáta; draft/final UX vzor z produkčných systémov.
 - kinit int4 kvantizácia (MLX, g64): 2,89 s vs fp16 2,69 s/dekód + horší text — int4 dequant réžia pri batch-1 preváži, fp16 na M-GPU je optimum
 - mŕtve závislosti: faster-whisper/ctranslate2/torch/transformers — CPU draft backend porazený ANE (whisper.cpp)
 - draft latencia vyriešená ANE backendom (0,13–0,17 s dekód), final 3,5 s = strop architektúry pri 1,5 s kroku a 2× agreemente
+
+## FAST_FINAL experiment (23.10., TITULKY_FAST_FINAL=1)
+Final dekód bez DTW (1.65→0.72s) + hranice commitov snapnuté na ANE draft časy:
+final p50 3.5→2.1-2.6s, ALE WER 0-3%→6.5-12.9%, flicker 0-8→16-33%.
+Lepšie než čistý approx (WER 15-22%), stále pod kvalitatívnym cieľom.
+Default ostáva exact. Ďalší smer ak treba <2.5s: commit z ANE agreementu
+(biela by sa ale mohla meniť) alebo streaming model namiesto Whisper okien.

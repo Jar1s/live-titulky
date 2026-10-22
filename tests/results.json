@@ -1,57 +1,57 @@
 [
  {
   "test": "normal.wav",
-  "wer": 0.0,
+  "wer": 0.06451612903225806,
   "hallucinated_words": null,
-  "draft_p50": 1.1250460000056774,
-  "final_p50": 4.002249375039247,
-  "flicker": 0.015625,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. kvalita rozpoznávania závisí od hluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
+  "draft_p50": 0.8247096250136385,
+  "final_p50": 2.3971689579961826,
+  "flicker": 0.3333333333333333,
+  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od hluku v okolí. úzlovnosti a rýchlosti meranie presnosti je dôležité."
  },
  {
   "test": "fast.wav",
-  "wer": 0.0,
+  "wer": 0.125,
   "hallucinated_words": null,
-  "draft_p50": 0.6651037079934032,
-  "final_p50": 3.671782083004946,
-  "flicker": 0.030303030303030304,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne."
+  "draft_p50": 0.5704664790222889,
+  "final_p50": 2.4783713750364256,
+  "flicker": 0.1956521739130435,
+  "hyp": "Automatické Tie titulky prevádzajú živú reč na text v reálnom čase. Systém musí vypracovať rýchlo a presne."
  },
  {
   "test": "slow.wav",
   "wer": 0.0,
   "hallucinated_words": null,
-  "draft_p50": 0.7344697920186443,
-  "final_p50": 3.2439550420304295,
+  "draft_p50": 0.5411382079892791,
+  "final_p50": 2.1362277290085334,
   "flicker": 0.0,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase systém musí pracovať rýchlo a presne."
+  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. systém musí pracovať rýchlo a presne."
  },
  {
   "test": "quiet.wav",
-  "wer": 0.03225806451612903,
+  "wer": 0.12903225806451613,
   "hallucinated_words": null,
-  "draft_p50": 0.9665473749721425,
-  "final_p50": 4.1223222709756815,
-  "flicker": 0.07894736842105263,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od hluku v okolí, výslovnosti a rýchlosti rečí. Meranie presnosti je dôležité."
+  "draft_p50": 0.7757422499917448,
+  "final_p50": 2.502689853988122,
+  "flicker": 0.16455696202531644,
+  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí i odhluku v okolí, výslovnosti na rýchlosti reči. Meranie presnosti je"
  },
  {
   "test": "noisy.wav",
-  "wer": 0.12903225806451613,
+  "wer": 0.1935483870967742,
   "hallucinated_words": null,
-  "draft_p50": 1.2234393125073986,
-  "final_p50": 4.288020000003744,
-  "flicker": 0.13333333333333333,
-  "hyp": "automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí vypracovať rýchlo a presne. Kvalita rozpoznávania závisí od hluku v okolí z výslovnosti a rýchlosti reči meranie presnosti veľmi dôležitá."
+  "draft_p50": 1.0536869590100828,
+  "final_p50": 2.6348179228339017,
+  "flicker": 0.25,
+  "hyp": "automatické titulky prevádzajú živý reč na text v reálnom zse. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od hluku v okolí. Výslovnosť tisí a narýchlosti reči meranie presností je dôležité"
  },
  {
   "test": "pauses.wav",
-  "wer": 0.0,
+  "wer": 0.0967741935483871,
   "hallucinated_words": null,
-  "draft_p50": 0.9059644375042992,
-  "final_p50": 3.399084958010353,
-  "flicker": 0.109375,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. kvalita rozpoznávania závisí od hluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
+  "draft_p50": 0.8139441249542863,
+  "final_p50": 2.313998854460661,
+  "flicker": 0.16393442622950818,
+  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom ce. Systém musí pracovať rýchlo a presne. kvalita rozpoznávania a závisí od hluku v okolí, výslovnosti a rýchlosti či meranie presnosti je dôležité."
  },
  {
   "test": "silence.wav",

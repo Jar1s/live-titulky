@@ -9,6 +9,7 @@ aj pre final (čas potvrdenia). Vzor: produkčné partial/final captioning
 (Google/Zoom), ufal/whisper_streaming, WhisperLiveKit.
 """
 import os
+import re
 import threading
 import time
 
@@ -25,6 +26,13 @@ DRAFT_HOLD_S = 0.10        # min interval prekreslenia draftu (stabilita očí)
 #   exp_grid_results.jsonl + docs/BENCHMARK.md
 FINAL_STEP_S = 1.5   # exp_final_grid 22.10.: p50 3.56s, WER 2.2%, flicker 4%
 FINAL_WINDOW_S = 8.0
+# FAST_FINAL (experiment): final dekód bez DTW word_timestamps (-0.9s),
+# hranice commitov sa snapujú na reálne časy slov z ANE draftu
+FAST_FINAL = os.environ.get("TITULKY_FAST_FINAL", "0") == "1"
+
+
+def _norm_w(t: str) -> str:
+    return re.sub(r"[^\wáäčďéíĺľňóôŕšťúýž]", "", t.lower())
 SILENCE_RMS = 0.008       # horná hranica prahu ticha (hlasný mik)
 SILENCE_RMS_MIN = 3e-4    # dolná hranica (tichý MacBook mik: reč ~1e-3)
 SILENCE_CLEAR_S = 0.6     # po toľkých sekundách ticha vyčisti draft
@@ -222,6 +230,7 @@ class TwoTierPipeline:
             log=lambda m: (print(m),
                            self.on_event({"t": "korekcia", "msg": m})))
         self.corrections = 0
+        self._draft_times = []   # (norm_slovo, abs_end_s) z ANE — FAST_FINAL snap
         # diarizácia (JBOP-100): vlastné CPU vlákno, fail-safe, nulový
         # dopad na final slučku (len put_nowait do fronty)
         self.spk_tagger = None
@@ -231,6 +240,19 @@ class TwoTierPipeline:
                 self.spk_tagger = SpeakerTagger(self.on_event)
             except Exception as e:  # noqa: BLE001
                 self.on_event({"t": "spk_off", "msg": f"diarizácia off: {e}"})
+
+    def _snap_boundary(self, word: str, approx_end: float) -> float:
+        """FAST_FINAL: prisnapuj approx koniec slova na reálny čas z ANE
+        draftu (rovnaké normalizované slovo, max 1.5 s od odhadu).
+        Bez zhody vráti approx — konzervatívne, hranica má toleranciu."""
+        nw = _norm_w(word)
+        best, best_d = None, 1.5
+        for (t, e) in self._draft_times:
+            if t == nw:
+                d = abs(e - approx_end)
+                if d < best_d:
+                    best, best_d = e, d
+        return best if best is not None else approx_end
 
     def _apply_corrections(self, start_idx: int, changes: list[dict]):
         """Callback z CorrectionWorker — opraví committed slová a emitne."""
@@ -381,6 +403,11 @@ class TwoTierPipeline:
             # (dych/šum nad prahom ticha inak preblikáva ako „Ďakujem!")
             ref = max(self.slevel.level, float(np.sqrt(np.mean(audio ** 2))))
             words = [w for w in words if word_energy_ok(audio, w, ref)]
+            if FAST_FINAL:
+                # ANE časy slov pre snap final hraníc (experiment FAST_FINAL)
+                self._draft_times.extend(
+                    (_norm_w(w["text"]), off_s + w["end"]) for w in words)
+                del self._draft_times[:-300]
             now = time.monotonic()
             # draft = slová za final hranicou
             tail = [w for w in words if off_s + w["end"] > self.final_upto_s]
@@ -475,7 +502,9 @@ class TwoTierPipeline:
                 if self._flush_evt.wait(FINAL_STEP_S):
                     self._flush_evt.clear()
                 continue
-            words = self.final_asr.transcribe(audio, self.language)
+            words = self.final_asr.transcribe(
+                audio, self.language,
+                word_ts_exact=False if FAST_FINAL else None)
             for reason, txt in getattr(self.final_asr, "last_stats",
                                        {}).get("drops", []):
                 if txt:
@@ -489,7 +518,10 @@ class TwoTierPipeline:
             # halucinácie z ticha („Ďakujem za pozornosť")
             ref = max(float(np.sqrt(np.mean(audio ** 2))) if len(audio) else 0.0,
                       self.slevel.level)
-            words = [w for w in words if word_energy_ok(audio, w, ref)]
+            if not FAST_FINAL:
+                # energy gate potrebuje presné časy slov — pri approx časoch
+                # strieľal do dobrých slov (WER experiment 23.10.)
+                words = [w for w in words if word_energy_ok(audio, w, ref)]
             # okno plné šumu/ticha, filtre zahodili všetko → posuň hranicu,
             # inak final navždy melie to isté okno a nikdy nedobehne reč
             if not words:
@@ -535,7 +567,10 @@ class TwoTierPipeline:
                     # zobraz ho; skry len ak už beží nová reč (neinterleavovať)
                     belongs_to_old_block = getattr(self, "speaking", False)
                 elif idx < len(words):
-                    self.final_upto_s = off_s + words[idx]["end"]
+                    end = off_s + words[idx]["end"]
+                    if FAST_FINAL:
+                        end = self._snap_boundary(words[idx]["text"], end)
+                    self.final_upto_s = end
                     lat = (now - self.buf.t0) - self.final_upto_s
                     if 0 < lat < 60:
                         self.final_latencies.append(lat)

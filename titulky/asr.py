@@ -81,8 +81,12 @@ class ASR:
         self.transcribe(rng.normal(0, 0.01, SAMPLE_RATE * 10)
                         .astype(np.float32))
 
-    def transcribe(self, audio: np.ndarray, language="sk", skip_if_busy=False):
+    def transcribe(self, audio: np.ndarray, language="sk", skip_if_busy=False,
+                   word_ts_exact=None):
         """audio: float32 mono 16 kHz. Vráti list slov (text, start, end).
+
+        word_ts_exact: None = globálny default (WORD_TS_EXACT); False =
+        lacný dekód bez DTW (-0.9s), časy aproximované zo segmentov.
 
         skip_if_busy: nečakaj na _MLX_LOCK — vráť None (draft vrstva radšej
         preskočí kolo, než by čakala sekundy na final dekód).
@@ -103,10 +107,11 @@ class ASR:
         else:
             _MLX_LOCK.acquire()
         t_lock = time.monotonic()
+        exact = WORD_TS_EXACT if word_ts_exact is None else word_ts_exact
         try:
             r = mlx_whisper.transcribe(
                 preprocess(audio), path_or_hf_repo=self.repo, language=language,
-                word_timestamps=WORD_TS_EXACT,
+                word_timestamps=exact,
                 condition_on_previous_text=False,
                 no_speech_threshold=0.6, temperature=0.0, fp16=True, verbose=None,
                 **kw,
@@ -122,7 +127,7 @@ class ASR:
             if seg.get("avg_logprob", 0.0) < -1.5:
                 drops.append(("logprob<-1.5", seg.get("text", "").strip()))
                 continue
-            if WORD_TS_EXACT:
+            if exact:
                 for w in seg.get("words", []):
                     dur = w["end"] - w["start"]
                     if w.get("probability", 1.0) < 0.5 and dur < 0.15:
