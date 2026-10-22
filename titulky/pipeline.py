@@ -194,6 +194,8 @@ class TwoTierPipeline:
         self.display_from = 0                # index prvého slova aktuálneho bloku
         self.block_start_s = 0.0             # čas audia, kde začína aktuálny blok
         self.final_upto_s = 0.0              # po aký čas audia je final potvrdený
+        self.flush_upto_s = 0.0              # VAD uzavrel blok → final ho má
+                                             # dekódovať celý naraz (plný kontext)
         self.draft_text = ""                 # aktuálny draft za final hranicou
         self.draft_latencies: list[float] = []
         self.compute_s = 0.0                 # súčet dekódovacieho času (RTF)
@@ -303,6 +305,10 @@ class TwoTierPipeline:
                 if getattr(self, "speaking", False):
                     self.speaking = False
                     self._emit()   # zhasni ghost cursor
+                    # koniec výroku: final nech dekóduje celý uzavretý blok
+                    # naraz — má oba okraje, agreement čakanie je zbytočné
+                    self.flush_upto_s = max(self.flush_upto_s,
+                                            total_s - SILENCE_CLEAR_S)
                 # koniec bloku: všetko dopovedané pred týmto tichom patrí
                 # do starého bloku — nech final dobehne, ale už NEZOBRAZUJE
                 self.block_start_s = max(self.block_start_s,
@@ -379,15 +385,27 @@ class TwoTierPipeline:
         eof_retries = 0
         while self.running:
             t_start = time.monotonic()
-            # vždy od potvrdenej hranice — okno sa neposúva pod agreementom
-            audio, off_s, total_s = self.buf.snapshot_from(
-                self.final_upto_s, FINAL_WINDOW_S)
-            if len(audio) < SAMPLE_RATE * 1.0 and not self.buf.eof:
+            # blok uzavretý tichom → dekóduj ho CELÝ naraz (flush):
+            # výrok má oba okraje, single dekód = offline kvalita,
+            # agreement netreba (budúce audio ho už nezmení)
+            flush_to = self.flush_upto_s
+            flush_mode = flush_to > self.final_upto_s + 0.25
+            if flush_mode:
+                self.flush_upto_s = 0.0
+                audio, off_s, total_s = self.buf.snapshot_from(
+                    self.final_upto_s,
+                    min(FINAL_WINDOW_S * 2, flush_to - self.final_upto_s))
+            else:
+                # vždy od potvrdenej hranice — okno sa neposúva pod agreementom
+                audio, off_s, total_s = self.buf.snapshot_from(
+                    self.final_upto_s, FINAL_WINDOW_S)
+            if len(audio) < SAMPLE_RATE * 1.0 and not self.buf.eof \
+               and not flush_mode:  # flush: aj krátky výrok („ahoj") sa dekóduje
                 time.sleep(0.2)
                 continue
             # VAD gate: celé okno ticho → posuň hranicu, nedekóduj (halucinácie!)
             if len(audio) and self.slevel.is_silent(audio, audio):
-                self.final_upto_s = total_s
+                self.final_upto_s = flush_to if flush_mode else total_s
                 self.final_agree.reset()
                 if self.buf.eof:
                     break
@@ -406,7 +424,11 @@ class TwoTierPipeline:
             # okno plné šumu/ticha, filtre zahodili všetko → posuň hranicu,
             # inak final navždy melie to isté okno a nikdy nedobehne reč
             if not words:
-                if len(audio) >= FINAL_WINDOW_S * SAMPLE_RATE * 0.95:
+                if flush_mode:
+                    # uzavretý blok bol len šum → preskoč ho celý
+                    self.final_upto_s = flush_to
+                    self.final_agree.reset()
+                elif len(audio) >= FINAL_WINDOW_S * SAMPLE_RATE * 0.95:
                     self.final_upto_s = total_s - 1.0
                     self.final_agree.reset()
                 if self.buf.eof:
@@ -414,7 +436,11 @@ class TwoTierPipeline:
                 time.sleep(FINAL_STEP_S)
                 continue
             now = time.monotonic()
-            new, pending = self.final_agree.update(words)
+            if flush_mode:
+                # celý výrok naraz: commitni všetko, agreement netreba
+                new, pending = [w["text"] for w in words], []
+            else:
+                new, pending = self.final_agree.update(words)
             # anti-loop: nekomituj presne tú istú sekvenciu, aká už je na
             # konci prepisu (Whisper v slučke opakuje „Ďakujem za pozornosť")
             if new and self.final_text[-len(new):] == new:
@@ -425,7 +451,15 @@ class TwoTierPipeline:
                 seg_start_s = self.final_upto_s
                 self.final_text.extend(new)
                 idx = len(self.final_agree.committed) - 1
-                if idx < len(words):
+                if flush_mode:
+                    self.final_upto_s = flush_to
+                    lat = (now - self.buf.t0) - self.final_upto_s
+                    if 0 < lat < 60:
+                        self.final_latencies.append(lat)
+                    # flush je definitívne znenie práve uzavretého bloku —
+                    # zobraz ho; skry len ak už beží nová reč (neinterleavovať)
+                    belongs_to_old_block = getattr(self, "speaking", False)
+                elif idx < len(words):
                     self.final_upto_s = off_s + words[idx]["end"]
                     lat = (now - self.buf.t0) - self.final_upto_s
                     if 0 < lat < 60:
