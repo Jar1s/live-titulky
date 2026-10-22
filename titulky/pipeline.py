@@ -205,6 +205,8 @@ class TwoTierPipeline:
         self.running = False
         # asynchrónna slovná korekcia (Azure ensemble; bez kľúča sa vypne)
         from .correction import CorrectionWorker
+        from .lexicon import Lexicon
+        self.lexicon = Lexicon()
         self.corrector = CorrectionWorker(
             self._apply_corrections,
             log=lambda m: (print(m),
@@ -454,6 +456,11 @@ class TwoTierPipeline:
             # konci prepisu (Whisper v slučke opakuje „Ďakujem za pozornosť")
             if new and self.final_text[-len(new):] == new:
                 new = []
+            if new:
+                # slovníková korekcia — deterministické opravy anglicizmov
+                new, lex_edits = self.lexicon.apply(new)
+                for frm, to in lex_edits:
+                    self.on_event({"t": "corr", "from": frm, "to": to})
             if new:
                 belongs_to_old_block = False
                 commit_start_idx = len(self.final_text)

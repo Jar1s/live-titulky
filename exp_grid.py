@@ -37,6 +37,12 @@ CONFIGS = [
     ("base w2.0 s0.10 h0.2", "mlx-community/whisper-base-mlx", 2.0, 0.10, 0.2),
     ("small w1.5 s0.10 h0.2", "mlx-community/whisper-small-mlx", 1.5, 0.10, 0.2),
     ("base w1.5 s0.15 h0.3", "mlx-community/whisper-base-mlx", 1.5, 0.15, 0.3),
+    # v3: útok na p50 <= 0.42 s — hold je najväčšia zložka, dole s ním
+    ("base w1.5 s0.10 h0.10", "mlx-community/whisper-base-mlx", 1.5, 0.10, 0.10),
+    ("base w1.5 s0.10 h0.15", "mlx-community/whisper-base-mlx", 1.5, 0.10, 0.15),
+    ("base w1.2 s0.10 h0.10", "mlx-community/whisper-base-mlx", 1.2, 0.10, 0.10),
+    ("base w1.0 s0.10 h0.10", "mlx-community/whisper-base-mlx", 1.0, 0.10, 0.10),
+    ("tiny w1.2 s0.08 h0.10", "mlx-community/whisper-tiny-mlx", 1.2, 0.08, 0.10),
 ]
 
 

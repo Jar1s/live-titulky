@@ -213,3 +213,35 @@ def test_flux_gate_real_noise_vs_fast_speech():
     sl2 = SpeechLevel()
     sl2.level = float(np.sqrt(np.mean(noise ** 2)))  # worst case z bugu
     assert sl2.is_silent(noise[-4800:], noise)
+
+
+# --- slovníková korekčná vrstva -------------------------------------------
+def test_lexicon_unigram():
+    from titulky.lexicon import Lexicon
+    lx = Lexicon(path="/nonexistent")
+    out, edits = lx.apply(["hrá", "hartéchno", "večer"])
+    assert out == ["hrá", "hard", "techno", "večer"]
+    assert edits == [("hartéchno", "hard techno")]
+
+
+def test_lexicon_punctuation_kept():
+    from titulky.lexicon import Lexicon
+    lx = Lexicon(path="/nonexistent")
+    out, _ = lx.apply(["Hartechno."])
+    assert out == ["hard", "techno."]
+
+
+def test_lexicon_bigram():
+    from titulky.lexicon import Lexicon
+    lx = Lexicon(path="/nonexistent")
+    out, edits = lx.apply(["hrám", "hart", "techno,", "stále"])
+    assert out == ["hrám", "hard", "techno,", "stále"]
+    assert edits == [("hart techno,", "hard techno")]
+
+
+def test_lexicon_no_false_hits():
+    from titulky.lexicon import Lexicon
+    lx = Lexicon(path="/nonexistent")
+    words = ["dnes", "je", "pekný", "deň", "v", "Bratislave."]
+    out, edits = lx.apply(words)
+    assert out == words and edits == []
