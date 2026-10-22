@@ -16,9 +16,9 @@ import numpy as np
 
 from .asr import ASR, DRAFT_REPO, FINAL_REPO, SAMPLE_RATE, LocalAgreement
 
-DRAFT_STEP_S = 0.15
-DRAFT_WINDOW_S = 1.5
-DRAFT_HOLD_S = 0.3        # min interval prekreslenia draftu (stabilita očí)
+DRAFT_STEP_S = 0.08
+DRAFT_WINDOW_S = 1.2
+DRAFT_HOLD_S = 0.10        # min interval prekreslenia draftu (stabilita očí)
 # ^ exp_grid 22.10.: base w1.5 s0.15 h0.3 → draft p50 0.73s (z 1.76s),
 #   p90 1.54s, flicker 11.5% (baseline 14.9%). Plná tabuľka:
 #   exp_grid_results.jsonl + docs/BENCHMARK.md

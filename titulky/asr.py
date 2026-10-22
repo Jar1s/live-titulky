@@ -17,7 +17,7 @@ SAMPLE_RATE = 16000
 # 2. rád Butterworth highpass 80 Hz — plochý passband, žiadny ripple
 # (predtým moving-average: 6 dB/okt, ripple pri cutoffe)
 _HP_SOS = butter(2, 80.0, btype="high", fs=SAMPLE_RATE, output="sos")
-DRAFT_REPO = "mlx-community/whisper-base-mlx"
+DRAFT_REPO = os.environ.get("TITULKY_DRAFT_REPO", "mlx-community/whisper-tiny-mlx")
 # ^ exp_grid 22.10.: base dekóduje 1.5s okno za ~40ms (small ~240ms) →
 #   draft p50 0.73s a nižší flicker; tiny je na SK nepoužiteľný.
 FINAL_REPO = "mlx-community/whisper-large-v3-turbo"

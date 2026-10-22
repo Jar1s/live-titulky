@@ -234,6 +234,26 @@ preto bez riešenia; prepínač `TITULKY_FINAL_REPO` existuje.
 
 Surové prepisy: `podcast_test/hyps.json`, nezhody: `podcast_test/REVIEW.md`.
 
+### 3.8 Ladenie draft latencie (grid v3) a verdikt k cieľu 420 ms
+
+16 konfigurácií (model × okno × krok × hold), append-only JSONL
+(`exp_grid_results.jsonl`). Víťaz nasadený ako default:
+**tiny, okno 1,2 s, krok 0,08 s, hold 0,10 s** → draft p50 **0,47 s**
+(grid), v plnej suite 0,17–0,52 s podľa tempa reči; pôvodná konfigurácia
+mala 0,78–1,76 s. Návrat na base: `TITULKY_DRAFT_REPO`.
+
+Cieľ 420 ms: **splnený pri rýchlej a pomalej reči (0,17/0,27 s), tesne
+nesplnený pri bežnom tempe (0,47–0,52 s)**. Fyzikálny rozklad dna:
+slovo musí doznieť (0 ms referencia) + krok okna (80 ms) + dekód tiny
+(~120 ms) + Whisper slovo často uzná až s ďalším kúskom kontextu
+(~1 krok) → ~0,35–0,45 s je dno prístupu s kĺzavým oknom. Vnímanú
+odozvu < 200 ms zabezpečuje ghost-kurzor (reakcia na RMS, nie na dekód)
+— pri obhajobe treba rozlíšiť „systém reaguje" (kurzor, < 0,2 s) od
+„slovo na obrazovke" (draft, ~0,5 s) a „potvrdené slovo" (final, ~4 s).
+
+Pozn.: final WER je draft modelom nedotknutý (nezávislé vlákna); noisy
+kolíše 6,5–12,9 % medzi behmi (jitter, viď limitácia 2).
+
 ---
 
 ## 4. Diskusia
