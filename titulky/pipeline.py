@@ -52,16 +52,19 @@ class SpeechLevel:
         thr = self.thr()
         if t < thr and p < thr * 3:
             return True
-        # dynamický gate: reč má dynamiku (pauzy medzi slovami), ustálený
-        # šum (ventilátor, hum) je plochý. Merané: reč dyn 2.7–24, šum 1.67.
-        # Bez tohto sa šum „naučí" ako úroveň reči a final dekóduje
-        # halucinácie donekonečna („Ďakujem za pozornosť" × 11).
-        return not has_speech_dynamics(whole)
+        # šumový gate: ustálený šum (ventilátor, room tone) má plochú
+        # amplitúdu AJ statické spektrum. Reč zlyhá aspoň na jednom:
+        # pauzy medzi slovami (amp dyn ≥ 1.95) alebo pohyb formantov
+        # (flux ≥ 0.31). Merané: room tone dyn 1.67/flux 0.13; rýchla
+        # súvislá reč dyn <1.8 ale flux 0.40. Biely šum má flux vysoký —
+        # ten tadiaľto prejde a rieši ho word_energy gate + anti-loop.
+        return (not has_speech_dynamics(whole)
+                and spectral_flux(whole) < FLUX_SPEECH_THR)
 
 
 def has_speech_dynamics(audio: np.ndarray, thr: float = 1.8) -> bool:
-    """p95/p20 pomer 100ms frame RMS — reč ≥ 1.95, ustálený šum ~1.67.
-    Prah 1.8 = stred medzery (2.0 zabíjalo prvé okno súvislej čítanej reči)."""
+    """p95/p20 pomer 100ms frame RMS — reč s pauzami ≥ 1.95, plochý signál
+    (šum, ale aj súvislá rýchla reč!) < 1.8 — preto len polovica gate-u."""
     n = int(SAMPLE_RATE * 0.1)
     if len(audio) < 5 * n:
         return True  # prikrátke okno na úsudok — nechaj prejsť
@@ -69,6 +72,23 @@ def has_speech_dynamics(audio: np.ndarray, thr: float = 1.8) -> bool:
         audio[:len(audio) // n * n].reshape(-1, n) ** 2, axis=1))
     return float(np.percentile(fr, 95)) > thr * max(
         float(np.percentile(fr, 20)), 1e-6)
+
+
+FLUX_SPEECH_THR = 0.22    # merané: room tone 0.13 · reč 0.31–0.46
+
+
+def spectral_flux(audio: np.ndarray) -> float:
+    """Priemerná zmena normalizovaného spektra medzi 25ms rámcami
+    (hop 10 ms). Reč hýbe formantmi → vysoký flux; ustálený šum ~0.13."""
+    n, hop = int(SAMPLE_RATE * 0.025), int(SAMPLE_RATE * 0.010)
+    if len(audio) < 3 * n:
+        return 1.0  # prikrátke — nechaj prejsť ako reč
+    frames = np.lib.stride_tricks.sliding_window_view(audio, n)[::hop]
+    if len(frames) > 400:   # flux stačí z posledných ~4 s
+        frames = frames[-400:]
+    mag = np.abs(np.fft.rfft(frames * np.hanning(n), axis=1))
+    mag /= (mag.sum(axis=1, keepdims=True) + 1e-9)
+    return float(np.mean(np.abs(np.diff(mag, axis=0)).sum(axis=1)))
 
 
 def word_energy_ok(audio: np.ndarray, w: dict, ref_rms: float) -> bool:

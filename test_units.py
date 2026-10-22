@@ -187,3 +187,29 @@ def test_speech_dynamics_gate():
         speech[i:i + 6000] += (rng.normal(0, 0.08, 6000)).astype(np.float32)
     assert has_speech_dynamics(speech)
     assert has_speech_dynamics(noise[:4000])  # prikrátke okno -> prejde
+
+
+def test_flux_gate_real_noise_vs_fast_speech():
+    """Regres z 16.10.: súvislá rýchla reč má plochú amplitúdu ako šum —
+    amp gate ju držal 4 s ako ticho (fast.wav WER 62 %). Spektrálny flux
+    ich rozlíši: reálny room tone 0.13, reč 0.31+. Fixture = skutočná
+    nahrávka šumu z MacBook miku."""
+    import wave
+
+    import numpy as np
+
+    from titulky.pipeline import FLUX_SPEECH_THR, SpeechLevel, spectral_flux
+    noise = np.load("tests/fixtures/noise_floor.npy")
+    assert spectral_flux(noise) < FLUX_SPEECH_THR
+    w = wave.open("tests/fast.wav")
+    a = (np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16)
+         .astype(np.float32) / 32768)
+    first4 = a[:16000 * 4]
+    assert spectral_flux(first4) > FLUX_SPEECH_THR
+    # celá kombinácia: is_silent nesmie rýchlu reč označiť za ticho
+    sl = SpeechLevel()
+    assert not sl.is_silent(first4[-4800:], first4)
+    # ...a reálny šum áno (aj keď sa jeho RMS stihla naučiť ako „reč")
+    sl2 = SpeechLevel()
+    sl2.level = float(np.sqrt(np.mean(noise ** 2)))  # worst case z bugu
+    assert sl2.is_silent(noise[-4800:], noise)
