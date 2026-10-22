@@ -60,8 +60,11 @@ def preprocess(audio: np.ndarray) -> np.ndarray:
 class ASR:
     def __init__(self, repo=FINAL_REPO, beam=1, use_prompt=False):
         # lokálna cesta raz — inak mlx_whisper kontaktuje HF hub pri KAŽDOM volaní
-        from huggingface_hub import snapshot_download
-        self.repo = snapshot_download(repo)
+        if os.path.isdir(repo):
+            self.repo = repo
+        else:
+            from huggingface_hub import snapshot_download
+            self.repo = snapshot_download(repo)
         self.beam = beam
         self.use_prompt = use_prompt
 
