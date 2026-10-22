@@ -210,16 +210,23 @@ class AneDraftASR:
             preprocess(audio), language=language, token_timestamps=True,
             max_len=1, split_on_word=True)
         words = []
+        drops = []
         for s in segs:
             txt = s.text.strip()
             if not txt:
+                continue
+            # whisper.cpp halucinuje anotácie na šum: (Ktuk), [MUZYKA],
+            # *klop*, ♪ — žiadne probability polia, filter textovo
+            if (txt[0] in "([*♪" or txt[-1] in ")]*♪"
+                    or txt.isupper() and len(txt) > 2):
+                drops.append(("non-speech-anotacia", txt))
                 continue
             # t0/t1 sú v centisekundách
             words.append({"text": txt, "start": s.t0 / 100.0,
                           "end": s.t1 / 100.0})
         self.last_stats = {"lock_wait_s": 0.0,
                            "decode_s": round(time.monotonic() - t0, 3),
-                           "drops": []}
+                           "drops": drops}
         return words
 
 

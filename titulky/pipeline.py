@@ -339,17 +339,24 @@ class TwoTierPipeline:
                                          total_s - SILENCE_CLEAR_S)
                 final_caught_up = self.final_upto_s >= self.block_start_s - 0.3
                 if self.draft_text or (final_caught_up
+                                       and not getattr(self, "_clear_on_speech", False)
                                        and self.display_from < len(self.final_text)):
                     self.draft_text = ""
                     self._prefix = []
                     if final_caught_up:
-                        self.display_from = len(self.final_text)
+                        # biele NEzmazať hneď — nech si ho divák dočíta;
+                        # zmaže sa, až keď začne nová reč
+                        self._clear_on_speech = True
                     self.on_event({"t": "vad",
                                    "msg": "ticho 0.6s → blok uzavretý"})
                     self._emit()
                 time.sleep(DRAFT_STEP_S)
                 continue
             if not getattr(self, "speaking", False):
+                if getattr(self, "_clear_on_speech", False):
+                    # nová reč začína → starý blok konečne preč z obrazovky
+                    self._clear_on_speech = False
+                    self.display_from = len(self.final_text)
                 # ghost cursor: reč detegovaná (VAD prešiel) — ukáž ▊ hneď,
                 # PRED dekódom; vnímaná odozva < DRAFT_STEP_S + emit
                 self.speaking = True
