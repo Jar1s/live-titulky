@@ -197,6 +197,7 @@ class TwoTierPipeline:
         self.final_upto_s = 0.0              # po aký čas audia je final potvrdený
         self.errors: list[str] = []          # pády vlákien — testy ich MUSIA vidieť
         self.flush_upto_s = 0.0              # VAD uzavrel blok → final ho má
+        self._flush_evt = threading.Event()  # zobudí final slučku hneď
                                              # dekódovať celý naraz (plný kontext)
         self.draft_text = ""                 # aktuálny draft za final hranicou
         self.draft_latencies: list[float] = []
@@ -323,6 +324,7 @@ class TwoTierPipeline:
                     # naraz — má oba okraje, agreement čakanie je zbytočné
                     self.flush_upto_s = max(self.flush_upto_s,
                                             total_s - SILENCE_CLEAR_S)
+                    self._flush_evt.set()   # final nech nespí, blok čaká
                 # koniec bloku: všetko dopovedané pred týmto tichom patrí
                 # do starého bloku — nech final dobehne, ale už NEZOBRAZUJE
                 self.block_start_s = max(self.block_start_s,
@@ -438,7 +440,8 @@ class TwoTierPipeline:
                 self.final_agree.reset()
                 if self.buf.eof:
                     break
-                time.sleep(FINAL_STEP_S)
+                if self._flush_evt.wait(FINAL_STEP_S):
+                    self._flush_evt.clear()   # flush → dekóduj hneď
                 continue
             words = self.final_asr.transcribe(audio, self.language)
             for reason, txt in getattr(self.final_asr, "last_stats",
@@ -467,7 +470,8 @@ class TwoTierPipeline:
                     self.final_agree.reset()
                 if self.buf.eof:
                     break
-                time.sleep(FINAL_STEP_S)
+                if self._flush_evt.wait(FINAL_STEP_S):
+                    self._flush_evt.clear()   # flush → dekóduj hneď
                 continue
             now = time.monotonic()
             if flush_mode:
@@ -567,7 +571,8 @@ class TwoTierPipeline:
             backlog = total_s - self.final_upto_s
             step = 0.0 if (new and backlog > FINAL_WINDOW_S * 0.5) \
                 else FINAL_STEP_S
-            time.sleep(max(0.0, step - elapsed))
+            if self._flush_evt.wait(max(0.0, step - elapsed)):
+                self._flush_evt.clear()       # flush → ďalší cyklus hneď
 
     # ---- riadenie -----------------------------------------------------
     def warmup(self):
