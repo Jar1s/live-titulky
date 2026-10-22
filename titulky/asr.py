@@ -29,6 +29,9 @@ _KINIT_LOCAL = "/Volumes/GRINDCASTER/AI-MODELS/mlx/kinit-whisper-turbo-sk"
 if os.path.isdir(_KINIT_LOCAL):
     FINAL_REPO = _KINIT_LOCAL
 FINAL_REPO = os.environ.get("TITULKY_FINAL_REPO", FINAL_REPO)
+# presné DTW slovné časy: 1.1s réžie navyše na dekód (merané) — default
+# aproximácia zo segmentov; TITULKY_WORD_TS=exact pre porovnanie
+WORD_TS_EXACT = os.environ.get("TITULKY_WORD_TS", "exact") == "exact"  # approx: dekod -1.1s, ale WER 3->15% (agreement sa rozpada na jitteri casov) — nepouzivat
 
 # mlx_whisper (Numba workqueue vnútri) NIE JE thread-safe — súbežné volanie
 # z draft aj final vlákna spôsobí crash celej pipeline („Concurrent access
@@ -103,7 +106,8 @@ class ASR:
         try:
             r = mlx_whisper.transcribe(
                 preprocess(audio), path_or_hf_repo=self.repo, language=language,
-                word_timestamps=True, condition_on_previous_text=False,
+                word_timestamps=WORD_TS_EXACT,
+                condition_on_previous_text=False,
                 no_speech_threshold=0.6, temperature=0.0, fp16=True, verbose=None,
                 **kw,
             )
@@ -118,13 +122,30 @@ class ASR:
             if seg.get("avg_logprob", 0.0) < -1.5:
                 drops.append(("logprob<-1.5", seg.get("text", "").strip()))
                 continue
-            for w in seg.get("words", []):
-                dur = w["end"] - w["start"]
-                if w.get("probability", 1.0) < 0.5 and dur < 0.15:
-                    drops.append(("p<0.5∧<0.15s", w["word"].strip()))
+            if WORD_TS_EXACT:
+                for w in seg.get("words", []):
+                    dur = w["end"] - w["start"]
+                    if w.get("probability", 1.0) < 0.5 and dur < 0.15:
+                        drops.append(("p<0.5∧<0.15s", w["word"].strip()))
+                        continue
+                    words.append({"text": w["word"].strip(),
+                                  "start": w["start"], "end": w["end"]})
+            else:
+                # aproximácia slovných časov zo segmentu (lineárne podľa
+                # dĺžky slov): DTW word_timestamps stojí 1.1s z 1.8s dekódu
+                # (merané 23.10.); hranica commitov má toleranciu 0.25s,
+                # takže presné časy nepotrebuje
+                toks = seg.get("text", "").split()
+                if not toks:
                     continue
-                words.append({"text": w["word"].strip(),
-                              "start": w["start"], "end": w["end"]})
+                s0, s1 = seg["start"], seg["end"]
+                total_ch = sum(len(t) for t in toks) or 1
+                pos = s0
+                for t in toks:
+                    dur = (s1 - s0) * len(t) / total_ch
+                    words.append({"text": t, "start": pos,
+                                  "end": pos + dur})
+                    pos += dur
         # profilovanie posledného behu — čítajú si ho pipeline loops
         self.last_stats = {"lock_wait_s": round(t_lock - t_req, 3),
                            "decode_s": round(time.monotonic() - t_lock, 3),

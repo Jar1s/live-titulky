@@ -1,57 +1,57 @@
 [
  {
   "test": "normal.wav",
-  "wer": 0.03225806451612903,
+  "wer": 0.22580645161290322,
   "hallucinated_words": null,
-  "draft_p50": 0.966994374984643,
-  "final_p50": 5.495937728994759,
-  "flicker": 0.04,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od zhluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
+  "draft_p50": 0.9262936670158526,
+  "final_p50": 3.032572173290557,
+  "flicker": 0.3482142857142857,
+  "hyp": "Automatické júcezke titulky prevádzajú živú reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita byta rozpoznávania závisí od hluku v okolí, výslovnosti rýchlosti reči. Meranie presnosti je dôležité."
  },
  {
   "test": "fast.wav",
-  "wer": 0.0,
+  "wer": 0.125,
   "hallucinated_words": null,
-  "draft_p50": 0.787834208487766,
-  "final_p50": 5.049128291972448,
-  "flicker": 0.030303030303030304,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne."
+  "draft_p50": 0.6106979169824626,
+  "final_p50": 2.1776781193749133,
+  "flicker": 0.05714285714285714,
+  "hyp": "Automatické titulky prevádzajú živú reč text v plnom čase. Systém musí pracovať rýchlo a presne."
  },
  {
   "test": "slow.wav",
-  "wer": 0.0,
+  "wer": 0.125,
   "hallucinated_words": null,
-  "draft_p50": 0.9043498129898215,
-  "final_p50": 4.730363125021103,
-  "flicker": 0.0,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. systém musí pracovať rýchlo a presne."
+  "draft_p50": 0.654390666980762,
+  "final_p50": 2.0955249233503768,
+  "flicker": 0.06666666666666667,
+  "hyp": "Automatické titulky prevádzajú živú reč na text v systém musí pracovať rýchlo a presne."
  },
  {
   "test": "quiet.wav",
-  "wer": 0.0,
+  "wer": 0.0967741935483871,
   "hallucinated_words": null,
-  "draft_p50": 1.044763375055045,
-  "final_p50": 5.049542042034679,
-  "flicker": 0.0410958904109589,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od hluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
+  "draft_p50": 1.0287500629795252,
+  "final_p50": 2.569777229478118,
+  "flicker": 0.27058823529411763,
+  "hyp": "Automatické tituloky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo o a presne. Kvalita rozpoznávania závisí od hluku v okolí, výslovnosti rýchlosti reči. Meranie presnosti je dôležité."
  },
  {
   "test": "noisy.wav",
-  "wer": 0.0967741935483871,
+  "wer": 0.16129032258064516,
   "hallucinated_words": null,
-  "draft_p50": 1.5159170005149214,
-  "final_p50": 5.364280792048667,
-  "flicker": 0.18072289156626506,
-  "hyp": "automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne valita rozpoznávania závislých od bloku v okolí výslovnosti a rýchlosti reči meranie presnosti je dôležité"
+  "draft_p50": 1.3884846874973737,
+  "final_p50": 2.505860675414182,
+  "flicker": 0.16129032258064516,
+  "hyp": "automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať to a presne kvalita rozpoznávania lisíc kubľuku v okolí z výslovnosti a rýchlosti reči meranie presnosti je dôležité"
  },
  {
   "test": "pauses.wav",
-  "wer": 0.06451612903225806,
+  "wer": 0.12903225806451613,
   "hallucinated_words": null,
-  "draft_p50": 0.9720807919616345,
-  "final_p50": 5.495281458477257,
-  "flicker": 0.17777777777777778,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. kvalita rozpoznávania závisí odhluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
+  "draft_p50": 0.9405196875229009,
+  "final_p50": 2.1752898187948375,
+  "flicker": 0.32894736842105265,
+  "hyp": "Automatické javické titulky prevádzajú živú na text v reálnom čase. Systém musí pracovať rýchlo a presne. rozpoznávania enia závisí od hluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
  },
  {
   "test": "silence.wav",
