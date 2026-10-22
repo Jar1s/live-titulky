@@ -15,30 +15,101 @@
   /* ghost cursor: reč detegovaná, slová ešte nedorazili — okamžitá odozva */
   #cursor { color:#9a9a9a; display:none; animation: blink .9s steps(2) infinite; }
   @keyframes blink { 50% {opacity:0} }
-  #subs .w { animation: fadein .09s ease-out; display:inline; }
+  #subs .w { animation: fadein .12s ease-out; display:inline; }
   @keyframes fadein { from {opacity:0} to {opacity:1} }
   #stats { position:fixed; top:8px; right:12px; font-size:13px; color:#8f8;
            font-variant-numeric:tabular-nums; text-align:right; }
+  /* režim Titulky: 2 pevné riadky, roll-up ako TV captions */
+  #roll { display:none; padding:24px 32px 48px; font-size:42px; line-height:1.35;
+          max-width:26ch; margin:0 auto; text-shadow:0 2px 8px #000;
+          transition:opacity .6s; }
+  #roll .line { min-height:1.35em; white-space:nowrap; overflow:hidden; }
+  #roll .line.top { color:#ddd; }
+  #mode { position:fixed; top:8px; left:12px; font:13px ui-monospace,monospace;
+          color:#777; background:none; border:1px solid #333; border-radius:6px;
+          padding:4px 10px; cursor:pointer; z-index:9; }
+  #mode:hover { color:#ccc; border-color:#666; }
 </style>
 </head>
 <body>
 <a href="/flow" style="position:fixed;top:10px;right:12px;color:#444;text-decoration:none;
    font:12px ui-monospace,monospace;z-index:9">⚙ flow</a>
+<button id="mode" title="prepnúť režim (klávesa M)"></button>
 <div id="stats">čakám na spojenie…</div>
+<!-- režim Diktovanie: tok final+draft, maximálna rýchlosť -->
 <div id="subs"><span id="committed"></span> <span id="pending"></span><span id="cursor">▊</span></div>
+<!-- režim Titulky: 2 stabilné riadky, len potvrdený text, roll-up -->
+<div id="roll"><div class="line top" id="l1"></div><div class="line" id="l2"><span id="l2t"></span><span id="rcursor" style="color:#9a9a9a;display:none;animation:blink .9s steps(2) infinite">▊</span></div></div>
 <script>
 const ws = new WebSocket(`ws://${location.host}/ws`);
 const c = document.getElementById('committed');
 const p = document.getElementById('pending');
 const s = document.getElementById('stats');
 const subs = document.getElementById('subs');
+const roll = document.getElementById('roll');
+const l1 = document.getElementById('l1');
+const l2t = document.getElementById('l2t');
+const modeBtn = document.getElementById('mode');
+const LINE_CH = 42;
 let lastCommitted = '';
 let hideTimer = null;
+// ---- režimy: 'titulky' (divák, stabilné) | 'diktovanie' (rýchle) --------
+let mode = localStorage.getItem('titulky_mode') || 'titulky';
+function applyMode() {
+  modeBtn.textContent = mode === 'titulky' ? '◼ TITULKY' : '▶ DIKTOVANIE';
+  subs.style.display = mode === 'diktovanie' ? 'block' : 'none';
+  roll.style.display = mode === 'titulky' ? 'block' : 'none';
+}
+function toggleMode() {
+  mode = mode === 'titulky' ? 'diktovanie' : 'titulky';
+  localStorage.setItem('titulky_mode', mode);
+  applyMode();
+}
+modeBtn.onclick = toggleMode;
+document.addEventListener('keydown', e => {
+  if (e.key.toLowerCase() === 'm') toggleMode();
+});
+applyMode();
+// ---- roll-up stav: riadky sa NIKDY neprepisujú, len plnia a rolujú ------
+let seenWords = 0;       // koľko slov committed streamu už je v riadkoch
+let committedBase = '';  // na detekciu resetu (nový blok po pauze)
+function rollAddWord(w) {
+  const cur = l2t.textContent;
+  if (cur && (cur.length + 1 + w.length) > LINE_CH) {
+    l1.textContent = l2t.textContent;   // roll-up: spodný riadok ide hore
+    l2t.textContent = w;
+  } else {
+    const span = document.createElement('span');
+    span.className = 'w';
+    span.textContent = (cur ? ' ' : '') + w;
+    l2t.appendChild(span);
+  }
+}
+function rollUpdate(committed) {
+  if (!committed.startsWith(committedBase)) {
+    // nový blok po pauze ALEBO korekcia prepísala committed text —
+    // riadky vyčisti a znovu naplň len posledným ~1,5 riadkom (bez dúp)
+    seenWords = 0;
+    l1.textContent = '';
+    l2t.textContent = '';
+    const ws2 = committed.split(' ').filter(x => x);
+    let keep = 0, ln = 0;
+    for (let i = ws2.length - 1; i >= 0; i--) {
+      ln += ws2[i].length + 1;
+      if (ln > LINE_CH * 1.5) break;
+      keep = i;
+    }
+    seenWords = keep;
+  }
+  committedBase = committed;
+  const words = committed.split(' ').filter(x => x);
+  for (; seenWords < words.length; seenWords++) rollAddWord(words[seenWords]);
+}
 ws.onopen = () => s.textContent = 'pripojené';
 ws.onmessage = e => {
   const d = JSON.parse(e.data);
   if (!('committed' in d)) return;  // event správy patria /flow stránke
-  // znakový limit ~84 znakov (2 riadky × 42, BBC) namiesto počtu slov
+  // ---- Diktovanie: okno posledných ~84 znakov, committed + sivý draft ----
   const words = d.committed.split(' ');
   let shown = [];
   let len = 0;
@@ -49,28 +120,28 @@ ws.onmessage = e => {
   }
   const txt = shown.join(' ');
   if (txt !== c.textContent) {
-    // prekresli len nové slová s fade-in; staré ostávajú bez animácie
     const old = c.textContent;
     if (txt.startsWith(old) && old) {
-      const add = txt.slice(old.length);
       const span = document.createElement('span');
       span.className = 'w';
-      span.textContent = add;
+      span.textContent = txt.slice(old.length);
       c.appendChild(span);
     } else {
       c.textContent = txt;
     }
   }
   p.textContent = d.pending ? ' ' + d.pending : '';
-  // ghost cursor: hovorí sa, ale draft ešte prázdny → blikajúci ▊
   const cur = document.getElementById('cursor');
   cur.style.display = (d.speaking && !d.pending) ? 'inline' : 'none';
-  // nový obsah (nové final slová alebo živý draft) → ukáž a resetni timer
+  // ---- Titulky: len potvrdené slová, roll-up, kurzor ukazuje život -------
+  rollUpdate(d.committed);
+  document.getElementById('rcursor').style.display = d.speaking ? 'inline' : 'none';
+  // auto-hide po 5 s ticha bez nového obsahu
   if (d.committed !== lastCommitted || d.pending || d.speaking) {
     lastCommitted = d.committed;
-    subs.style.opacity = 1;
+    subs.style.opacity = 1; roll.style.opacity = 1;
     clearTimeout(hideTimer);
-    hideTimer = setTimeout(() => { subs.style.opacity = 0; }, 5000);
+    hideTimer = setTimeout(() => { subs.style.opacity = 0; roll.style.opacity = 0; }, 5000);
   }
   s.textContent =
     `draft ${d.draft_latency_s?.toFixed(2) ?? '–'} s · final ${d.final_latency_s?.toFixed(2) ?? '–'} s · ` +
