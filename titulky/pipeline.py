@@ -222,6 +222,15 @@ class TwoTierPipeline:
             log=lambda m: (print(m),
                            self.on_event({"t": "korekcia", "msg": m})))
         self.corrections = 0
+        # diarizácia (JBOP-100): vlastné CPU vlákno, fail-safe, nulový
+        # dopad na final slučku (len put_nowait do fronty)
+        self.spk_tagger = None
+        if os.environ.get("TITULKY_SPK", "1") != "0":
+            try:
+                from .diarize import SpeakerTagger
+                self.spk_tagger = SpeakerTagger(self.on_event)
+            except Exception as e:  # noqa: BLE001
+                self.on_event({"t": "spk_off", "msg": f"diarizácia off: {e}"})
 
     def _apply_corrections(self, start_idx: int, changes: list[dict]):
         """Callback z CorrectionWorker — opraví committed slová a emitne."""
@@ -287,6 +296,7 @@ class TwoTierPipeline:
     def _emit(self):
         self.on_update({
             "committed": " ".join(self.final_text[self.display_from:]),
+            "base": self.display_from,   # absolútny index prvého slova (diarizácia)
             "pending": self.draft_text,
             "speaking": getattr(self, "speaking", False),
             "draft_latency_s": self.draft_latencies[-1] if self.draft_latencies else None,
@@ -547,6 +557,8 @@ class TwoTierPipeline:
                     seg_start_s, max(0.5, self.final_upto_s - seg_start_s))
                 if self.corrector.enabled:
                     self.corrector.submit(commit_start_idx, new, seg)
+                if self.spk_tagger is not None:
+                    self.spk_tagger.submit(seg, commit_start_idx, len(new))
                 seg_rms = float(np.sqrt(np.mean(seg ** 2))) if len(seg) else 0.0
                 st = getattr(self.final_asr, "last_stats", {})
                 self.on_event({

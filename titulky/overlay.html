@@ -515,25 +515,35 @@ function lineFits(text) {
   const maxPx = parseFloat(getComputedStyle(glass).maxWidth) - 56; // padding 28+28
   return _measureCtx.measureText(text).width <= maxPx;
 }
-function rollAddWord(w) {
-  const cur = l2t.textContent;
-  if (cur && !lineFits(cur + ' ' + w)) {
-    l1.textContent = l2t.textContent;
-    l2t.textContent = '';
-    // Reset with animated span
-    const span = document.createElement('span');
-    span.className = 'w';
-    span.textContent = w;
-    l2t.appendChild(span);
-  } else {
-    const span = document.createElement('span');
-    span.className = 'w';
-    span.textContent = (cur ? ' ' : '') + w;
-    l2t.appendChild(span);
-  }
+/* ── Diarizácia: farba podľa rečníka (JBOP-100) ─────────────────── */
+const SPK_COLORS = ['', '#8fc2ff', '#ffc98f'];  // spk0 = default biela
+const spkMap = {};          // absolútny word index -> spk
+function applySpk(a, n, spk) {
+  for (let i = a; i < a + n; i++) spkMap[i] = spk;
+  document.querySelectorAll('[data-wi]').forEach(el => {
+    const wi = +el.dataset.wi;
+    if (wi >= a && wi < a + n) el.style.color = SPK_COLORS[spk] || '';
+  });
 }
 
-function rollUpdate(text) {
+function rollAddWord(w, wi) {
+  const cur = l2t.textContent;
+  const span = document.createElement('span');
+  span.className = 'w';
+  span.dataset.wi = wi;
+  const col = SPK_COLORS[spkMap[wi]] || '';
+  if (col) span.style.color = col;
+  if (cur && !lineFits(cur + ' ' + w)) {
+    l1.innerHTML = l2t.innerHTML;   // roll-up so zachovaním farieb
+    l2t.textContent = '';
+    span.textContent = w;
+  } else {
+    span.textContent = (cur ? ' ' : '') + w;
+  }
+  l2t.appendChild(span);
+}
+
+function rollUpdate(text, base) {
   if (!text.startsWith(committedBase)) {
     seenWords = 0;
     l1.textContent = '';
@@ -549,13 +559,15 @@ function rollUpdate(text) {
   }
   committedBase = text;
   const words = text.split(' ').filter(Boolean);
-  for (; seenWords < words.length; seenWords++) rollAddWord(words[seenWords]);
+  for (; seenWords < words.length; seenWords++)
+    rollAddWord(words[seenWords], (base || 0) + seenWords);
 }
 
 /* ── WS message handler ─────────────────────────────────────────── */
 let lastCommitted = '';
 
 function onMessage(d) {
+  if (d.t === 'spk') { applySpk(d.a, d.n, d.spk); return; }
   if (!('committed' in d)) return;
 
   /* — DIKTOVANIE: sliding window ~84 chars — */
@@ -582,7 +594,7 @@ function onMessage(d) {
   cursor.style.display = (d.speaking && !d.pending) ? 'inline' : 'none';
 
   /* — TITULKY: roll-up — */
-  rollUpdate(d.committed);
+  rollUpdate(d.committed, d.base);
   rcursor.style.display = d.speaking ? 'inline' : 'none';
 
   /* — Auto-hide — */
