@@ -1,57 +1,57 @@
 [
  {
   "test": "normal.wav",
-  "wer": 0.03225806451612903,
+  "wer": 0.0967741935483871,
   "hallucinated_words": null,
-  "draft_p50": 1.7406565000303083,
-  "final_p50": 3.938717270529596,
-  "flicker": 0.07246376811594203,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo No a presne, kvalita rozpoznávania závisí od hluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
+  "draft_p50": 0.5971847500232972,
+  "final_p50": 4.424656875003129,
+  "flicker": 0.27058823529411763,
+  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo presne. Kvalita rozpoznávania závisí od hluku v okolí, výslovnosti a rýchlosti reči. Meranie dôležité."
  },
  {
   "test": "fast.wav",
-  "wer": 0.625,
+  "wer": 0.0,
   "hallucinated_words": null,
-  "draft_p50": 0.9488097500358705,
-  "final_p50": 2.3584596250043255,
-  "flicker": 0.0,
-  "hyp": "Systém musí pracovať rýchlo a presne."
+  "draft_p50": 0.19347574998857464,
+  "final_p50": 3.8888249590131454,
+  "flicker": 0.030303030303030304,
+  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne."
  },
  {
   "test": "slow.wav",
   "wer": 0.0,
   "hallucinated_words": null,
-  "draft_p50": 1.3200915625144263,
-  "final_p50": 3.5234430000442085,
-  "flicker": 0.058823529411764705,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne."
+  "draft_p50": 0.3306417920056268,
+  "final_p50": 3.803970792000182,
+  "flicker": 0.0,
+  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. systém musí pracovať rýchlo a presne."
  },
  {
   "test": "quiet.wav",
-  "wer": 0.06451612903225806,
+  "wer": 0.0,
   "hallucinated_words": null,
-  "draft_p50": 1.6566763330088001,
-  "final_p50": 3.8173308119806464,
-  "flicker": 0.07246376811594203,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo No a presne, kvalita rozpoznávania závisí od hľuku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
+  "draft_p50": 0.5918598749698143,
+  "final_p50": 4.6621336874861745,
+  "flicker": 0.06944444444444445,
+  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od hluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
  },
  {
   "test": "noisy.wav",
-  "wer": 0.12903225806451613,
+  "wer": 0.0967741935483871,
   "hallucinated_words": null,
-  "draft_p50": 2.0802297499799174,
-  "final_p50": 3.397363167006988,
-  "flicker": 0.17777777777777778,
-  "hyp": "Automatické si oky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od blúku v okolí. Výslovnosti a rýslosti reči, meranie presnosti je dôležité."
+  "draft_p50": 0.49897574999835337,
+  "final_p50": 4.918453437506919,
+  "flicker": 0.16494845360824742,
+  "hyp": "automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne valita rozpoznávania závisí od kubľuku v okolí z výslovnosti a rýchlosti reči meranie presnosti je dôležité"
  },
  {
   "test": "pauses.wav",
-  "wer": 0.0,
+  "wer": 0.0967741935483871,
   "hallucinated_words": null,
-  "draft_p50": 1.5438801249850074,
-  "final_p50": 4.230571124970448,
-  "flicker": 0.06060606060606061,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne Kvalita rozpoznávania závisí od hluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
+  "draft_p50": 0.6757295415166307,
+  "final_p50": 4.525531895534602,
+  "flicker": 0.08695652173913043,
+  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo presne. kvalita rozpoznávania závisí odhluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
  },
  {
   "test": "silence.wav",

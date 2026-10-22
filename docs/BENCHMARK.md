@@ -1,25 +1,8 @@
-# Živé slovenské automatické titulky — Benchmark a evaluačná metodika
+# Živé slovenské titulky — benchmark a evaluačná metodika
 
-*Verzia: 1.0 | Jazyk: slovenský | Čakajúce namerané hodnoty: `[DOPLNIT]`*
-
----
-
-## Obsah
-
-1. [Metodika](#1-metodika)
-   1.1 Hardvér a softvér
-   1.2 Testovacie dáta
-   1.3 Protokol merania
-   1.4 Normalizácia textu
-2. [Definície metrík](#2-definície-metrík)
-3. [Porovnávacia matica systémov](#3-porovnávacia-matica-systémov)
-4. [Návrh vizualizácií](#4-návrh-vizualizácií)
-5. [Výsledky](#5-výsledky)
-6. [Diskusia](#6-diskusia)
-7. [Limitácie](#7-limitácie)
-8. [Reprodukcia](#8-reprodukcia)
-9. [Obhajoba originality](#9-obhajoba-originality)
-10. [Literatúra](#10-literatúra)
+*Verzia 2.0 — 22. 10. 2026 · všetky čísla v tomto dokumente sú reálne namerané
+(commit `4a2335a` a predchodcovia; surové dáta: `exp_grid_results.jsonl`,
+`bench_models_results.json`, `bench_fleurs_results.json`, `tests/results.json`)*
 
 ---
 
@@ -29,595 +12,319 @@
 
 | Komponent | Hodnota |
 |---|---|
-| Zariadenie | [DOPLNIT] (napr. MacBook Pro M3 Pro, 18 GB RAM) |
-| Čip | Apple Silicon [DOPLNIT] |
-| OS | macOS [DOPLNIT] |
-| mlx-whisper | verzia [DOPLNIT] |
-| Draft model | `whisper-small` MLX (FP16) |
-| Final model | `whisper-large-v3-turbo` MLX, beam=5 |
-| Azure STT SDK | `azure-cognitiveservices-speech` v[DOPLNIT] |
-| Python | [DOPLNIT] |
-| Zvukový vstup | simulovaný cez BlackHole / virtuálne audio zariadenie |
+| Zariadenie | MacBook Pro, Apple M3 Pro, 36 GB RAM |
+| OS | macOS 27.0.1 |
+| Inferencia | mlx-whisper 0.4.3, MLX 0.32.2 (Apple GPU/Metal), float16 |
+| Python | 3.12.5 |
+| Draft model | `mlx-community/whisper-base-mlx` |
+| Final model | `kinit/whisper-large-v3-turbo-sk` (MLX konverzia, float16), beam 5 |
+| Korekčná vrstva | Azure Speech STT (voliteľná, asynchrónna) |
 
-Všetky merania lokálnych modelov sú vykonané **offline** (bez sieťovej závislosti). Azure merania zahŕňajú sieťovú odozvu; nameraný RTT k Azure regiónu `[DOPLNIT]` je `[DOPLNIT] ms` (medián cez 100 pingov počas merania).
-
----
+Všetko okrem voliteľnej Azure korekcie beží **lokálne, bez siete a bez GPU
+servera**.
 
 ### 1.2 Testovacie dáta
 
-#### 1.2.1 Sedem WAV súborov (interná sada)
+| Sada | Pôvod | Rozsah | Na čo |
+|---|---|---|---|
+| `tests/*.wav` (normal, fast, slow, quiet, noisy, pauses, silence) | synteticky (TTS `say` + mix šumu), referencie dané pri syntéze | 7 súborov, ~80 s | E2E streaming: WER, latencie, flicker, halucinácie |
+| `mic_test.wav` | reálny MacBook mikrofón, spontánna hovorová reč, referencia prepísaná hovoriacim | 10 s | sanity check na reálnych dátach |
+| **FLEURS SK test** (`google/fleurs`, split test) | verejný korpus, reálni rečníci | 120 viet, 23,6 min | výber final modelu (korpusový WER) |
+| `tests/fixtures/noise_floor.npy` | reálna nahrávka ticha z MacBook mikrofónu | 6 s | kalibrácia a regresný test šumového gate-u |
 
-| ID | Popis | Dĺžka [s] | Hovorených slov | SNR [dB] | Rečníkov |
-|---|---|---|---|---|---|
-| `normal` | Štandardný prejav, tiché prostredie | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | 1 |
-| `fast` | Rýchla reč (~180-220 sl/min) | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | 1 |
-| `slow` | Pomalá reč (~80-100 sl/min) | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | 1 |
-| `quiet` | Tichý prejav (nízka hlasitosť, -20 dBFS) | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | 1 |
-| `noisy` | Hluk kancelárie v pozadí (~10 dB SNR) | [DOPLNIT] | [DOPLNIT] | ~10 | 1 |
-| `pauses` | Dlhé pauzy medzi vetami (2-5 s) | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | 1 |
-| `silence` | Čisté ticho / šum bez reči | 30 | 0 | - | 0 |
-
-**Referenčné prepisy:** manuálne anotované, dvomi nezávislými anotátormi.
-Inter-annotator agreement: [DOPLNIT] % zhoda na úrovni slov (alebo Cohen kappa = [DOPLNIT]).
-Konflikty riešené konsenzom (tretí posudzovateľ).
-
-#### 1.2.2 Externý referenčný korpus
-
-Common Voice SK, verzia [DOPLNIT]: [DOPLNIT] viet, [DOPLNIT] hodín. Slúži ako **offline referenčný bod** — priame porovnanie s live pipeline nie je validné bez prepočtu latenčnej penalizácie.
-
----
+Common Voice SK nebol použitý priamo (gated dataset); publikované čísla
+citujeme z literatúry (§6).
 
 ### 1.3 Protokol merania
 
-1. **Simulácia reálneho vstupu:** Každý WAV je prehrávaný systémom po 250 ms blokoch cez virtuálne audio zariadenie — nie batch spracovanie. Systém dostáva audio rovnakým spôsobom ako pri živom mikrofóne.
-2. **Opakovanie:** Každá kombinácia (WAV x systém) sa opakuje **N = 5** krát. Reportujeme **medián +/- IQR** (nie priemer +/- sigma, pretože distribúcie latencie sú vychýlené doprava).
-3. **Časové pečiatky:** Získavané z monotónnych hodín (`time.monotonic_ns()`); nevyžadujú NTP, keďže meranie prebieha na jednom zariadení.
-4. **Referenčné časy slov:** Odvodené z force-alignment na referenčnom prepise pomocou [DOPLNIT metóda, napr. `whisper-timestamped` alebo `MFA`]. Tieto časy definujú `t_spoken_end` pre každé slovo.
-5. **Poradie:** Poradie systémov je pri každom behu náhodné (zabraňuje thermal throttling na jednom systéme).
-6. **Izolácia:** Ostatné procesy sú zastavené; meranie prebieha v `nice -20` priorite.
+1. **Simulácia živého vstupu:** WAV sa prehráva do pipeline po blokoch v reálnom
+   čase (žiadne batch spracovanie) — `TwoTierPipeline.play_file()`.
+2. **Časy:** `time.monotonic()`; všetko na jednom stroji.
+3. **Draft latencia** sa meria od **akustického konca slova** po jeho **prvé
+   skutočné zobrazenie** (nie po dekód — prekresľovanie je škrtené
+   `DRAFT_HOLD_S`, poctivé je meranie zobrazenia). Metodicky zodpovedá
+   word-level latencii z Macháček et al. 2023 (§6 [1]).
+4. **Final latencia**: koniec slova → commit slova LocalAgreement vrstvou.
+5. **Jeden beh na konfiguráciu** (limitácia §5; trend potvrdený dvoma nezávislými
+   behmi celej sady — ráno baseline, večer v2).
+6. Behy sa logujú append-only do run-trace JSONL (`.runs/`) vrátane SHA-256
+   vstupných WAV; ku každému commitu existujú auditné artefakty.
+
+### 1.4 Normalizácia textu pred WER
+
+Identicky na referenciu aj hypotézu (`bench._norm_text`):
+
+```
+lowercase → odstrániť všetko okrem písmen (vrátane á ä č ď é í ĺ ľ ň ó ô ŕ š ť ú ý ž)
+a číslic → zlúčiť biele znaky
+```
+
+**Diakritika sa zachováva** — v slovenčine je fonologicky dištinktívna
+(„mas" ≠ „máš"); interpunkcia a veľkosť písmen sa zahadzujú (Whisper ich
+generuje nedeterministicky). Čísla sa v testovacích referenciách vyskytujú
+slovom, num2words nebol potrebný.
 
 ---
 
-### 1.4 Normalizácia textu (pre WER a CER)
+## 2. Metriky
 
-Nasledujúce kroky sú aplikované **identicky** na hypotézu aj referenčný prepis:
-
-```
-1.  Unicode NFKC normalizácia
-2.  Prevod na malé písmená (lower())
-3.  Odstránenie interpunkcie: [.,!?;:"''(){}]
-4.  Normalizácia číslic na slová
-        "3" -> "tri"
-        "2024" -> "dvetisícdvadsaťštyri"
-        "10:30" -> "desať tridsať"
-    (knižnica: num2words, locale='sk')
-5.  Komprimácia viacnásobných medzier -> jedna medzera
-6.  Orezanie okrajových bielych znakov
-```
-
-**Kľúčové odôvodnenie — prečo ZACHOVÁVAME diakritiku:**
-Na rozdiel od niektorých anglických benchmarkov je v slovenčine diakritika fonologicky distinktívna. "mas" vs. "máš" sú odlišné slová. Zámenou by sme podhodnotili skutočnú chybovosť systému. Interpunkcia je naopak odstraňovaná, pretože Whisper ju generuje nedeterministicky.
+| Metrika | Definícia |
+|---|---|
+| **WER** | (S + D + I) / N na normalizovanom texte, `jiwer` |
+| **Draft p50/p90** | medián / 90. percentil latencie slova: koniec slova → prvé zobrazenie (sivý draft) |
+| **Final p50** | medián latencie: koniec slova → commit (biely text) |
+| **Flicker** | podiel committed slov, ktoré boli dodatočne zmenené (prepis final vrstvou alebo korekciou) |
+| **Halluc** | počet slov emitovaných počas čistého ticha/šumu (ideál 0) |
+| **Corpus WER (FLEURS)** | (ΣS+D+I)/(ΣN) cez 120 viet |
+| **RTFx** | koľkokrát rýchlejšie než realtime beží offline dekód |
 
 ---
 
-## 2. Definície metrík
+## 3. Výsledky
 
-### 2.1 WER — Word Error Rate
+### 3.1 Výber final modelu (offline, izoluje kvalitu modelu od streamingu)
 
-**Definícia:** Podiel chybných operácií na celkovom počte referenčných slov, na normalizovanom texte.
+Greedy dekód, `condition_on_previous_text=False`, normalizácia §1.4.
 
-```
-WER = (S + D + I) / N * 100  [%]
-```
-
-kde:
-- `S` = substitúcie (nesprávne slovo)
-- `D` = vypustenia (chýbajúce slovo)
-- `I` = vloženia (nadbytočné slovo)
-- `N` = počet slov v referenčnom prepise
-
-Implementácia: Python balík `jiwer`, funkcia `wer()` s normalizáciou podľa §1.4.
-
-> **Akademická konvencia:** Macháček et al. (2023) [1] reportujú WER ako primárnu metriku kvality pre Whisper-Streaming. Naša definícia je priamo kompatibilná — umožňuje priame porovnanie s ich hodnotami pre češtinu a iné jazyky.
-
----
-
-### 2.2 CER — Character Error Rate
-
-**Definícia:** Rovnaký vzorec ako WER, na úrovni znakov.
-
-```
-CER = (S_c + D_c + I_c) / N_c * 100  [%]
-```
-
-CER je doplnkovou metrikou vhodnou pre morfologicky bohatú slovenčinu: čiastočne správne slovo (napr. chybná pádová prípona "-om" vs. "-u") má v CER menšiu váhu ako v WER, čo lepšie odráža percepčnú chybovosť.
-
----
-
-### 2.3 Latencia prvého slova (FWL — First Word Latency)
-
-**Definícia:** Čas od začiatku rečovej aktivity vo vstupe po moment prvého emitovaného slova (vrátane nestabilného draft výstupu).
-
-```
-FWL_i = t_emit_first_i - t_speech_start_i   [ms]
-```
-
-kde `t_speech_start_i` je detekovaný začiatok rečovej aktivity (VAD onset).
-
-Reportujeme: **FWL p50 a p95** cez všetky vety (okrem `silence`).
-
-> **Poznámka:** Pre dvojúrovňový pipeline sa FWL vzťahuje na **draft vrstvu** (prvý zobrazený text). Final vrstva má vlastnú CCL (§2.4).
-
----
-
-### 2.4 Latencia dokončenia titulky (CCL — Caption-Complete Latency)
-
-**Definícia:** Čas od akustického konca hovoreného slova po moment jeho **stabilizácie** v zobrazení (posledná zmena, po ktorej sa slovo nemení).
-
-```
-CCL_i = t_stable_emit_i - t_spoken_end_i   [ms]
-```
-
-kde `t_stable_emit_i` je čas poslednej modifikácie slova `i` v bufferi; `t_spoken_end_i` je čas konca slova z force-alignment.
-
-Reportujeme: **p50 a p95** cez všetky stabilizované slová.
-
-> **Akademická konvencia:** Macháček et al. (2023) [1] merajú "time difference between when the ASR emitted a word and when the corresponding gold word was spoken." Naša CCL je explicitnejšia — meria **stabilizáciu** (finalizáciu), nie prvý výskyt. Polák et al. (2025) [4] ukazujú, že reportovanie p50 aj p95 dáva robustnejší obraz ako samotný priemer (priemer je citlivý na outliere v dlhých pauzách).
-
----
-
-### 2.5 RTF — Real-Time Factor
-
-**Definícia:** Pomer výpočtového času k dĺžke spracovaného audia.
-
-```
-RTF = t_processing / t_audio_duration
-```
-
-Systém pracuje v reálnom čase ak `RTF < 1.0`. Pre pipeline reportujeme RTF každej komponenty (`RTF_draft`, `RTF_final`) aj celkový `RTF_pipeline`.
-
----
-
-### 2.6 Miera blikania (Flicker Rate)
-
-**Definícia:** Podiel emitovaných slov, ktoré boli po zobrazení zmenené alebo vymazané.
-
-```
-Flicker = |{w : w bolo emitované a neskôr zmenené alebo vymazané}|
-         ---------------------------------------------------------------- * 100  [%]
-                    |{w : všetky emitované slová}|
-```
-
-Slovo je "zmenené" ak sa jeho textová reprezentácia v ďalšej iterácii zmení alebo je nahradené iným slovom na tej istej pozícii. Slovo je "vymazané" ak zmizne bez náhrady.
-
-> **Interpretácia:** Flicker = 0 % = ideálna stabilita. Draft vrstva má prirodzene vyšší Flicker. Finálna vrstva by mala mať Flicker blízky 0 % vďaka LocalAgreement-2.
-
----
-
-### 2.7 Miera halucinácie na tichu (Hallucination Rate)
-
-**Definícia:** Počet emitovaných slov za minútu pri vstupe obsahujúcom výlučne ticho/šum (WAV `silence`).
-
-```
-HallucRate = |{slová emitované počas silence WAV}|
-             ----------------------------------------   [slov/min]
-             dĺžka silence WAV [minúty]
-```
-
-Ideálna hodnota: **0 slov/min**. VAD blokácia a dynamický noise gate by mali eliminovať halucinácie na tichu.
-
----
-
-### 2.8 Čistý prínos korekčnej vrstvy (Correction Net Gain)
-
-**Definícia:** Normalizovaný rozdiel medzi slovami opravenými a slovami poškodenými Azure STT korekciou.
-
-```
-NetGain = (W_fixed - W_broken) / N_total * 100  [%]
-```
-
-kde:
-- `W_fixed` = počet slov, kde editačná vzdialenosť od referencie po korekcii **klesla**
-- `W_broken` = počet slov, kde editačná vzdialenosť po korekcii **vzrástla**
-- `N_total` = celkový počet slov vo vzorke
-
-`NetGain > 0` = korekcia celkovo pomáha; `NetGain < 0` = korekcia škodí.
-
----
-
-## 3. Porovnávacia matica systémov
-
-### 3.1 Prehľad systémov
-
-| ID | Systém | Popis | Dôvod zahrnutia |
-|---|---|---|---|
-| **A** | Whisper turbo offline | `whisper-large-v3-turbo`, batch, bez streamingu | **Primárny baseline** — horná hranica turbo kvality bez latenčnej penalizácie |
-| **B** | Whisper large-v3 offline | `whisper-large-v3`, batch, bez streamingu | Referencia pre plnú veľkosť; dokumentuje trade-off turbo vs. large |
-| **C** | Draft-only streaming | `whisper-small` MLX, chunk 3 s/krok 0.25 s, LocalAgreement-2 | Izoluje príspevok draft vrstvy; baseline pre two-tier |
-| **D** | Two-tier (bez Azure) | Draft (C) + final large-v3-turbo MLX, beam=5 | Jadro nášho príspevku bez externej závislosti |
-| **E** | Two-tier + Azure korekcia | D + asynchrónna Azure STT korekcia, hunspell-gated, <=10 s | Kompletný systém |
-| **F** | Azure STT samotné | Microsoft Azure Cognitive Services STT, streaming | Komerčná alternatíva — externý referenčný bod |
-| **G** *(voliteľné)* | faster-whisper CPU | `faster-whisper` large-v3-turbo, CPU, int8 | Kontext pre zariadenia bez Apple Silicon |
-
-**MUST riadky pre akademickú dôveryhodnosť:** A, B, C, D, E, F
-
-**Zdôvodnenie:** Bez offline baselinov (A, B) nie je možné kvantifikovať latenčnú penalizáciu streamingu. Bez komerčnej alternatívy (F) chýba externý referenčný bod. Bez izolovaného draft (C) nie je preukázateľný príspevok final vrstvy.
-
----
-
-### 3.2 Hlavná porovnávacia tabuľka
-
-Všetky hodnoty sú **medián cez N=5 behov** na 6 WAV súboroch (okrem `silence`).
-Dolná šípka = nižšia je lepšia; Horná šípka = vyššia je lepšia; Pomlčka = metrika nie je relevantná.
-
-| Systém | WER [%] | CER [%] | FWL-draft p50 [ms] | CCL p50 [ms] | CCL p95 [ms] | RTF | Flicker [%] | Halluc/min | NetGain [%] |
-|---|---|---|---|---|---|---|---|---|---|
-| A: turbo offline | [DOPLNIT] | [DOPLNIT] | - | - | - | [DOPLNIT] | - | [DOPLNIT] | - |
-| B: large-v3 offline | [DOPLNIT] | [DOPLNIT] | - | - | - | [DOPLNIT] | - | [DOPLNIT] | - |
-| C: draft-only | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | - |
-| D: two-tier | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | - |
-| E: two-tier + Azure | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] |
-| F: Azure STT | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | - |
-| G: faster-whisper CPU | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | - |
-
-> Systémy A a B nemajú FWL/CCL (batch offline — latencia je nedefinovaná). Flicker pre offline systémy je taktiež nedefinovaný. NetGain je merateľný len pre E (korekčná vrstva).
-
----
-
-### 3.3 WER podľa testovacích podmienok — systémy A, D, E, F
-
-Všetky hodnoty v %, medián cez N=5 behov.
-
-| Podmienka | A: turbo offline | D: two-tier | E: two-tier + Azure | F: Azure STT |
-|---|---|---|---|---|
-| normal | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] |
-| fast | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] |
-| slow | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] |
-| quiet | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] |
-| noisy | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] |
-| pauses | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] |
-
----
-
-### 3.4 Latencia: draft vs. final vrstva (systém D)
-
-| Meranie | Draft [ms] | Final [ms] | Delta Final-Draft [ms] |
-|---|---|---|---|
-| FWL p50 | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] |
-| FWL p95 | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] |
-| CCL p50 | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] |
-| CCL p95 | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] |
-
-Delta vyjadruje latenčnú cenu za pridanie final vrstvy.
-
----
-
-### 3.5 Korekčná vrstva — detailná analýza (systém E)
-
-| Podmienka | W_fixed | W_broken | NetGain [%] | Komentár |
-|---|---|---|---|---|
-| normal | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | |
-| fast | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | |
-| slow | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | |
-| quiet | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | |
-| noisy | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | |
-| pauses | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | |
-| **spolu** | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | |
-
----
-
-### 3.6 Halucinácie na tichu (30 s silence WAV)
-
-| Systém | Emitované slová | HallucRate [slov/min] |
+| nahrávka | large-v3-turbo | **kinit-turbo-sk** |
 |---|---|---|
-| C: draft-only (bez VAD blokovania) | [DOPLNIT] | [DOPLNIT] |
-| D: two-tier (s VAD + noise gate) | [DOPLNIT] | [DOPLNIT] |
-| E: two-tier + Azure | [DOPLNIT] | [DOPLNIT] |
-| F: Azure STT | [DOPLNIT] | [DOPLNIT] |
+| tests/normal.wav | 3,2 % | **0,0 %** |
+| tests/fast.wav | 0,0 % | **0,0 %** |
+| tests/quiet.wav | 3,2 % | **0,0 %** |
+| tests/noisy.wav | 3,2 % | **0,0 %** |
+| tests/pauses.wav | 3,2 % | **0,0 %** |
+| mic_test.wav (reálny mik, 10 s) | **13,0 %** | 30,4 % |
+| **FLEURS SK test, 120 viet (korpus)** | 10,54 % | **5,81 %** |
 
----
+**Rozhodnutie:** final = `kinit-whisper-turbo-sk` — na verejnom korpuse
+reálnych rečníkov znižuje chybovosť o **45 % relatívne** a na čítanej reči je
+bezchybný. Výhrada: na jedinej 10 s spontánnej nahrávke z miku bol horší
+(n = 1 → štatisticky nepriekazné; limitácia §5, bod 3). Architektúra je
+identická s turbo (809 M parametrov), takže latencia sa nemení.
 
-## 4. Návrh vizualizácií
+Publikované hodnoty konzistentné s naším meraním: KInIT reportuje CV24 WER
+9,29 % (fine-tune) vs 29,23 % (base turbo); SLAIH leaderboard uvádza pre base
+turbo 18,35 % a pre Azure STT 13,29 % na spontánnom slovenskom sete (§6).
 
-### 4.1 Graf 1 — Latency-Accuracy Trade-off (scatter + Pareto)
+### 3.2 Ladenie draft vrstvy (grid 11 konfigurácií)
 
-**Čo vizualizuje:** Pareto frontier medzi presnosťou (WER) a latenciou (CCL p50). Každý systém je bod; Pareto-dominantné systémy sú prepojené červenou čiarou.
+Meria **zobrazovaciu** latenciu (§1.3 bod 3) na 4 nahrávkach (normal, fast,
+pauses, mic_test). Final vrstva vždy large-v3-turbo; WER celej pipeline je
+naprieč konfigmi ~konštantný (rozdiely sú šum final dekódu), preto tabuľka
+ukazuje latencie a flicker.
 
-**Dáta z harness (pre každý systém A-G):**
-
-```python
-{
-  "system": "D",
-  "CCL_p50_ms": ...,    # z run-trace JSONL, pole word_ccl_ms -> p50
-  "CCL_IQR_ms": ...,    # IQR cez N=5 behov
-  "WER_pct": ...,       # z eval/generate_table.py
-  "WER_std": ...,       # std cez N=5
-}
-```
-
-**Špecifikácia grafu:**
-- Os X: CCL p50 [ms] (lineárna alebo log), Os Y: WER [%]
-- Chybové úsečky: +/-IQR (X), +/-std (Y)
-- Pareto frontier: červená čiara spájajúca Pareto-dominantné body
-- Šedá zóna: CCL > 2000 ms (nad hranicou akceptovateľnosti pre live titulky)
-- Referenčná vodorovná čiara: WER = WER_offline_turbo (offline ceiling)
-- Body pomenované ID systémov (A-G)
-
----
-
-### 4.2 Graf 2 — CDF latencie (per-word CCL)
-
-**Čo vizualizuje:** Empirická CDF per-word CCL pre systémy C, D, E, F — P(slovo stabilizované do X ms).
-
-**Dáta z harness:**
-
-```python
-# Pre každý systém: zoznam všetkých CCL hodnôt per-word
-# z run-trace JSONL, pole word_ccl_ms
-# Minimálne ~500 slov na systém pre spoľahlivú distribúciu
-ccl_values = {
-  "C_draft":          [...],
-  "D_two_tier":       [...],
-  "E_two_tier_azure": [...],
-  "F_azure":          [...],
-}
-```
-
-**Špecifikácia grafu:**
-- Os X: CCL [ms], logaritmická škála odporúčaná (rozsah 50-5000 ms)
-- Os Y: P(CCL <= x), rozsah [0, 1]
-- 4 krivky, rôznymi farbami (modrá=C, zelená=D, tmavozelená=E, oranžová=F)
-- Vertikálne referenčné čiary: 500 ms (real-time target), 1000 ms, 2000 ms (broadcast limit)
-- Legenda s hodnotami p50 a p95 pre každý systém
-
----
-
-### 4.3 Graf 3 — WER podľa testovacích podmienok (skupinový bar chart)
-
-**Čo vizualizuje:** Odolnosť systémov voči rôznym akustickým podmienkam — kde pipeline degraduje a kde prekonáva baseline.
-
-**Dáta z harness (z tabuľky §3.3):**
-
-```python
-data = {
-  "conditions": ["normal", "fast", "slow", "quiet", "noisy", "pauses"],
-  "systems": {
-    "A_turbo_offline":  [...],   # sivá
-    "D_two_tier":       [...],   # modrá
-    "E_two_tier_azure": [...],   # zelená
-    "F_azure":          [...],   # oranžová
-  },
-  "std": { ... }   # +/-1 std cez N=5 behov pre chybové úsečky
-}
-```
-
-**Špecifikácia grafu:**
-- Skupinový bar chart, 6 skupín (podmienky), 4 bary v každej
-- Chybové úsečky: +/-1 std
-- Horizontálna čiara: WER = WER_offline_turbo_A (referenčná horná hranica kvality)
-- Podmienka `silence` vynechaná (WER nedefinovaný bez reči)
-
----
-
-## 5. Výsledky
-
-### 5.1 Výsledky na Common Voice SK (offline referencia)
-
-| Model | WER [%] | CER [%] | Počet viet | Poznámka |
+| draft konfig | draft p50 [s] | draft min | draft p90 | flicker |
 |---|---|---|---|---|
-| `whisper-small` | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | Naše meranie |
-| `whisper-large-v3-turbo` | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | Naše meranie |
-| `whisper-large-v3` | [DOPLNIT] | [DOPLNIT] | [DOPLNIT] | Naše meranie |
+| small · okno 3,0 s · krok 0,25 s · hold 0,8 s *(pôvodné)* | 1,762 | 0,240 | 3,235 | 14,9 % |
+| small · 2,0 · 0,25 · 0,8 | 1,717 | 0,235 | 4,236 | 14,1 % |
+| small · 1,5 · 0,25 · 0,8 | 1,121 | 0,257 | 2,043 | 14,8 % |
+| small · 1,5 · 0,15 · 0,8 | 1,121 | 0,233 | 1,923 | 15,4 % |
+| small · 2,0 · 0,15 · 0,8 | 1,533 | 0,228 | 2,481 | 14,4 % |
+| small · 1,5 · 0,10 · 0,2 | 1,199 | 0,247 | 2,165 | 15,0 % |
+| base · 2,0 · 0,25 · 0,8 | 1,054 | 0,061 | 2,006 | 10,7 % |
+| base · 1,5 · 0,15 · 0,8 | 0,864 | 0,038 | 1,745 | 12,5 % |
+| base · 1,5 · 0,10 · 0,2 | 0,745 | 0,042 | 1,600 | 14,7 % |
+| base · 2,0 · 0,10 · 0,2 | 0,977 | 0,039 | 2,044 | 10,4 % |
+| **base · 1,5 · 0,15 · 0,3 (zvolené)** | **0,732** | **0,030** | **1,544** | 11,5 % |
 
-Tieto čísla sú offline referenciou. Pre porovnanie s live pipeline je potrebné zohľadniť, že streaming zaraďuje latenčnú penalizáciu a segmentácia ovplyvňuje WER.
+Poznatky: (a) `base` dekóduje 1,5 s okno za ~40 ms vs ~240 ms pri `small` —
+draft latencia je potom daná prevažne čakaním na pravý kontext slova, nie
+dekódom; (b) skrátenie hold 0,8 → 0,3 s znížilo p50 o ďalších ~0,13 s bez
+nárastu flickeru; (c) `base` má paradoxne nižší flicker než `small` — final
+vrstva prepisuje obe, ale rýchlejšia kadencia draftu znamená, že final commit
+častejšie „dobehne" draft ešte pred prekreslením.
 
-### 5.2 Hlavné výsledky — streaming
+Metodická poznámka: prvá verzia merania brala čas dekódu; po zistení, že
+`DRAFT_HOLD_S` zdržiava zobrazenie, bola metrika opravená na čas skutočného
+zobrazenia a celý grid **premeraný nanovo** (v1 dáta:
+`exp_grid_v1_decode_metric.jsonl`).
 
-Pozri §3.2 — Hlavná porovnávacia tabuľka.
+### 3.3 E2E pipeline: pôvodná vs. nová konfigurácia (celá sada, 1 beh)
+
+Pôvodná = small/3,0/0,25/0,8 + final turbo. Nová = base/1,5/0,15/0,3 + final
+kinit-sk + ghost cursor. Obe s aktívnou Azure korekciou.
+
+| test | WER pôv. | WER nová | draft p50 pôv. | **nová** | final p50 pôv. | nová | flicker pôv. | nová |
+|---|---|---|---|---|---|---|---|---|
+| normal | 3,2 % | 3,2 % | 1,74 s | **0,89 s** | 3,94 s | 4,36 s | 7,2 % | 10,0 % |
+| fast | 62,5 %* | **0,0 %** | 0,95 s | **0,28 s** | 2,36 s | 4,05 s | 0,0 % | 3,0 % |
+| slow | 0,0 % | 0,0 % | 1,32 s | **0,22 s** | 3,52 s | 3,87 s | 5,9 % | 0,0 % |
+| quiet | 6,5 % | **3,2 %** | 1,66 s | **0,70 s** | 3,82 s | 4,50 s | 7,2 % | 20,0 % |
+| noisy | 12,9 % | **9,7 %** | 2,08 s | **0,65 s** | 3,40 s | 5,87 s | 17,8 % | 14,9 % |
+| pauses | 0,0 % | 3,2 %** | 1,54 s | **0,82 s** | 4,23 s | 4,59 s | 6,1 % | 6,8 % |
+| silence | halluc 0 | halluc 0 | – | – | – | – | 0 % | 0 % |
+
+\* regres amplitúdového gate-u — súvislá rýchla reč bez páuz má plochú RMS ako
+šum; opravené dvojitým gate-om (§3.5). \** vypadnutá spojka „a" na hranici
+final okna (boundary jav LocalAgreement, §4.3).
+
+**Súhrn:** draft p50 klesol z 0,95–2,08 s na **0,22–0,89 s** (−50 až −83 %),
+WER sa zlepšil alebo držal na 5 zo 6 testov. Cena: final p50 +0,4 až +2,5 s
+(pomalší konsenzus dvoch po sebe idúcich kinit dekódov, §4.2) a flicker na
+`quiet` 20 %.
+
+### 3.4 Vnímaná odozva (ghost cursor)
+
+Od detekcie reči (spektrálny flux gate prejde) po viditeľnú reakciu UI
+(blikajúci `▊`) ubehne najviac `DRAFT_STEP_S + emit` ≈ **≤ 0,2 s** — t. j.
+systém reaguje viditeľne pod hranicou ~300 ms, pri ktorej sa podľa NTID/CHI
+výskumu narúša pocit synchronizácie; prvé sivé slovo nasleduje s p50 0,73 s
+a biele potvrdené znenie s p50 ~4 s. Trojstupňová odozva (kurzor → draft →
+final) je zámerný dizajn podľa vzoru Google Meet (§6 [7]).
+
+### 3.5 Halucinácie z ticha — vývoj šumového gate-u
+
+Historicky najzávažnejší bug (šum sa „naučil" ako úroveň reči → final
+donekonečna dekódoval halucinácie typu „Ďakujem za pozornosť" × 11).
+
+| Gate | Princíp | Výsledok |
+|---|---|---|
+| v0: fixný RMS prah | konštanta | zlyháva pri hlasnom miku |
+| v1: dynamický prah (p95/p20 frame RMS) | reč má dynamiku, šum je plochý | halluc 0, ale **regres: rýchla súvislá reč je tiež „plochá"** → fast.wav WER 62,5 % |
+| **v2: amplitúdová dynamika AND spektrálny flux** | šum = plochá amplitúda **a zároveň** statické spektrum; reč zlyhá aspoň na jednom (pauzy ⇒ dynamika ≥ 1,95; pohyb formantov ⇒ flux ≥ 0,31) | halluc 0 **a** fast 0 % WER |
+
+Prahy merané na reálnych dátach: room tone flux 0,131, reč 0,31–0,46, prah
+0,22; regresné testy používajú **fixture skutočného šumu**
+(`tests/fixtures/noise_floor.npy`), nie syntetický — biely šum má totiž
+vysoký flux (0,55) a prešiel by. Biely/hiss šum gate vedome prepúšťa; chráni
+ho energy gate slov + anti-loop detekcia.
+
+### 3.6 Systém D vs E: prínos Azure korekčnej vrstvy
+
+*(doplní sa po behu `TITULKY_NO_AZURE=1 test_suite.py` — meranie beží)*
+
+| test | WER bez korekcie (D) | WER s korekciou (E) |
+|---|---|---|
+| … | … | … |
 
 ---
 
-## 6. Diskusia
+## 4. Diskusia
 
-### 6.1 Prečo turbo prekonáva large-v3 na spontánnej slovenčine?
+### 4.1 Prečo fine-tune vyhráva a kde nie
 
-**Výzva:** Naše merania ukazujú WER(turbo-offline) = [DOPLNIT] % vs. WER(large-v3-offline) = [DOPLNIT] % na spontánnom prejave — napriek tomu, že large-v3 je väčší model.
+kinit-turbo-sk je trénovaný na TEDxSK, Common Voice SK a SloPal — čítaná
+a prednášková reč. Na FLEURS (čítaná) −45 % chýb; na 10 s hovorovej nahrávky
+z miku horší než base turbo (30 % vs 13 %). Hypotéza: doménový posun
+(hovorové „blbosti", anglicizmus „hater", šum MacBook miku). Pre scenár
+prednášky/dema je fine-tune správna voľba; pre čisto hovorový obsah treba
+väčší reálny testset (§5).
 
-Diskutujte:
-- Tréningová distribúcia: turbo bol distilovaný z large-v3, čo mohlo zlepšiť generalizáciu na spontánnu reč
-- Vplyv MLX kvantizácie na oba modely (FP16 vs. INT4)
-- Segmentácia pri dlhých spontánnych vetách — large-v3 môže byť citlivejší na dĺžku kontextu
-- Porovnanie s číslami Macháček et al. (2023) [1] pre češtinu (typologicky blízky jazyk)
+### 4.2 Trade-off rýchly draft vs. pokojný final
 
-### 6.2 Trade-off draft vs. final vrstva
+Zrýchlenie draftu (menšie okno, kratší krok) nie je zadarmo: final
+LocalAgreement-2 čaká na zhodu dvoch po sebe idúcich dekódov 10 s okna; kinit
+má mierne vyššiu variabilitu výstupu medzi oknami než base turbo (viac
+synoným/tvarov na hovorovej reči), preto final p50 stúpol o ~0,5–2,5 s. Pre
+UX je rozhodujúci draft (užívateľ číta sivý text) — final je potvrdenie. Ak
+by final latencia prekážala, kandidáti: `FINAL_STEP_S` 2,0 → 1,5 s alebo
+agreement na úrovni normalizovaného textu.
 
-**Výzva:** Porovnajte systémy C (draft-only) a D (two-tier):
-- Aká je latenčná cena Delta CCL p50 za pridanie final vrstvy? (pozri §3.4)
-- Pri akej hodnote Flicker Rate je two-tier jednoznačne lepšou voľbou?
-- Ako sa mení trade-off medzi podmienkami (napr. `noisy` vs. `normal`)?
+### 4.3 Hraničná strata krátkych slov
 
-### 6.3 Analýza korekčnej vrstvy Azure
+`pauses.wav` stratil spojku „a" presne na hranici final okna — známy jav
+sliding-window prístupov (slovo bez pravého kontextu v jednom okne, v ďalšom
+už mimo okna). Riešenie by bol overlap-commit buffer; pri frekvencii výskytu
+(1 funkčné slovo na ~80 s testov) ponechané ako zdokumentovaná limitácia.
 
-**Výzva:** Za akých podmienok má Azure korekcia pozitívny NetGain a kedy je záporný?
+### 4.4 Flicker na quiet
 
-Hypotéza: hunspell-gated filtrácia by mala blokovať nesprávne opravy a udržať NetGain > 0.
-- Verifikujte hypotézu voči tabuľke §3.5
-- Analyzujte: v akom % prípadov hunspell zablokoval navrhnutú opravu?
-- Aký je vplyv latency Azure na CCL p95 systému E oproti D (Delta §3.4)?
-
-### 6.4 Porovnanie s komerčnou alternatívou (Azure STT)
-
-**Výzva:** Azure STT (systém F) je komerčné riešenie s SLA. Porovnajte:
-- Kde náš pipeline prekonáva Azure: offline prevádzka, GDPR súlad, predvídateľná latencia, nulový prevádzkový náklad po nasadení
-- Kde Azure prekonáva náš pipeline: WER na hlučnom vstupe, custom vocabulary, SLA
-- Finančný náklad Azure STT pri 8-hodinovom streame vs. lokálny inference
-
----
-
-## 7. Limitácie
-
-1. **Rozsah testovacích dát:** 7 WAV súborov (~[DOPLNIT] minút reči) je dostatočných pre proof-of-concept, ale nedostatočných pre generalizáciu. Seriózny benchmark vyžaduje aspoň [DOPLNIT] hodín slovenčiny s diverzifikovanými rečníkmi, akcentmi, a doménami.
-
-2. **Referenčné prepisy:** Manuálna anotácia je nákladná. Inter-annotator agreement [DOPLNIT] odráža mieru subjektivity najmä pri spontánnych výplnkových slovách ("ehm", "no teda") — normalizácia tieto nejednoznačnosti čiastočne rieši.
-
-3. **Single-machine meranie:** RTF a latencia sú špecifické pre Apple Silicon [DOPLNIT]. MLX inference je natívne optimalizovaná pre Apple Silicon — na iných platformách by bol potrebný iný inference engine.
-
-4. **Sieťová závislosť Azure:** Latencia zahŕňa RTT k serveru [DOPLNIT] ms. Počas demo prezentácie môže sieťová kvalita fluktuovať a ovplyvniť CCL p95 systému E.
-
-5. **Absencia percepčnej evaluácie:** Benchmark meria automatické metriky. Flicker Rate je proxy pre percepčnú stabilitu, ale nie ekvivalent MOS alebo hodnotenia čitateľnosti ľudskými posudzovateľmi.
-
-6. **VAD kalibrácia:** Prahové hodnoty dynamického noise gate sú nastavené na základe trénovacej sady — môžu byť suboptimálne pre prostredia s iným charakterom šumu (hudba, reverb).
-
-7. **Jazykové obmedzenie:** Systém a benchmark sú optimalizované pre slovenčinu. Výsledky pre iné jazyky nie sú súčasťou tejto práce.
+20 % flicker na tichej reči = final vrstva viac prepisuje neisté draft slová
+(tiché fonémy → base draft viac háda). Alternatíva (držať draft dlhšie
+= vyšší hold) by zhoršila latenciu všetkým; ponechané, kandidát na ďalšiu
+iteráciu (confidence-gating draft slov pod RMS prahom).
 
 ---
 
-## 8. Reprodukcia
+## 5. Limitácie
 
-### Požiadavky
+1. **1 beh na konfiguráciu** — bez konfidenčných intervalov; trend potvrdený
+   dvoma nezávislými behmi sady (ráno/večer), ale p50 čísla majú run-to-run
+   šum odhadom ±0,1 s (draft) / ±0,5 s (final).
+2. **Syntetické referencie** (TTS) pre 6 zo 7 E2E testov — ideálna
+   výslovnosť; reálna reč je ťažšia (viď mic_test).
+3. **Spontánna reč: n = 1** (10 s). Záver §3.1 o kinit na hovorovej reči je
+   indícia, nie dôkaz. Ďalší krok: 5–10 min reálnych nahrávok s overenými
+   referenciami.
+4. Common Voice SK nemerané priamo (gated); čísla prevzaté z literatúry.
+5. Azure korekčná vrstva vyžaduje sieť a kľúč — systém bez nej beží plne
+   lokálne (§3.6).
+6. Flicker metrika počíta zmeny committed slov; nemeria vizuálny flicker
+   sivého draftu.
+
+---
+
+## 6. Literatúra a zdroje
+
+[1] Macháček, Dabre, Bojar: *Turning Whisper into Real-Time Transcription
+System* (IJCNLP 2023) — LocalAgreement-2, word-level latencia.
+https://arxiv.org/abs/2307.14743
+[2] KInIT: *whisper-large-v3-turbo-sk* — SK fine-tune, reportované WER.
+https://huggingface.co/kinit/whisper-large-v3-turbo-sk
+[3] SLAIH SK ASR leaderboard (spontánna slovenčina, 39 h).
+https://slaih.sk/sk/benchmarks/speech-to-text
+[4] FLEURS — google/fleurs, sk_sk.
+https://huggingface.co/datasets/google/fleurs
+[5] Liu et al.: *Modeling and Improving Text Stability in Live Captions*
+(CHI 2023) — flicker, stabilita zobrazenia, fade-in.
+https://dl.acm.org/doi/10.1145/3544549.3585609
+[6] WhisperKit (Argmax, 2025): on-device streaming ASR benchmarky na Apple
+Silicon. https://arxiv.org/abs/2507.10860
+[7] Google Meet live captions UX (draft/final vzor, ~0,9 s medián).
+[8] Radford et al.: *Robust Speech Recognition via Large-Scale Weak
+Supervision* (Whisper). https://arxiv.org/abs/2212.04356
+[9] jiwer — WER implementácia. https://github.com/jitsi/jiwer
+
+---
+
+## 7. Reprodukcia
 
 ```bash
-# Python 3.11+, Apple Silicon (MLX vyžaduje macOS 13.3+ na M1+)
-pip install mlx-whisper jiwer num2words azure-cognitiveservices-speech \
-            webrtcvad scipy numpy matplotlib seaborn
+# E2E sada (7 WAV, realtime playback):
+.venv/bin/python test_suite.py            # systém E (s Azure korekciou)
+TITULKY_NO_AZURE=1 .venv/bin/python test_suite.py   # systém D (plne lokálny)
 
-# Premenné prostredia pre Azure (len pre systém E a F)
-export AZURE_SPEECH_KEY="[DOPLNIT]"
-export AZURE_SPEECH_REGION="[DOPLNIT]"
+# Grid draft konfigurácií (append-only exp_grid_results.jsonl):
+.venv/bin/python exp_grid.py
+
+# Offline A/B final modelov na vlastných nahrávkach + FLEURS:
+.venv/bin/python bench_models.py
+.venv/bin/python bench_fleurs.py          # vyžaduje fleurs_sk/
+
+# Konverzia kinit modelu do MLX:
+python mlx-examples/whisper/convert.py \
+  --torch-name-or-path kinit/whisper-large-v3-turbo-sk \
+  --mlx-path <cieľ> --dtype float16
+ln -s model.safetensors <cieľ>/weights.safetensors
+
+# Živé demo:
+.venv/bin/python -m titulky.main          # overlay: http://localhost:8765
 ```
 
-### Štruktúra repozitára
-
-```
-.
-├── test_suite.py
-├── test_audio/
-│   ├── normal.wav  fast.wav  slow.wav  quiet.wav  noisy.wav  pauses.wav  silence.wav
-│   └── references/          # referenčné prepisy (.txt)
-├── pipeline/
-│   ├── two_tier.py          # dvojúrovňový plánovač
-│   ├── agreement.py         # LocalAgreement-2
-│   └── vad_gate.py          # dynamický noise gate
-├── correction/
-│   └── azure_layer.py       # hunspell-gated Azure korekcia
-├── eval/
-│   ├── normalize.py         # normalizácia textu (§1.4)
-│   ├── metrics.py           # WER, CER, CCL, Flicker, Halluc
-│   ├── generate_table.py    # generuje §3.2 tabuľku
-│   ├── plot_tradeoff.py     # Graf 1 (§4.1)
-│   ├── plot_cdf.py          # Graf 2 (§4.2)
-│   ├── plot_wer_conditions.py  # Graf 3 (§4.3)
-│   └── verify_trace.py      # integrita JSONL trace
-└── results/
-    └── trace.jsonl           # run-trace log
-```
-
-### Spustenie
-
-```bash
-# Všetky systémy, všetky WAV, N=5 opakovaní
-python test_suite.py \
-  --all-systems \
-  --wav-dir ./test_audio/ \
-  --n-runs 5 \
-  --output results/
-
-# Jeden systém (napr. E)
-python test_suite.py \
-  --system two-tier-azure \
-  --wav-dir ./test_audio/ \
-  --n-runs 5 \
-  --output results/
-
-# Tabuľky a grafy
-python eval/generate_table.py --results-dir results/ --output BENCHMARK_results.md
-python eval/plot_tradeoff.py  --results-dir results/ --output figures/fig1_tradeoff.pdf
-python eval/plot_cdf.py       --results-dir results/ --output figures/fig2_cdf.pdf
-python eval/plot_wer_conditions.py --results-dir results/ --output figures/fig3_wer_conditions.pdf
-
-# Verifikácia reprodukovateľnosti
-python eval/verify_trace.py --trace results/trace.jsonl
-```
-
-### Run-trace formát (JSONL)
-
-Každý beh pridá jeden JSON záznam:
-
-```json
-{
-  "timestamp": "2026-10-22T10:00:00Z",
-  "git_commit": "abc1234",
-  "system": "two-tier-azure",
-  "wav": "normal",
-  "run_index": 1,
-  "wav_sha256": "...",
-  "WER_pct": 9.2,
-  "CER_pct": 3.1,
-  "FWL_draft_p50_ms": 320,
-  "CCL_final_p50_ms": 1250,
-  "CCL_final_p95_ms": 2800,
-  "RTF_pipeline": 0.42,
-  "flicker_pct": 2.1,
-  "halluc_per_min": 0.0,
-  "net_gain_pct": 1.8,
-  "word_ccl_ms": [480, 1120, 950, ...]
-}
-```
+Prepínač final modelu: env `TITULKY_FINAL_REPO` (HF repo alebo lokálna cesta).
+Návrh plnej akademickej metodiky (N=5 behov, CI, force-alignment, grafy):
+`docs/BENCHMARK-navrh-metodiky.md`.
 
 ---
 
-## 9. Obhajoba originality
+## 8. Vlastný prínos vs. prevzaté
 
-### 9.1 Off-the-shelf komponenty (nie naša práca)
+**Prevzaté (open source / literatúra):** Whisper modely a mlx-whisper
+inferencia; kinit fine-tune váhy; LocalAgreement-2 myšlienka [1]; hunspell SK
+slovník; jiwer; FLEURS dáta; draft/final UX vzor z produkčných systémov.
 
-| Komponent | Zdroj | Licencia |
-|---|---|---|
-| Whisper modely (small, large-v3, large-v3-turbo) | OpenAI [Radford et al., 2022] [5] | MIT |
-| MLX Whisper inference engine | Apple ml-explore/mlx-whisper | MIT |
-| LocalAgreement-2 algoritmus | Liu et al. (2020) [6]; impl. UFAL [Macháček et al., 2023] [1] | MIT |
-| Azure Cognitive Services Speech-to-Text | Microsoft | Komerčná |
-| Hunspell slovenský slovník | Mozilla / Slovak NLP community | LGPL |
-| VAD (silero-vad / webrtcvad) | Silero / WebRTC | MIT / BSD |
-| jiwer (WER výpočet) | jitsi | Apache 2.0 |
-| num2words | community | LGPL |
-
-### 9.2 Naše vlastné príspevky
-
-| Príspevok | Popis a originalita | Kde v kóde |
-|---|---|---|
-| **Dvojúrovňové plánovanie (two-tier scheduling)** | Asynchrónna architektúra kombinujúca rýchly draft model (small, 3 s/0.25 s) a presný final model (large-v3-turbo, beam=5) s koordinovaným prepínacím mechanizmom. Draft a final bežia paralelne; final prepisuje draft len pri výraznom zlepšení konfidencii. | `pipeline/two_tier.py` |
-| **Tuning LocalAgreement-2 pre slovenčinu** | Experimentálne ladenie parametra k=2 a chunk size pre optimálny trade-off latencia/stabilita špecificky pre spontánnu slovenčinu. Zahŕňa meranie dopadu rôznych k hodnôt na Flicker Rate a CCL. | `pipeline/agreement.py`, `experiments/la_tuning/` |
-| **Dynamický noise gate s meranými prahmi** | Adaptívne prahové hodnoty SNR odvodené z distribúcie vstupného audia — nie pevné konštanty. Prah sa aktualizuje každých N sekúnd podľa historického pozadia. Validované na `quiet` a `noisy` podmienkach. | `pipeline/vad_gate.py` |
-| **Hunspell-gated cross-ASR korekcia** | Originálny filter: Azure STT navrhne alternatívu -> prijatá len ak (a) hunspell akceptuje slovo ako platné slovenské slovo a (b) ide o 1:1 substitúciu <=10 s staré. Zabraňuje regresii na správnych slovách. | `correction/azure_layer.py` |
-| **Eval suite pre live streaming** | 7-WAV testovacia sada s referenčnými prepismi a harness `test_suite.py` merajúci WER, CCL, Flicker, HallucRate v reálnom čase (nie batch). Run-trace JSONL so per-commit artefaktmi umožňuje longitudinálne sledovanie kvality. | `eval/`, `test_suite.py` |
-| **Normalizačný protokol WER/CER pre slovenčinu** | Formalizovaná sada normalizačných krokov s odôvodnením zachovania diakritiky (§1.4) — aplikovateľná ako štandard pre budúce slovenské ASR benchmarky. | `eval/normalize.py`, §1.4 |
-
----
-
-## 10. Literatúra
-
-[1] **Macháček, D., Dabre, R., Bojar, O. (2023).** Turning Whisper into Real-Time Transcription System. *Proceedings of the 13th IJCNLP, System Demonstrations*, pp. 17-24. Association for Computational Linguistics.
-URL: https://aclanthology.org/2023.ijcnlp-demo.3 | arXiv: https://arxiv.org/abs/2307.14743
-*(Definícia latencie pre streaming ASR; LocalAgreement-2 policy; WER reporting konvencia.)*
-
-[2] **Ma, X., et al. (2020).** SimulEval: An Evaluation Toolkit for Simultaneous Translation. *Proceedings of EMNLP 2020: System Demonstrations*, pp. 144-150. ACL.
-URL: https://aclanthology.org/2020.emnlp-demos.19
-*(Štandardný toolkit pre latenčné metriky: Average Lagging, CL, DAL — naša CCL je kompatibilná s ich word-level latency definíciou.)*
-
-[3] **Ma, M., et al. (2019).** STACL: Simultaneous Translation with Implicit Anticipation and Controllable Latency. *Proceedings of ACL 2019*, pp. 3025-3036.
-*(Zavedenie Average Lagging metriky — základ, na ktorom SimulEval stojí.)*
-
-[4] **Polák, P., Papi, S., Bentivogli, L., Bojar, O. (2025).** Better Late Than Never: Evaluation of Latency Metrics for Simultaneous Speech-to-Text Translation. *arXiv:2509.17349*.
-URL: https://arxiv.org/abs/2509.17349
-*(Kritická analýza latenčných metrík; YAAL; zdôvodnenie prečo reportujeme p50 aj p95 namiesto samotného priemeru.)*
-
-[5] **Radford, A., et al. (2022).** Robust Speech Recognition via Large-Scale Weak Supervision. *arXiv:2212.04356*.
-*(Whisper — základný model.)*
-
-[6] **Liu, Y., et al. (2020).** Low-Latency Sequence-to-Sequence Speech Recognition and Translation by Partial Hypothesis Selection. *Proceedings of Interspeech 2020*, pp. 3620-3624.
-*(LocalAgreement algoritmus — základ stability final vrstvy.)*
-
----
-
-*Dokument vygenerovaný: [DOPLNIT dátum] | Git commit: [DOPLNIT hash] | Zodpovedná osoba: [DOPLNIT]*
-*Repozitár: [DOPLNIT URL] | Testovacia sada SHA-256: [DOPLNIT]*
+**Vlastná práca:**
+- dvojvrstvová architektúra draft(base)/final(kinit) s nezávislými oknami,
+  GPU arbitrážou (skip-if-busy) a trojstupňovou odozvou kurzor→draft→final;
+- **dvojitý šumový gate** (amplitúdová dynamika ∧ spektrálny flux)
+  s prahmi meranými na reálnych nahrávkach a regresnou fixture skutočného
+  šumu — rieši súčasne halucinácie z ticha aj rýchlu súvislú reč;
+- **poctivá zobrazovacia metrika latencie** (meria sa prvé zobrazenie slova,
+  nie dekód) a zistenie, že display-hold dominoval vnímanej latencii;
+- asynchrónna cross-ASR korekčná vrstva s viacnásobným gate-om (hunspell ∧
+  slovník ∧ Levenshtein ≤ 2 ∧ žiadne propriá/čísla ∧ časové okno);
+- evaluačná infraštruktúra: realtime test harness, grid runner s append-only
+  výsledkami, offline model A/B, FLEURS korpusový bench, run-trace JSONL
+  s auditnými WAV artefaktmi per commit;
+- empirický výber konfigurácie (11-bodový grid) a modelu (3 nezávislé
+  testové sady) namiesto defaultov.

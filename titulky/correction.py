@@ -45,6 +45,8 @@ KEY_PATHS = [
 
 
 def load_azure_key() -> tuple[str, str] | None:
+    if os.environ.get("TITULKY_NO_AZURE"):
+        return None   # benchmark systém D: two-tier bez korekčnej vrstvy
     for path in KEY_PATHS:
         if not os.path.exists(path):
             continue
