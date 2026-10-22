@@ -2,82 +2,521 @@
 <html lang="sk">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Live titulky</title>
 <style>
-  body { margin:0; background:#111; color:#fff; font-family:-apple-system,system-ui,sans-serif;
-         display:flex; flex-direction:column; justify-content:flex-end; height:100vh; }
-  /* BBC/EBU: max 2 riadky, ~42 znakov/riadok, left-anchor (žiadny reflow
-     committed textu pri zmene draftu — Liu et al. CHI 2023) */
-  #subs { padding:24px 32px 48px; font-size:42px; line-height:1.35;
-          text-align:left; max-width:26ch; margin:0 auto;
-          text-shadow:0 2px 8px #000; transition:opacity .6s; }
-  #pending { color:#9a9a9a; }
-  /* ghost cursor: reč detegovaná, slová ešte nedorazili — okamžitá odozva */
-  #cursor { color:#9a9a9a; display:none; animation: blink .9s steps(2) infinite; }
-  @keyframes blink { 50% {opacity:0} }
-  #subs .w { animation: fadein .12s ease-out; display:inline; }
-  @keyframes fadein { from {opacity:0} to {opacity:1} }
-  #stats { position:fixed; top:8px; right:12px; font-size:13px; color:#8f8;
-           font-variant-numeric:tabular-nums; text-align:right; }
-  /* režim Titulky: 2 pevné riadky, roll-up ako TV captions */
-  #roll { display:none; padding:24px 32px 48px; font-size:42px; line-height:1.35;
-          max-width:26ch; margin:0 auto; text-shadow:0 2px 8px #000;
-          transition:opacity .6s; }
-  #roll .line { min-height:1.35em; white-space:nowrap; overflow:hidden; }
-  #roll .line.top { color:#ddd; }
-  #mode { position:fixed; top:8px; left:12px; font:13px ui-monospace,monospace;
-          color:#777; background:none; border:1px solid #333; border-radius:6px;
-          padding:4px 10px; cursor:pointer; z-index:9; }
-  #mode:hover { color:#ccc; border-color:#666; }
+/* ── Reset & base ──────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Themes */
+  --bg: #0a0a0a;
+  --surface: rgba(255,255,255,.06);
+  --surface-strong: rgba(255,255,255,.10);
+  --border: rgba(255,255,255,.10);
+  --text-primary: #f0f0f0;
+  --text-secondary: rgba(240,240,240,.45);
+  --text-dim: rgba(240,240,240,.28);
+  --accent: rgba(255,255,255,.85);
+  --pill-bg: rgba(255,255,255,.09);
+  --pill-text: rgba(255,255,255,.55);
+  --blur: blur(20px) saturate(180%);
+  --shadow: 0 4px 32px rgba(0,0,0,.6), 0 1px 0 rgba(255,255,255,.06) inset;
+  /* Settings defaults (overridden by JS) */
+  --font-size: 42px;
+  --line-width: 26ch;
+}
+/* Theme: chroma (OBS transparent) */
+body.theme-chroma { background: #00ff00 !important; --bg: #00ff00; --surface: rgba(0,0,0,.78); --surface-strong: rgba(0,0,0,.88); --border: rgba(0,0,0,.2); --text-primary: #fff; --text-secondary: rgba(255,255,255,.5); --shadow: 0 4px 24px rgba(0,0,0,.5); }
+/* Theme: light */
+body.theme-light { --bg: #f5f5f5; --surface: rgba(0,0,0,.05); --surface-strong: rgba(0,0,0,.09); --border: rgba(0,0,0,.10); --text-primary: #1a1a1a; --text-secondary: rgba(0,0,0,.4); --text-dim: rgba(0,0,0,.25); --accent: rgba(0,0,0,.85); --pill-bg: rgba(0,0,0,.06); --pill-text: rgba(0,0,0,.5); }
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: -apple-system, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  -webkit-font-smoothing: antialiased;
+  height: 100vh;
+  overflow: hidden;
+  transition: background .3s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ── Top chrome: mode switcher + status + settings ─────────────── */
+#topbar {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 100;
+  transition: opacity .4s;
+}
+#topbar.hidden { opacity: 0; pointer-events: none; }
+
+/* Segmented control */
+#mode-control {
+  display: flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 3px;
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  box-shadow: var(--shadow);
+  gap: 2px;
+}
+.seg-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font: 600 11px/1 -apple-system, system-ui, sans-serif;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  white-space: nowrap;
+}
+.seg-btn.active {
+  background: var(--surface-strong);
+  color: var(--text-primary);
+}
+.seg-btn:hover:not(.active) { color: rgba(240,240,240,.7); }
+
+/* Status pills row */
+#status-row {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.pill {
+  background: var(--pill-bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 3px 8px;
+  font: 500 11px/1.3 ui-monospace, "SF Mono", monospace;
+  color: var(--pill-text);
+  white-space: nowrap;
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  transition: color .3s, background .3s;
+}
+.pill.warn { color: #f59e0b; background: rgba(245,158,11,.12); border-color: rgba(245,158,11,.2); }
+.pill.good { color: #34d399; background: rgba(52,211,153,.08); border-color: rgba(52,211,153,.15); }
+.pill.conn-off { color: #f87171; background: rgba(248,113,113,.10); border-color: rgba(248,113,113,.2); }
+
+/* Settings button */
+#settings-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-dim);
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  transition: color .15s, background .15s;
+  font-size: 14px;
+}
+#settings-btn:hover { color: var(--text-primary); background: var(--surface-strong); }
+
+/* Flow link */
+#flow-link {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-dim);
+  padding: 5px 9px;
+  text-decoration: none;
+  font: 500 11px -apple-system, system-ui;
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  transition: color .15s;
+}
+#flow-link:hover { color: var(--text-secondary); }
+
+/* ── Settings panel ─────────────────────────────────────────────── */
+#settings-panel {
+  position: fixed;
+  top: 54px;
+  right: 14px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  width: 230px;
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  box-shadow: var(--shadow);
+  z-index: 200;
+  display: none;
+  flex-direction: column;
+  gap: 14px;
+  opacity: 0;
+  transform: translateY(-6px) scale(.97);
+  transition: opacity .18s, transform .18s;
+}
+#settings-panel.open {
+  display: flex;
+  opacity: 1;
+  transform: none;
+}
+
+.setting-group { display: flex; flex-direction: column; gap: 6px; }
+.setting-label {
+  font: 600 10px/1 -apple-system, system-ui;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.seg-row {
+  display: flex;
+  background: rgba(0,0,0,.2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+body.theme-light .seg-row { background: rgba(0,0,0,.06); }
+.seg-opt {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font: 600 11px/1 -apple-system, system-ui;
+  padding: 5px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: center;
+  transition: background .12s, color .12s;
+}
+.seg-opt.active {
+  background: var(--surface-strong);
+  color: var(--text-primary);
+}
+.settings-divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+/* ── Caption container ──────────────────────────────────────────── */
+#caption-wrap {
+  position: fixed;
+  left: 0; right: 0;
+  display: flex;
+  justify-content: center;
+  transition: bottom .4s cubic-bezier(.4,0,.2,1),
+              top .4s cubic-bezier(.4,0,.2,1),
+              opacity .5s;
+  z-index: 50;
+}
+/* Position variants */
+#caption-wrap.pos-bottom { bottom: 48px; top: auto; align-items: flex-end; }
+#caption-wrap.pos-center { top: 50%; transform: translateY(-50%); bottom: auto; }
+#caption-wrap.pos-top    { top: 72px; bottom: auto; align-items: flex-start; }
+
+#caption-wrap.hidden { opacity: 0; pointer-events: none; }
+
+/* Glass panel behind captions */
+#caption-glass {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 28px 18px;
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  box-shadow: var(--shadow);
+  max-width: min(var(--line-width), 90vw);
+  width: max-content;
+  transition: opacity .5s, transform .3s;
+}
+body.theme-chroma #caption-glass {
+  background: rgba(0,0,0,.82);
+  border-color: rgba(255,255,255,.08);
+}
+
+/* ── DIKTOVANIE mode ───────────────────────────────────────────── */
+#subs {
+  font-size: var(--font-size);
+  line-height: 1.3;
+  text-align: left;
+  letter-spacing: -.01em;
+  display: none;
+}
+#committed { color: var(--text-primary); }
+#pending { color: var(--text-secondary); }
+#cursor {
+  color: var(--text-secondary);
+  display: none;
+  animation: blink .85s steps(2) infinite;
+}
+
+/* ── TITULKY mode (2-line roll-up) ─────────────────────────────── */
+#roll {
+  font-size: var(--font-size);
+  line-height: 1.3;
+  text-align: left;
+  letter-spacing: -.01em;
+  display: none;
+}
+#roll .line { min-height: 1.3em; white-space: nowrap; overflow: hidden; }
+#roll .line.top { color: var(--text-secondary); }
+#roll .line.bot { color: var(--text-primary); }
+
+/* ── Word fade animation ────────────────────────────────────────── */
+.w {
+  display: inline;
+  animation: w-in .14s ease-out both;
+}
+@keyframes w-in { from { opacity: 0; filter: blur(3px); } to { opacity: 1; filter: none; } }
+
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ── Font size scale ────────────────────────────────────────────── */
+/* Applied via --font-size custom prop; set by JS */
 </style>
 </head>
 <body>
-<a href="/flow" style="position:fixed;top:10px;right:12px;color:#444;text-decoration:none;
-   font:12px ui-monospace,monospace;z-index:9">⚙ flow</a>
-<button id="mode" title="prepnúť režim (klávesa M)"></button>
-<div id="stats">čakám na spojenie…</div>
-<!-- režim Diktovanie: tok final+draft, maximálna rýchlosť -->
-<div id="subs"><span id="committed"></span> <span id="pending"></span><span id="cursor">▊</span></div>
-<!-- režim Titulky: 2 stabilné riadky, len potvrdený text, roll-up -->
-<div id="roll"><div class="line top" id="l1"></div><div class="line" id="l2"><span id="l2t"></span><span id="rcursor" style="color:#9a9a9a;display:none;animation:blink .9s steps(2) infinite">▊</span></div></div>
+
+<!-- Top chrome -->
+<div id="topbar">
+  <a href="/flow" id="flow-link">⚡ flow</a>
+
+  <!-- Segmented mode switcher -->
+  <div id="mode-control" role="group" aria-label="Režim titulkov">
+    <button class="seg-btn" id="btn-titulky" title="Klávesa M">◼ Titulky</button>
+    <button class="seg-btn" id="btn-diktovanie" title="Klávesa M">▶ Diktovanie</button>
+  </div>
+
+  <!-- Status pills -->
+  <div id="status-row">
+    <span class="pill" id="pill-draft">draft –</span>
+    <span class="pill" id="pill-final">final –</span>
+    <span class="pill" id="pill-flicker" style="display:none">flicker –</span>
+    <span class="pill" id="pill-conn" style="display:none">⚡ čakám…</span>
+  </div>
+
+  <!-- Settings gear -->
+  <button id="settings-btn" title="Nastavenia">⚙</button>
+</div>
+
+<!-- Settings panel -->
+<div id="settings-panel" role="dialog" aria-label="Nastavenia titulkov">
+  <div class="setting-group">
+    <span class="setting-label">Veľkosť písma</span>
+    <div class="seg-row" id="size-row">
+      <button class="seg-opt" data-size="S">S</button>
+      <button class="seg-opt" data-size="M">M</button>
+      <button class="seg-opt" data-size="L">L</button>
+      <button class="seg-opt" data-size="XL">XL</button>
+    </div>
+  </div>
+  <hr class="settings-divider">
+  <div class="setting-group">
+    <span class="setting-label">Pozícia</span>
+    <div class="seg-row" id="pos-row">
+      <button class="seg-opt" data-pos="bottom">Dole</button>
+      <button class="seg-opt" data-pos="center">Stred</button>
+      <button class="seg-opt" data-pos="top">Hore</button>
+    </div>
+  </div>
+  <hr class="settings-divider">
+  <div class="setting-group">
+    <span class="setting-label">Téma</span>
+    <div class="seg-row" id="theme-row">
+      <button class="seg-opt" data-theme="dark">Tmavá</button>
+      <button class="seg-opt" data-theme="chroma">Chroma</button>
+      <button class="seg-opt" data-theme="light">Svetlá</button>
+    </div>
+  </div>
+  <hr class="settings-divider">
+  <div class="setting-group">
+    <span class="setting-label">Šírka riadku</span>
+    <div class="seg-row" id="width-row">
+      <button class="seg-opt" data-width="narrow">Úzka</button>
+      <button class="seg-opt" data-width="medium">Stred</button>
+      <button class="seg-opt" data-width="wide">Široká</button>
+    </div>
+  </div>
+</div>
+
+<!-- Caption area -->
+<div id="caption-wrap" class="pos-bottom">
+  <div id="caption-glass">
+    <!-- DIKTOVANIE -->
+    <div id="subs">
+      <span id="committed"></span><span id="pending"></span><span id="cursor">▊</span>
+    </div>
+    <!-- TITULKY -->
+    <div id="roll">
+      <div class="line top" id="l1"></div>
+      <div class="line bot" id="l2">
+        <span id="l2t"></span>
+        <span id="rcursor" style="display:none;animation:blink .85s steps(2) infinite">▊</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
-const ws = new WebSocket(`ws://${location.host}/ws`);
-const c = document.getElementById('committed');
-const p = document.getElementById('pending');
-const s = document.getElementById('stats');
-const subs = document.getElementById('subs');
-const roll = document.getElementById('roll');
-const l1 = document.getElementById('l1');
-const l2t = document.getElementById('l2t');
-const modeBtn = document.getElementById('mode');
-const LINE_CH = 42;
-let lastCommitted = '';
-let hideTimer = null;
-// ---- režimy: 'titulky' (divák, stabilné) | 'diktovanie' (rýchle) --------
-let mode = localStorage.getItem('titulky_mode') || 'titulky';
-function applyMode() {
-  modeBtn.textContent = mode === 'titulky' ? '◼ TITULKY' : '▶ DIKTOVANIE';
-  subs.style.display = mode === 'diktovanie' ? 'block' : 'none';
-  roll.style.display = mode === 'titulky' ? 'block' : 'none';
+/* ── Settings ──────────────────────────────────────────────────── */
+const SIZES   = { S:'28px', M:'36px', L:'44px', XL:'56px' };
+const WIDTHS  = { narrow:'20ch', medium:'28ch', wide:'38ch' };
+const LS_PRE  = 'titulky_';
+
+function ls(k, def) { return localStorage.getItem(LS_PRE+k) ?? def; }
+function lsSet(k, v) { localStorage.setItem(LS_PRE+k, v); }
+
+let cfg = {
+  mode:    ls('mode',    'titulky'),
+  size:    ls('size',    'L'),
+  pos:     ls('pos',     'bottom'),
+  theme:   ls('theme',   'dark'),
+  width:   ls('width',   'medium'),
+};
+
+function applyCfg() {
+  // Font size
+  document.documentElement.style.setProperty('--font-size', SIZES[cfg.size] || SIZES.L);
+  // Line width
+  document.documentElement.style.setProperty('--line-width', WIDTHS[cfg.width] || WIDTHS.medium);
+  LINE_CH = LINE_CHARS[cfg.width] || LINE_CHARS.medium;
+  // Position
+  captionWrap.className = `pos-${cfg.pos}`;
+  if (captionHidden) captionWrap.classList.add('hidden');
+  // Theme
+  document.body.className = document.body.className
+    .replace(/theme-\S+/g, '').trim();
+  if (cfg.theme !== 'dark') document.body.classList.add(`theme-${cfg.theme}`);
+
+  // Mode display
+  subsEl.style.display  = cfg.mode === 'diktovanie' ? 'block' : 'none';
+  rollEl.style.display  = cfg.mode === 'titulky'    ? 'block' : 'none';
+  document.getElementById('btn-titulky').classList.toggle('active', cfg.mode === 'titulky');
+  document.getElementById('btn-diktovanie').classList.toggle('active', cfg.mode === 'diktovanie');
+
+  // Settings panel highlights
+  document.querySelectorAll('[data-size]').forEach(b => b.classList.toggle('active', b.dataset.size === cfg.size));
+  document.querySelectorAll('[data-pos]').forEach(b  => b.classList.toggle('active', b.dataset.pos  === cfg.pos));
+  document.querySelectorAll('[data-theme]').forEach(b=> b.classList.toggle('active', b.dataset.theme=== cfg.theme));
+  document.querySelectorAll('[data-width]').forEach(b=> b.classList.toggle('active', b.dataset.width=== cfg.width));
 }
-function toggleMode() {
-  mode = mode === 'titulky' ? 'diktovanie' : 'titulky';
-  localStorage.setItem('titulky_mode', mode);
-  applyMode();
+
+/* ── DOM refs ──────────────────────────────────────────────────── */
+const subsEl      = document.getElementById('subs');
+const rollEl      = document.getElementById('roll');
+const captionWrap = document.getElementById('caption-wrap');
+const committed   = document.getElementById('committed');
+const pending     = document.getElementById('pending');
+const cursor      = document.getElementById('cursor');
+const l1          = document.getElementById('l1');
+const l2t         = document.getElementById('l2t');
+const rcursor     = document.getElementById('rcursor');
+const pillDraft   = document.getElementById('pill-draft');
+const pillFinal   = document.getElementById('pill-final');
+const pillFlicker = document.getElementById('pill-flicker');
+const pillConn    = document.getElementById('pill-conn');
+const topbar      = document.getElementById('topbar');
+const settingsBtn = document.getElementById('settings-btn');
+const settingsPanel = document.getElementById('settings-panel');
+
+/* ── Auto-hide topbar ──────────────────────────────────────────── */
+let topbarTimer = null;
+function showTopbar() {
+  topbar.classList.remove('hidden');
+  clearTimeout(topbarTimer);
+  topbarTimer = setTimeout(() => topbar.classList.add('hidden'), 4000);
 }
-modeBtn.onclick = toggleMode;
-document.addEventListener('keydown', e => {
-  if (e.key.toLowerCase() === 'm') toggleMode();
+document.addEventListener('mousemove', showTopbar);
+document.addEventListener('touchstart', showTopbar);
+showTopbar();
+
+/* ── Settings panel ────────────────────────────────────────────── */
+settingsBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  const open = settingsPanel.classList.toggle('open');
+  // Animate open
+  if (open) {
+    settingsPanel.style.display = 'flex';
+    requestAnimationFrame(() => settingsPanel.classList.add('open'));
+  }
 });
-applyMode();
-// ---- roll-up stav: riadky sa NIKDY neprepisujú, len plnia a rolujú ------
-let seenWords = 0;       // koľko slov committed streamu už je v riadkoch
-let committedBase = '';  // na detekciu resetu (nový blok po pauze)
+document.addEventListener('click', () => {
+  settingsPanel.classList.remove('open');
+  setTimeout(() => { if (!settingsPanel.classList.contains('open')) settingsPanel.style.display = 'none'; }, 200);
+});
+settingsPanel.addEventListener('click', e => e.stopPropagation());
+
+document.querySelectorAll('[data-size]').forEach(b => b.addEventListener('click', () => {
+  cfg.size = b.dataset.size; lsSet('size', cfg.size); applyCfg();
+}));
+document.querySelectorAll('[data-pos]').forEach(b => b.addEventListener('click', () => {
+  cfg.pos = b.dataset.pos; lsSet('pos', cfg.pos); applyCfg();
+}));
+document.querySelectorAll('[data-theme]').forEach(b => b.addEventListener('click', () => {
+  cfg.theme = b.dataset.theme; lsSet('theme', cfg.theme); applyCfg();
+}));
+document.querySelectorAll('[data-width]').forEach(b => b.addEventListener('click', () => {
+  cfg.width = b.dataset.width; lsSet('width', cfg.width); applyCfg();
+}));
+
+/* ── Mode switch ────────────────────────────────────────────────── */
+function toggleMode() {
+  cfg.mode = cfg.mode === 'titulky' ? 'diktovanie' : 'titulky';
+  lsSet('mode', cfg.mode);
+  applyCfg();
+}
+document.getElementById('btn-titulky').addEventListener('click',    () => { cfg.mode = 'titulky';    lsSet('mode', cfg.mode); applyCfg(); });
+document.getElementById('btn-diktovanie').addEventListener('click', () => { cfg.mode = 'diktovanie'; lsSet('mode', cfg.mode); applyCfg(); });
+document.addEventListener('keydown', e => {
+  if (e.key.toLowerCase() === 'm' && !e.target.closest('#settings-panel')) toggleMode();
+});
+
+/* ── Caption auto-hide ─────────────────────────────────────────── */
+let captionHidden = false;
+let hideTimer = null;
+function showCaption() {
+  captionHidden = false;
+  captionWrap.classList.remove('hidden');
+  clearTimeout(hideTimer);
+}
+function scheduleHide() {
+  hideTimer = setTimeout(() => {
+    captionHidden = true;
+    captionWrap.classList.add('hidden');
+  }, 5000);
+}
+
+/* ── Roll-up state (TITULKY mode) ─────────────────────────────── */
+const LINE_CHARS = { narrow: 18, medium: 26, wide: 36 };  // musí sedieť s WIDTHS (ch mínus padding)
+let LINE_CH = LINE_CHARS.medium;
+let seenWords = 0;
+let committedBase = '';
+
+// pixelové meranie riadku (ch nesedí s proporcionálnym fontom)
+const _measureCtx = document.createElement('canvas').getContext('2d');
+function lineFits(text) {
+  const glass = document.getElementById('caption-glass');
+  const cs = getComputedStyle(l2t.parentElement);
+  _measureCtx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+  const maxPx = parseFloat(getComputedStyle(glass).maxWidth) - 56; // padding 28+28
+  return _measureCtx.measureText(text).width <= maxPx;
+}
 function rollAddWord(w) {
   const cur = l2t.textContent;
-  if (cur && (cur.length + 1 + w.length) > LINE_CH) {
-    l1.textContent = l2t.textContent;   // roll-up: spodný riadok ide hore
-    l2t.textContent = w;
+  if (cur && !lineFits(cur + ' ' + w)) {
+    l1.textContent = l2t.textContent;
+    l2t.textContent = '';
+    // Reset with animated span
+    const span = document.createElement('span');
+    span.className = 'w';
+    span.textContent = w;
+    l2t.appendChild(span);
   } else {
     const span = document.createElement('span');
     span.className = 'w';
@@ -85,14 +524,13 @@ function rollAddWord(w) {
     l2t.appendChild(span);
   }
 }
-function rollUpdate(committed) {
-  if (!committed.startsWith(committedBase)) {
-    // nový blok po pauze ALEBO korekcia prepísala committed text —
-    // riadky vyčisti a znovu naplň len posledným ~1,5 riadkom (bez dúp)
+
+function rollUpdate(text) {
+  if (!text.startsWith(committedBase)) {
     seenWords = 0;
     l1.textContent = '';
     l2t.textContent = '';
-    const ws2 = committed.split(' ').filter(x => x);
+    const ws2 = text.split(' ').filter(Boolean);
     let keep = 0, ln = 0;
     for (let i = ws2.length - 1; i >= 0; i--) {
       ln += ws2[i].length + 1;
@@ -101,53 +539,102 @@ function rollUpdate(committed) {
     }
     seenWords = keep;
   }
-  committedBase = committed;
-  const words = committed.split(' ').filter(x => x);
+  committedBase = text;
+  const words = text.split(' ').filter(Boolean);
   for (; seenWords < words.length; seenWords++) rollAddWord(words[seenWords]);
 }
-ws.onopen = () => s.textContent = 'pripojené';
-ws.onmessage = e => {
-  const d = JSON.parse(e.data);
-  if (!('committed' in d)) return;  // event správy patria /flow stránke
-  // ---- Diktovanie: okno posledných ~84 znakov, committed + sivý draft ----
+
+/* ── WS message handler ─────────────────────────────────────────── */
+let lastCommitted = '';
+
+function onMessage(d) {
+  if (!('committed' in d)) return;
+
+  /* — DIKTOVANIE: sliding window ~84 chars — */
   const words = d.committed.split(' ');
-  let shown = [];
-  let len = 0;
+  let shown = [], len = 0;
   for (let i = words.length - 1; i >= 0; i--) {
     len += words[i].length + 1;
     if (len > 84) break;
     shown.unshift(words[i]);
   }
   const txt = shown.join(' ');
-  if (txt !== c.textContent) {
-    const old = c.textContent;
+  if (txt !== committed.textContent) {
+    const old = committed.textContent;
     if (txt.startsWith(old) && old) {
       const span = document.createElement('span');
       span.className = 'w';
       span.textContent = txt.slice(old.length);
-      c.appendChild(span);
+      committed.appendChild(span);
     } else {
-      c.textContent = txt;
+      committed.textContent = txt;
     }
   }
-  p.textContent = d.pending ? ' ' + d.pending : '';
-  const cur = document.getElementById('cursor');
-  cur.style.display = (d.speaking && !d.pending) ? 'inline' : 'none';
-  // ---- Titulky: len potvrdené slová, roll-up, kurzor ukazuje život -------
+  pending.textContent = d.pending ? '\u202F' + d.pending : '';
+  cursor.style.display = (d.speaking && !d.pending) ? 'inline' : 'none';
+
+  /* — TITULKY: roll-up — */
   rollUpdate(d.committed);
-  document.getElementById('rcursor').style.display = d.speaking ? 'inline' : 'none';
-  // auto-hide po 5 s ticha bez nového obsahu
+  rcursor.style.display = d.speaking ? 'inline' : 'none';
+
+  /* — Auto-hide — */
   if (d.committed !== lastCommitted || d.pending || d.speaking) {
     lastCommitted = d.committed;
-    subs.style.opacity = 1; roll.style.opacity = 1;
-    clearTimeout(hideTimer);
-    hideTimer = setTimeout(() => { subs.style.opacity = 0; roll.style.opacity = 0; }, 5000);
+    showCaption();
+    scheduleHide();
   }
-  s.textContent =
-    `draft ${d.draft_latency_s?.toFixed(2) ?? '–'} s · final ${d.final_latency_s?.toFixed(2) ?? '–'} s · ` +
-    `flicker ${(d.flicker_rate*100).toFixed(0)} % · audio ${d.audio_s} s`;
-};
-ws.onclose = () => s.textContent = 'odpojené';
+
+  /* — Status pills — */
+  const dl = d.draft_latency_s;
+  const fl = d.final_latency_s;
+  const fr = d.flicker_rate;
+
+  pillDraft.textContent = dl != null ? `draft ${dl.toFixed(2)}s` : 'draft –';
+  pillDraft.className   = 'pill' + (dl != null && dl > 1.5 ? ' warn' : '');
+
+  pillFinal.textContent = fl != null ? `final ${fl.toFixed(2)}s` : 'final –';
+  pillFinal.className   = 'pill' + (fl != null && fl > 3 ? ' warn' : '');
+
+  if (fr != null) {
+    pillFlicker.style.display = '';
+    const pct = (fr * 100).toFixed(0);
+    pillFlicker.textContent = `flicker ${pct}%`;
+    pillFlicker.className   = 'pill' + (fr > 0.1 ? ' warn' : '');
+  }
+}
+
+/* ── WebSocket ──────────────────────────────────────────────────── */
+function connect() {
+  const ws = new WebSocket(`ws://${location.host}/ws`);
+
+  ws.onopen = () => {
+    pillConn.style.display = 'none';
+    pillDraft.style.display = '';
+    pillFinal.style.display = '';
+  };
+
+  ws.onmessage = e => {
+    try { onMessage(JSON.parse(e.data)); } catch(_) {}
+  };
+
+  ws.onclose = () => {
+    pillConn.style.display = '';
+    pillConn.textContent = '⚡ odpojené';
+    pillConn.className = 'pill conn-off';
+    // Reconnect after 2s
+    setTimeout(connect, 2000);
+  };
+}
+
+/* ── Init ───────────────────────────────────────────────────────── */
+pillConn.style.display = '';
+pillConn.textContent = '⚡ čakám…';
+pillConn.className = 'pill warn';
+pillDraft.style.display = 'none';
+pillFinal.style.display = 'none';
+
+applyCfg();
+connect();
 </script>
 </body>
 </html>
