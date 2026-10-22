@@ -185,7 +185,11 @@ class TwoTierPipeline:
         self.on_update = on_update or (lambda d: None)
         self.on_event = on_event or (lambda e: None)
         self.buf = SharedBuffer()
-        if os.environ.get("TITULKY_DRAFT_BACKEND", "cpu") == "cpu":
+        backend = os.environ.get("TITULKY_DRAFT_BACKEND", "ane")
+        if backend == "ane":
+            from .asr import AneDraftASR
+            self.draft_asr = AneDraftASR()
+        elif backend == "cpu":
             from .asr import CpuDraftASR
             self.draft_asr = CpuDraftASR()
         else:

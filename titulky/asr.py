@@ -181,6 +181,48 @@ class CpuDraftASR:
         return words
 
 
+class AneDraftASR:
+    """Draft cez whisper.cpp + CoreML — encoder na Apple Neural Engine.
+
+    Merané 22.10. na reálnej reči (1,2 s okno): ANE 0,13–0,17 s vs
+    faster-whisper CPU int8 1,7–1,9 s (!) vs GPU tiny 0,12–0,19 s ale
+    s ~2 s výpadkami počas final dekódu. ANE = base kvalita, tiny
+    rýchlosť, nulová kolízia s GPU (MLX final) aj CPU.
+    Build: CMAKE_ARGS="-DWHISPER_COREML=1 -DGGML_METAL=OFF" pip install
+    --no-binary :all: pywhispercpp  (+ symlink libwhisper.1.dylib).
+    """
+
+    MODEL = "/Volumes/GRINDCASTER/AI-MODELS/whispercpp/base/ggml-base.bin"
+
+    def __init__(self, model=None, threads=4):
+        from pywhispercpp.model import Model
+        self.model = Model(model or self.MODEL, n_threads=threads,
+                           print_progress=False, print_realtime=False)
+        self.last_stats = {}
+
+    def warmup(self):
+        a = np.random.normal(0, 0.01, SAMPLE_RATE * 2).astype(np.float32)
+        self.transcribe(a)
+
+    def transcribe(self, audio, language="sk", skip_if_busy=False):
+        t0 = time.monotonic()
+        segs = self.model.transcribe(
+            preprocess(audio), language=language, token_timestamps=True,
+            max_len=1, split_on_word=True)
+        words = []
+        for s in segs:
+            txt = s.text.strip()
+            if not txt:
+                continue
+            # t0/t1 sú v centisekundách
+            words.append({"text": txt, "start": s.t0 / 100.0,
+                          "end": s.t1 / 100.0})
+        self.last_stats = {"lock_wait_s": 0.0,
+                           "decode_s": round(time.monotonic() - t0, 3),
+                           "drops": []}
+        return words
+
+
 class LocalAgreement:
     """Potvrdí len prefix slov, na ktorom sa zhodli dva po sebe idúce behy.
 
