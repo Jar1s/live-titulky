@@ -5,6 +5,7 @@ Google/Zoom/Kuaishou pattern, ufal/whisper_streaming, WhisperLiveKit):
   - DRAFT:  whisper-small-mlx — rýchly, zobrazuje sa okamžite (šedé)
   - FINAL:  whisper-large-v3-turbo — presný, prepíše draft (biele)
 """
+import os
 import threading
 
 import mlx_whisper
@@ -15,8 +16,18 @@ SAMPLE_RATE = 16000
 # 2. rád Butterworth highpass 80 Hz — plochý passband, žiadny ripple
 # (predtým moving-average: 6 dB/okt, ripple pri cutoffe)
 _HP_SOS = butter(2, 80.0, btype="high", fs=SAMPLE_RATE, output="sos")
-DRAFT_REPO = "mlx-community/whisper-small-mlx"  # tiny je na SK nepoužiteľný
+DRAFT_REPO = "mlx-community/whisper-base-mlx"
+# ^ exp_grid 22.10.: base dekóduje 1.5s okno za ~40ms (small ~240ms) →
+#   draft p50 0.73s a nižší flicker; tiny je na SK nepoužiteľný.
 FINAL_REPO = "mlx-community/whisper-large-v3-turbo"
+# kinit/whisper-large-v3-turbo-sk (SK fine-tune, rovnaká architektúra):
+# FLEURS SK test 120 viet: kinit 5.81% vs turbo 10.54% corpus WER;
+# naše čisté testy 0.0% vs 3.2%. Konverzia: mlx-examples/whisper
+# convert.py --dtype float16 (+ ln -s model.safetensors weights.safetensors).
+_KINIT_LOCAL = "/Volumes/GRINDCASTER/AI-MODELS/mlx/kinit-whisper-turbo-sk"
+if os.path.isdir(_KINIT_LOCAL):
+    FINAL_REPO = _KINIT_LOCAL
+FINAL_REPO = os.environ.get("TITULKY_FINAL_REPO", FINAL_REPO)
 
 # mlx_whisper (Numba workqueue vnútri) NIE JE thread-safe — súbežné volanie
 # z draft aj final vlákna spôsobí crash celej pipeline („Concurrent access

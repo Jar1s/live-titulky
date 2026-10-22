@@ -1,0 +1,66 @@
+{
+ "turbo (baseline)": {
+  "tests/normal.wav": {
+   "wer": 0.03225806451612903,
+   "dt": 1.488906999991741,
+   "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od hľuku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
+  },
+  "tests/fast.wav": {
+   "wer": 0.0,
+   "dt": 0.7718249169993214,
+   "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne."
+  },
+  "tests/quiet.wav": {
+   "wer": 0.03225806451612903,
+   "dt": 1.059028749994468,
+   "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od hľuku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
+  },
+  "tests/noisy.wav": {
+   "wer": 0.03225806451612903,
+   "dt": 0.9719071250292473,
+   "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od blúku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
+  },
+  "tests/pauses.wav": {
+   "wer": 0.03225806451612903,
+   "dt": 0.9954319579992443,
+   "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od hľuku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
+  },
+  "mic_test.wav": {
+   "wer": 0.13043478260869565,
+   "dt": 0.7663460829644464,
+   "hyp": "Teraz je notávnik a hater už nerobí bolbosti. No akože dobre, ale pozriem sa na to, ale pozri celkom teraz to nerobí bolbosti."
+  }
+ },
+ "kinit-sk": {
+  "tests/normal.wav": {
+   "wer": 0.0,
+   "dt": 3.1211253750370815,
+   "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od hluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
+  },
+  "tests/fast.wav": {
+   "wer": 0.0,
+   "dt": 0.7449594999779947,
+   "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne."
+  },
+  "tests/quiet.wav": {
+   "wer": 0.0,
+   "dt": 1.0172742920112796,
+   "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od hluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
+  },
+  "tests/noisy.wav": {
+   "wer": 0.0,
+   "dt": 0.949950042006094,
+   "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od hluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
+  },
+  "tests/pauses.wav": {
+   "wer": 0.0,
+   "dt": 0.9491955420235172,
+   "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od hluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
+  },
+  "mic_test.wav": {
+   "wer": 0.30434782608695654,
+   "dt": 0.7517854170291685,
+   "hyp": "Teraz len odhalník. Aha, teraz už nerobím blbosti. Bolblosti. No akože dobre, ale pozriem sa na to, ale pozri celkom teraz to nerobí"
+  }
+ }
+}
