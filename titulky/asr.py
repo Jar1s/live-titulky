@@ -48,6 +48,8 @@ def preprocess(audio: np.ndarray) -> np.ndarray:
     Denoising (RNNoise/DeepFilterNet) zámerne NIE JE: literatúra
     (arXiv:2512.17562, 2603.04710) ukazuje, že Whisperu škodí.
     """
+    if audio.size == 0:
+        return audio.astype(np.float32)  # prázdne okno (race po flush wake)
     out = sosfilt(_HP_SOS, audio).astype(np.float32)
     # Normalizácia: peak s vyšším stropom gainu (40 dB kvôli slabému
     # MacBook miku). RMS varianty testované (suite16/17): plné-RMS zlepšilo
@@ -139,7 +141,7 @@ class CpuDraftASR:
     ako ASR.transcribe.
     """
 
-    def __init__(self, model="tiny", threads=4):
+    def __init__(self, model="base", threads=4):
         from faster_whisper import WhisperModel
         self.model = WhisperModel(model, device="cpu",
                                   compute_type="int8", cpu_threads=threads)

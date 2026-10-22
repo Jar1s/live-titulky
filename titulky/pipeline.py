@@ -447,6 +447,13 @@ class TwoTierPipeline:
                 if self._flush_evt.wait(FINAL_STEP_S):
                     self._flush_evt.clear()   # flush → dekóduj hneď
                 continue
+            if len(audio) < SAMPLE_RATE * 0.2:
+                # prázdne/mini okno (race po okamžitom Event wake) — počkaj
+                if self.buf.eof:
+                    break
+                if self._flush_evt.wait(FINAL_STEP_S):
+                    self._flush_evt.clear()
+                continue
             words = self.final_asr.transcribe(audio, self.language)
             for reason, txt in getattr(self.final_asr, "last_stats",
                                        {}).get("drops", []):
