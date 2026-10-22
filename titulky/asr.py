@@ -130,6 +130,55 @@ class ASR:
         return words
 
 
+class CpuDraftASR:
+    """Draft na CPU (faster-whisper/ctranslate2, tiny int8) — NEzdieľa GPU
+    s final vrstvou, takže draft nehladuje počas final dekódov.
+
+    Merané 22.10.: dekód 1,2 s okna ~0,18 s na CPU (GPU tiny 0,12–0,19 s,
+    ale s až 2 s výpadkami počas final dekódu). Rovnaké rozhranie a gaty
+    ako ASR.transcribe.
+    """
+
+    def __init__(self, model="tiny", threads=4):
+        from faster_whisper import WhisperModel
+        self.model = WhisperModel(model, device="cpu",
+                                  compute_type="int8", cpu_threads=threads)
+        self.last_stats = {}
+
+    def warmup(self):
+        import numpy as np
+        a = np.random.normal(0, 0.01, SAMPLE_RATE * 2).astype(np.float32)
+        self.transcribe(a)
+
+    def transcribe(self, audio, language="sk", skip_if_busy=False):
+        # skip_if_busy je irelevantné — žiadny zdieľaný lock
+        t0 = time.monotonic()
+        segs, _ = self.model.transcribe(
+            preprocess(audio), language=language, beam_size=1,
+            word_timestamps=True, condition_on_previous_text=False,
+            temperature=0.0, vad_filter=False)
+        words = []
+        drops = []
+        for seg in segs:
+            if getattr(seg, "no_speech_prob", 0.0) > 0.8:
+                drops.append(("no_speech>0.8", seg.text.strip()))
+                continue
+            if getattr(seg, "avg_logprob", 0.0) < -1.5:
+                drops.append(("logprob<-1.5", seg.text.strip()))
+                continue
+            for w in seg.words or []:
+                dur = w.end - w.start
+                if w.probability < 0.5 and dur < 0.15:
+                    drops.append(("p<0.5∧<0.15s", w.word.strip()))
+                    continue
+                words.append({"text": w.word.strip(),
+                              "start": w.start, "end": w.end})
+        self.last_stats = {"lock_wait_s": 0.0,
+                           "decode_s": round(time.monotonic() - t0, 3),
+                           "drops": drops}
+        return words
+
+
 class LocalAgreement:
     """Potvrdí len prefix slov, na ktorom sa zhodli dva po sebe idúce behy.
 

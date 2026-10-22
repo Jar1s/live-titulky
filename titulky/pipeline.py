@@ -185,7 +185,11 @@ class TwoTierPipeline:
         self.on_update = on_update or (lambda d: None)
         self.on_event = on_event or (lambda e: None)
         self.buf = SharedBuffer()
-        self.draft_asr = ASR(draft_repo)
+        if os.environ.get("TITULKY_DRAFT_BACKEND", "cpu") == "cpu":
+            from .asr import CpuDraftASR
+            self.draft_asr = CpuDraftASR()
+        else:
+            self.draft_asr = ASR(draft_repo)
         # prompt v streamingu NEPOUŽÍVAŤ: pri krátkych oknách ho Whisper
         # halucinuje do výstupu (zisk promptu bol len ~0.3 p.b., škoda veľká)
         self.final_asr = ASR(final_repo)
