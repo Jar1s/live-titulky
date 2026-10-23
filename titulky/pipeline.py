@@ -250,33 +250,43 @@ class TwoTierPipeline:
             except Exception as e:  # noqa: BLE001
                 self.on_event({"t": "spk_off", "msg": f"diarizácia off: {e}"})
 
-    def _snap_boundary(self, word: str, approx_end: float) -> float:
-        """FAST_FINAL: prisnapuj approx koniec slova na reálny čas z ANE
-        draftu (rovnaké normalizované slovo, max 1.5 s od odhadu).
-        Bez zhody vráti approx — konzervatívne, hranica má toleranciu."""
-        nw = _norm_w(word)
-        best, best_d = None, 1.5
-        for (t, e) in self._draft_times:
-            if t == nw:
-                d = abs(e - approx_end)
-                if d < best_d:
-                    best, best_d = e, d
-        return best if best is not None else approx_end
-
-    def _silence_snap(self, t: float, radius: float = 0.45) -> float:
-        """FAST_FINAL: dosnapuj hranicu na najtichších 100 ms v okolí ±radius
-        — na tichu sa nedá rozseknúť slovo (ochrana ďalšieho dekódu)."""
-        s = int((t - radius - self.buf.offset_s) * SAMPLE_RATE)
-        e = int((t + radius - self.buf.offset_s) * SAMPLE_RATE)
-        a = self.buf.audio[max(0, s):e]
-        frame, hop = int(0.1 * SAMPLE_RATE), int(0.025 * SAMPLE_RATE)
-        if len(a) < frame + hop:
-            return t
-        rms = [float(np.sqrt(np.mean(a[i:i + frame] ** 2)))
-               for i in range(0, len(a) - frame, hop)]
-        i = int(np.argmin(rms))
-        return (max(0, s) + i * hop + frame / 2) / SAMPLE_RATE \
-            + self.buf.offset_s
+    def _retime_from_draft(self, words: list[dict], off_s: float,
+                           win_len_s: float) -> list[dict]:
+        """FAST_FINAL v2: nahraď aproximované časy final slov reálnymi
+        časmi z ANE draftu — sekvenčné zarovnanie normalizovaných slov
+        (difflib), neukotvené slová posunie delta najbližšej kotvy,
+        výsledok monotónny. Nahrádza DTW (-0.9s na dekód)."""
+        import difflib
+        fin = [_norm_w(w["text"]) for w in words]
+        # kandidáti LEN z aktuálneho okna — draft slová sa opakujú naprieč
+        # oknami a match mimo okna dáva záporné/preskočené časy
+        cand = [c for c in self._draft_times
+                if c[1] >= off_s - 0.5 and c[2] <= off_s + win_len_s + 0.5]
+        sm = difflib.SequenceMatcher(
+            a=fin, b=[c[0] for c in cand], autojunk=False)
+        anchors = {}
+        for blk in sm.get_matching_blocks():
+            for k in range(blk.size):
+                _, s, e = cand[blk.b + k]
+                anchors[blk.a + k] = (s - off_s, e - off_s)
+        if not anchors:
+            return words
+        idxs = sorted(anchors)
+        out, prev_end = [], 0.0
+        for i, w in enumerate(words):
+            if i in anchors:
+                s, e = anchors[i]
+            else:
+                j = min(idxs, key=lambda k: abs(k - i))
+                d = anchors[j][1] - words[j]["end"]
+                s, e = w["start"] + d, w["end"] + d
+            s = max(s, prev_end)
+            e = max(e, s + 0.01)
+            prev_end = e
+            nw = dict(w)
+            nw["start"], nw["end"] = s, e
+            out.append(nw)
+        return out
 
     def _apply_corrections(self, start_idx: int, changes: list[dict]):
         """Callback z CorrectionWorker — opraví committed slová a emitne."""
@@ -430,7 +440,8 @@ class TwoTierPipeline:
             if FAST_FINAL:
                 # ANE časy slov pre snap final hraníc (experiment FAST_FINAL)
                 self._draft_times.extend(
-                    (_norm_w(w["text"]), off_s + w["end"]) for w in words)
+                    (_norm_w(w["text"]), off_s + w["start"], off_s + w["end"])
+                    for w in words)
                 del self._draft_times[:-300]
             now = time.monotonic()
             # draft = slová za final hranicou
@@ -538,6 +549,11 @@ class TwoTierPipeline:
             self.compute_s += time.monotonic() - t_start
             words = dedupe_repeats(words)
             words = dedup_boundary(words, self.final_text)
+            if FAST_FINAL:
+                # v2: reálne časy z ANE draftu namiesto DTW — konzistentné
+                # s XAGREE kľúčmi (rovnaký zdroj časov)
+                words = self._retime_from_draft(
+                    words, off_s, len(audio) / SAMPLE_RATE)
             # energia gate: referencia = max(RMS okna, naučená úroveň reči) —
             # v prevažne tichom okne by samotný RMS okna prepustil
             # halucinácie z ticha („Ďakujem za pozornosť")
@@ -626,9 +642,6 @@ class TwoTierPipeline:
                     belongs_to_old_block = getattr(self, "speaking", False)
                 elif idx < len(words):
                     end = off_s + words[idx]["end"]
-                    if FAST_FINAL:
-                        end = self._snap_boundary(words[idx]["text"], end)
-                        end = self._silence_snap(end)
                     self.final_upto_s = end
                     lat = (now - self.buf.t0) - self.final_upto_s
                     if 0 < lat < 60:

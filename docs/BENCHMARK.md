@@ -486,3 +486,15 @@ Default ostáva exact. Ďalší smer ak treba <2.5s: commit z ANE agreementu
 - Zaver: strop two-tier architektury s MLX DTW = final ~2-2.5s live (4.4-5.5 suite).
   Dalsi level by vyzadoval presne timestampy z lacnejsieho zdroja (ANE draft
   alignment na final text) — vacsi zasah, nie nocny patch.
+
+## FAST_FINAL v2 (ANE retime) zlyhalo + novy test continuous.wav (24.10. ~01:00)
+- v2: final bez DTW, casy slov cez difflib zarovnanie na ANE draft (kandidati
+  len z aktualneho okna). Vysledok: WER 35-55% — tam kde sa modely nezhoduju,
+  interpolacia reze slova a kazy sa kaskada commit->dalsi dekod. Flag ostava 0,
+  kod ostava ako experimentalna platforma (_retime_from_draft).
+- Pouceni: DTW (-0.9s) sa NEDA nahradit lacnym zarovnanim na iny model.
+  Jedina realna cesta k rychlejsiemu finalu = presne timestampy z final modelu
+  lacnejsie (whisper.cpp DTW? CoreML?) — vyzaduje redesign, nie patch.
+- NOVY TEST tests/continuous.wav: 37s suvislej reci bez pauz (say Laura).
+  Baseline (nasadena konfiguracia): WER 5.6%, draftACC 91.5%, final p50 4.8s —
+  suvisla rec v two-tier drzi; vnimany problem je latencia finalu, nie text.

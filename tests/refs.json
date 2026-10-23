@@ -5,5 +5,6 @@
  "tests/quiet.wav": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od hluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité.",
  "tests/noisy.wav": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od hluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité.",
  "tests/pauses.wav": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od hluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité.",
- "tests/silence.wav": ""
+ "tests/silence.wav": "",
+ "tests/continuous.wav": "Automatické titulkovanie súvislej reči je najťažšia disciplína pretože hovoriaci nerobí žiadne prestávky a systém musí priebežne potvrdzovať slová bez čakania na ticho. Kvalita rozpoznávania pritom nesmie klesnúť a text musí plynúť na obrazovku rovnomerne ako pri bežnom čítaní správ. Divák si všimne každé zaváhanie preto meriame latenciu aj presnosť na dlhom neprerušovanom úseku ktorý trvá viac než tridsať sekúnd a obsahuje bežnú slovnú zásobu aj odborné výrazy ako neurónová sieť alebo akcelerátor."
 }
