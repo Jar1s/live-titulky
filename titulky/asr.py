@@ -220,9 +220,9 @@ class AneDraftASR:
 
     MODEL = os.environ.get(
         "TITULKY_ANE_MODEL",
-        "/Volumes/GRINDCASTER/AI-MODELS/whispercpp/kinit-whisper-small-sk/ggml-model.bin")
-    # kinit small-sk (23.10.): 3s okno 0.28s na ANE, bezchybná slovenčina
-    # (base: 0.13-0.17s ale časté bľaboly — small-sk vymenil +0.1s za kvalitu)
+        "/Volumes/GRINDCASTER/AI-MODELS/whispercpp/kinit-whisper-base-sk/ggml-model.bin")
+    # kinit base-sk (23.10.): dekód 0.08-0.11s na ANE, slovenčina OK na 3s okne
+    # (small-sk: rovnaký text ale 0.2-0.26s; stock base: rýchly ale bľaboly)
 
     def __init__(self, model=None, threads=4):
         from pywhispercpp.model import Model
