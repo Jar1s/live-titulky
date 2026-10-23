@@ -24,7 +24,7 @@ DRAFT_HOLD_S = 0.10        # min interval prekreslenia draftu (stabilita očí)
 # ^ exp_grid 22.10.: base w1.5 s0.15 h0.3 → draft p50 0.73s (z 1.76s),
 #   p90 1.54s, flicker 11.5% (baseline 14.9%). Plná tabuľka:
 #   exp_grid_results.jsonl + docs/BENCHMARK.md
-FINAL_STEP_S = 1.5   # exp_final_grid 22.10.: p50 3.56s, WER 2.2%, flicker 4%
+FINAL_STEP_S = 1.0   # JBOP-97: znížené z 1.5 na 1.0s — flicker fix (krok kratší = LocalAgreement potvrdí skôr)
 FINAL_WINDOW_S = 8.0
 # FAST_FINAL (experiment): final dekód bez DTW word_timestamps (-0.9s),
 # hranice commitov sa snapujú na reálne časy slov z ANE draftu
