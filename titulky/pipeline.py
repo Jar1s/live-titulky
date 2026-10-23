@@ -305,6 +305,16 @@ class TwoTierPipeline:
         import sounddevice as sd
         dev = os.environ.get("TITULKY_DEVICE")
         if dev is not None:
+            if not dev.isdigit():
+                # meno (substring, case-insensitive) — indexy zariadení sa
+                # medzi reštartmi CoreAudio posúvajú, meno je stabilné
+                import sounddevice as _sd
+                matches = [i for i, d in enumerate(_sd.query_devices())
+                           if d["max_input_channels"] > 0
+                           and dev.lower() in d["name"].lower()]
+                if not matches:
+                    raise RuntimeError(f"Vstupné zariadenie '{dev}' nenájdené")
+                dev = str(matches[0])
             sd.default.device = (int(dev), None)
             print(f"Mikrofón: {sd.query_devices(int(dev))['name']}")
         self.buf.t0 = time.monotonic()
