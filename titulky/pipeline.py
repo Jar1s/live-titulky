@@ -26,7 +26,11 @@ DRAFT_HOLD_S = 0.10        # min interval prekreslenia draftu (stabilita očí)
 # ^ exp_grid 22.10.: base w1.5 s0.15 h0.3 → draft p50 0.73s (z 1.76s),
 #   p90 1.54s, flicker 11.5% (baseline 14.9%). Plná tabuľka:
 #   exp_grid_results.jsonl + docs/BENCHMARK.md
-FINAL_STEP_S = 1.0   # JBOP-97: znížené z 1.5 na 1.0s — flicker fix (krok kratší = LocalAgreement potvrdí skôr)
+FINAL_STEP_S = float(os.environ.get("TITULKY_FINAL_STEP", "1.0"))
+# cross-model agreement: slovo potvrdené finalom + už zobrazené draftom
+# (iný model, zhodný text aj čas) sa commitne po PRVOM final behu —
+# ušetrí celý druhý cyklus (~1.6-2.6s). Vypnutie: TITULKY_XAGREE=0
+XAGREE = os.environ.get("TITULKY_XAGREE", "1") == "1"
 FINAL_WINDOW_S = 8.0
 # FAST_FINAL (experiment): final dekód bez DTW word_timestamps (-0.9s),
 # hranice commitov sa snapujú na reálne časy slov z ANE draftu
@@ -549,6 +553,31 @@ class TwoTierPipeline:
                 new, pending = [w["text"] for w in words], []
             else:
                 new, pending = self.final_agree.update(words)
+                # cross-model agreement (XAGREE): prefix pending slov, ktoré
+                # draft model už zobrazil (zhodný text, čas ±2s) — zhoda
+                # dvoch rôznych modelov nahrádza čakanie na druhý final beh
+                if XAGREE and pending:
+                    tailw = words[len(words) - len(pending):]
+                    # slová pri okraji okna sú nestabilné (odseknutý kontext)
+                    # — tam sa draft aj final mýlia SPOLU, zhoda neplatí
+                    edge_s = off_s + len(audio) / SAMPLE_RATE - 1.2
+                    promoted = []
+                    for txt, w in zip(pending, tailw):
+                        if off_s + w["end"] >= edge_s:
+                            break
+                        sec = round(off_s + w["start"])
+                        norm = self._norm_key(txt)
+                        now_m = time.monotonic()
+                        if any(now_m - self._seen_draft_words.get(
+                                   (sec + d, norm), now_m) > 0.4
+                               for d in (-2, -1, 0, 1, 2)):
+                            promoted.append(txt)
+                        else:
+                            break
+                    if promoted:
+                        self.final_agree.committed.extend(promoted)
+                        new = new + promoted
+                        pending = pending[len(promoted):]
             # anti-loop: nekomituj presne tú istú sekvenciu, aká už je na
             # konci prepisu (Whisper v slučke opakuje „Ďakujem za pozornosť")
             if new and self.final_text[-len(new):] == new:

@@ -464,3 +464,15 @@ Default ostáva exact. Ďalší smer ak treba <2.5s: commit z ANE agreementu
 - Zaver: kinit whisper two-tier ostava najlepsia dostupna kombinacia pre SK.
   Jedina cesta vyssie = SK fine-tune nemotronu (ARTUR-style, ~100h+, GPU trening) —
   slovinsky pripad (texdata) dosiahol po fine-tune len ~22-25% WER, co varuje.
+
+## Cross-model agreement (XAGREE) — final zrychleny o ~1.5-2s (24.10. v noci)
+- Princip: slovo z PRVEHO final behu sa commitne hned, ak ho draft (iny model)
+  uz zobrazil so zhodnym textom a casom (±2s) — zhoda 2 roznych modelov
+  nahradza cakanie na druhy final cyklus (~1.6-2.6s).
+- 2 nutne poistky (bez nich WER 19-25%!):
+  1) edge guard: nepromovat slova <1.2s od okraja okna — oba modely sa tam
+     mylia SPOLU (korelovane chyby na odseknutom audiu),
+  2) stabilita: draft slovo musi na obrazovke visiet >=0.4s.
+- Suite: WER 0-6.5% (noisy 3.2), final p50 4.4-5.5s (baseline 5.4-7.6),
+  flicker 0-6.2%. FINAL_STEP 0.5 zhorsil flicker (24%) — ostava 1.0.
+- Vypnutie: TITULKY_XAGREE=0; krok: TITULKY_FINAL_STEP.
