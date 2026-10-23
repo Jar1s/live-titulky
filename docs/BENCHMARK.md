@@ -453,3 +453,14 @@ Default ostáva exact. Ďalší smer ak treba <2.5s: commit z ANE agreementu
 - Zaver: bez SK fine-tunu nepouzitelny; kinit whisper ostava. Buduca cesta
   k <1s bielemu textu = fine-tune streaming modelu (Parakeet/RNN-T) na SK — iny projekt.
 - Pozn.: parakeet-mlx vyzaduje mlx<=0.28 (mx.concat API) a mx.array vstup.
+
+## Nemotron-3.5-asr-streaming-0.6b (sk-SK) vyhodnoteny a zamietnuty (23.10. noc)
+- Hotovy NVIDIA streaming model so slovencinou (40 jazykov) — ziadny trening netreba.
+- Offline cez parakeet.cpp (mudler, Metal/CPU): WER normal/quiet 9.7%, pauses 12.9%,
+  noisy 29%, fast 62.5%, slow 43.8%. Rychly (RTF ~0.2) ale slovencina slaba na
+  rychlej/hlucnej reci. Pod latkou 91% presnosti.
+- Pozn.: cstr GGUF (CrispASR layout) je nekompatibilny s mudler parakeet.cpp —
+  treba mudler/parakeet-cpp-gguf. Modely v /Volumes/GRINDCASTER/AI-MODELS/nemotron/.
+- Zaver: kinit whisper two-tier ostava najlepsia dostupna kombinacia pre SK.
+  Jedina cesta vyssie = SK fine-tune nemotronu (ARTUR-style, ~100h+, GPU trening) —
+  slovinsky pripad (texdata) dosiahol po fine-tune len ~22-25% WER, co varuje.
