@@ -31,7 +31,7 @@ FINAL_STEP_S = float(os.environ.get("TITULKY_FINAL_STEP", "1.0"))
 # (iný model, zhodný text aj čas) sa commitne po PRVOM final behu —
 # ušetrí celý druhý cyklus (~1.6-2.6s). Vypnutie: TITULKY_XAGREE=0
 XAGREE = os.environ.get("TITULKY_XAGREE", "1") == "1"
-FINAL_WINDOW_S = 8.0
+FINAL_WINDOW_S = float(os.environ.get("TITULKY_FINAL_WIN", "8.0"))
 # FAST_FINAL (experiment): final dekód bez DTW word_timestamps (-0.9s),
 # hranice commitov sa snapujú na reálne časy slov z ANE draftu
 FAST_FINAL = os.environ.get("TITULKY_FAST_FINAL", "0") == "1"
@@ -262,6 +262,21 @@ class TwoTierPipeline:
                 if d < best_d:
                     best, best_d = e, d
         return best if best is not None else approx_end
+
+    def _silence_snap(self, t: float, radius: float = 0.45) -> float:
+        """FAST_FINAL: dosnapuj hranicu na najtichších 100 ms v okolí ±radius
+        — na tichu sa nedá rozseknúť slovo (ochrana ďalšieho dekódu)."""
+        s = int((t - radius - self.buf.offset_s) * SAMPLE_RATE)
+        e = int((t + radius - self.buf.offset_s) * SAMPLE_RATE)
+        a = self.buf.audio[max(0, s):e]
+        frame, hop = int(0.1 * SAMPLE_RATE), int(0.025 * SAMPLE_RATE)
+        if len(a) < frame + hop:
+            return t
+        rms = [float(np.sqrt(np.mean(a[i:i + frame] ** 2)))
+               for i in range(0, len(a) - frame, hop)]
+        i = int(np.argmin(rms))
+        return (max(0, s) + i * hop + frame / 2) / SAMPLE_RATE \
+            + self.buf.offset_s
 
     def _apply_corrections(self, start_idx: int, changes: list[dict]):
         """Callback z CorrectionWorker — opraví committed slová a emitne."""
@@ -613,6 +628,7 @@ class TwoTierPipeline:
                     end = off_s + words[idx]["end"]
                     if FAST_FINAL:
                         end = self._snap_boundary(words[idx]["text"], end)
+                        end = self._silence_snap(end)
                     self.final_upto_s = end
                     lat = (now - self.buf.t0) - self.final_upto_s
                     if 0 < lat < 60:
@@ -683,6 +699,8 @@ class TwoTierPipeline:
             backlog = total_s - self.final_upto_s
             step = 0.0 if (new and backlog > FINAL_WINDOW_S * 0.5) \
                 else FINAL_STEP_S
+            # pozn. 24.10.: krok 0.25 po commite nepomohol (p50 rovnaké,
+            # flicker fast 21%) — bottleneck je dekód, nie čakanie.
             if self._flush_evt.wait(max(0.0, step - elapsed)):
                 self._flush_evt.clear()       # flush → ďalší cyklus hneď
 

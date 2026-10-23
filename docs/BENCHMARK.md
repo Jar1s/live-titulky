@@ -476,3 +476,13 @@ Default ostáva exact. Ďalší smer ak treba <2.5s: commit z ANE agreementu
 - Suite: WER 0-6.5% (noisy 3.2), final p50 4.4-5.5s (baseline 5.4-7.6),
   flicker 0-6.2%. FINAL_STEP 0.5 zhorsil flicker (24%) — ostava 1.0.
 - Vypnutie: TITULKY_XAGREE=0; krok: TITULKY_FINAL_STEP.
+
+## Kolo optimalizacii kodu po XAGREE (24.10. ~00:30) — co NEfunguje
+- Krok 0.25s po commite: p50 bez zmeny, flicker fast 21% — bottleneck je dekod (1.6s), nie cakanie.
+- FINAL_WINDOW 6s: WER horsi (9.7-16%), latencia rovnaka. Ostava 8s.
+- FAST_FINAL (bez DTW, -0.9s): final p50 2.1-2.7s (!) ale WER 12-29% — approx
+  timestampy rozbiju commit mapovanie. Tichovy snap hranic (_silence_snap) to NEopravil
+  → problem nie su len hranice, ale cele casovanie slov. Flag ostava 0.
+- Zaver: strop two-tier architektury s MLX DTW = final ~2-2.5s live (4.4-5.5 suite).
+  Dalsi level by vyzadoval presne timestampy z lacnejsieho zdroja (ANE draft
+  alignment na final text) — vacsi zasah, nie nocny patch.
