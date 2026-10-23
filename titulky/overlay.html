@@ -271,6 +271,7 @@ body.theme-light #subs, body.theme-light #roll { text-shadow: none; }
 #roll .line { min-height: 1.26em; white-space: nowrap; overflow: hidden; }
 #roll .line.top { color: var(--ink-2); }
 #roll .line.bot { color: var(--ink); }
+#l2p { color: var(--ink-2); }
 
 .w { display: inline; animation: w-in .16s ease-out both; }
 @keyframes w-in { from { opacity: 0; transform: translateY(3px); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
@@ -359,7 +360,7 @@ body.theme-light #subs, body.theme-light #roll { text-shadow: none; }
     <div id="roll">
       <div class="line top" id="l1"></div>
       <div class="line bot" id="l2">
-        <span id="l2t"></span>
+        <span id="l2t"></span><span id="l2p"></span>
         <span id="rcursor" style="display:none;animation:blink .85s steps(2) infinite">▍</span>
       </div>
     </div>
@@ -412,6 +413,7 @@ const pending     = document.getElementById('pending');
 const cursor      = document.getElementById('cursor');
 const l1          = document.getElementById('l1');
 const l2t         = document.getElementById('l2t');
+const l2p         = document.getElementById('l2p');
 const rcursor     = document.getElementById('rcursor');
 const statsEl     = document.getElementById('stats');
 const topbar      = document.getElementById('topbar');
@@ -484,7 +486,7 @@ function showCaption() {
 }
 function hasText() {
   return cfg.mode === 'titulky'
-    ? !!(l1.textContent.trim() || l2t.textContent.trim())
+    ? !!(l1.textContent.trim() || l2t.textContent.trim() || l2p.textContent.trim())
     : !!(committed.textContent.trim() || pending.textContent.trim());
 }
 function updateEmptyState() {
@@ -604,7 +606,8 @@ function onMessage(d) {
 
   /* — TITULKY: roll-up — */
   rollUpdate(d.committed, d.base);
-  rcursor.style.display = d.speaking ? 'inline' : 'none';
+  l2p.textContent = d.pending ? (l2t.textContent ? ' ' : '') + d.pending : '';
+  rcursor.style.display = (d.speaking && !d.pending) ? 'inline' : 'none';
 
   /* — Live eq — */
   eqEl.classList.toggle('live', !!d.speaking);
