@@ -3,306 +3,299 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Live titulky</title>
+<title>Titulky — živý prepis</title>
 <style>
-/* ── Reset & base ──────────────────────────────────────────────── */
+/* ── Reset & tokens ────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  /* Themes */
-  --bg: #0a0a0a;
-  --surface: rgba(255,255,255,.06);
+  --bg: #09090b;
+  --surface: rgba(255,255,255,.055);
   --surface-strong: rgba(255,255,255,.10);
-  --border: rgba(255,255,255,.10);
-  --text-primary: #f0f0f0;
-  --text-secondary: rgba(240,240,240,.45);
-  --text-dim: rgba(240,240,240,.28);
-  --accent: rgba(255,255,255,.85);
-  --pill-bg: rgba(255,255,255,.09);
-  --pill-text: rgba(255,255,255,.55);
-  --blur: blur(20px) saturate(180%);
-  --shadow: 0 4px 32px rgba(0,0,0,.6), 0 1px 0 rgba(255,255,255,.06) inset;
-  /* Settings defaults (overridden by JS) */
-  --font-size: 42px;
-  --line-width: 26ch;
+  --border: rgba(255,255,255,.09);
+  --ink: #f4f4f5;
+  --ink-2: rgba(244,244,245,.52);
+  --ink-3: rgba(244,244,245,.26);
+  --live: #30d158;
+  --warn: #ff9f0a;
+  --blur: blur(24px) saturate(160%);
+  --font-size: 44px;
+  --line-width: 28ch;
+  --caption-font: -apple-system, "SF Pro Display", system-ui, sans-serif;
 }
-/* Theme: chroma (OBS transparent) */
-body.theme-chroma { background: #00ff00 !important; --bg: #00ff00; --surface: rgba(0,0,0,.78); --surface-strong: rgba(0,0,0,.88); --border: rgba(0,0,0,.2); --text-primary: #fff; --text-secondary: rgba(255,255,255,.5); --shadow: 0 4px 24px rgba(0,0,0,.5); }
-/* Theme: light */
-body.theme-light { --bg: #f5f5f5; --surface: rgba(0,0,0,.05); --surface-strong: rgba(0,0,0,.09); --border: rgba(0,0,0,.10); --text-primary: #1a1a1a; --text-secondary: rgba(0,0,0,.4); --text-dim: rgba(0,0,0,.25); --accent: rgba(0,0,0,.85); --pill-bg: rgba(0,0,0,.06); --pill-text: rgba(0,0,0,.5); }
+body.theme-chroma { background: #00ff00 !important; --bg:#00ff00; --surface:rgba(0,0,0,.80); --surface-strong:rgba(0,0,0,.90); --border:rgba(0,0,0,.2); --ink:#fff; --ink-2:rgba(255,255,255,.55); --ink-3:rgba(255,255,255,.3); }
+body.theme-light { --bg:#f4f4f5; --surface:rgba(0,0,0,.05); --surface-strong:rgba(0,0,0,.09); --border:rgba(0,0,0,.10); --ink:#18181b; --ink-2:rgba(24,24,27,.5); --ink-3:rgba(24,24,27,.28); }
 
 body {
   background: var(--bg);
-  color: var(--text-primary);
-  font-family: -apple-system, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
-  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  color: var(--ink);
+  font-family: -apple-system, "SF Pro Text", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   height: 100vh;
   overflow: hidden;
   transition: background .3s;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
 }
 
-/* ── Top chrome: mode switcher + status + settings ─────────────── */
+/* ── Top chrome: jedna tenká lišta cez celú šírku ──────────────── */
 #topbar {
-  position: fixed;
-  top: 14px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  position: fixed; top: 0; left: 0; right: 0;
+  height: 52px;
+  display: flex; align-items: center;
+  padding: 0 18px;
+  gap: 16px;
   z-index: 100;
-  transition: opacity .4s;
+  transition: opacity .4s, transform .4s;
 }
-#topbar.hidden { opacity: 0; pointer-events: none; }
+#topbar::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(to bottom, rgba(0,0,0,.55), transparent);
+  pointer-events: none;
+}
+body.theme-light #topbar::before { background: linear-gradient(to bottom, rgba(255,255,255,.75), transparent); }
+#topbar.hidden { opacity: 0; transform: translateY(-6px); pointer-events: none; }
+#topbar > * { position: relative; }
+
+/* Wordmark + live eq */
+#brand { display: flex; align-items: center; gap: 10px; min-width: 150px; }
+#wordmark {
+  font: 700 13px/1 var(--caption-font);
+  letter-spacing: .14em;
+  color: var(--ink);
+}
+#wordmark span { color: var(--ink-3); font-weight: 500; }
+#eq { display: flex; align-items: flex-end; gap: 2px; height: 12px; }
+#eq i {
+  width: 3px; border-radius: 1px;
+  background: var(--ink-3);
+  height: 3px;
+  transition: background .3s;
+}
+#eq.live i { background: var(--live); animation: eq .9s ease-in-out infinite; }
+#eq.live i:nth-child(1) { animation-delay: 0s; }
+#eq.live i:nth-child(2) { animation-delay: .25s; }
+#eq.live i:nth-child(3) { animation-delay: .5s; }
+@keyframes eq { 0%,100% { height: 3px; } 50% { height: 12px; } }
+
+#topbar-center { flex: 1; display: flex; justify-content: center; }
 
 /* Segmented control */
 #mode-control {
   display: flex;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 3px;
+  border-radius: 9px;
+  padding: 2px;
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
-  box-shadow: var(--shadow);
   gap: 2px;
 }
 .seg-btn {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  font: 600 11px/1 -apple-system, system-ui, sans-serif;
-  letter-spacing: .05em;
+  background: none; border: none;
+  color: var(--ink-2);
+  font: 600 11.5px/1 var(--caption-font);
+  letter-spacing: .06em;
   text-transform: uppercase;
-  padding: 5px 12px;
+  padding: 7px 16px;
   border-radius: 7px;
   cursor: pointer;
   transition: background .15s, color .15s;
   white-space: nowrap;
 }
-.seg-btn.active {
-  background: var(--surface-strong);
-  color: var(--text-primary);
-}
-.seg-btn:hover:not(.active) { color: rgba(240,240,240,.7); }
+.seg-btn.active { background: var(--surface-strong); color: var(--ink); }
+.seg-btn:hover:not(.active) { color: var(--ink); }
 
-/* Status pills row */
-#status-row {
-  display: flex;
-  gap: 5px;
-  align-items: center;
-}
-.pill {
-  background: var(--pill-bg);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 3px 8px;
-  font: 500 11px/1.3 ui-monospace, "SF Mono", monospace;
-  color: var(--pill-text);
+/* Pravá strana: tichá mono telemetria + akcie */
+#right { display: flex; align-items: center; gap: 14px; min-width: 150px; justify-content: flex-end; }
+#stats {
+  font: 500 11px/1.4 ui-monospace, "SF Mono", monospace;
+  color: var(--ink-3);
+  text-align: right;
   white-space: nowrap;
-  backdrop-filter: var(--blur);
-  -webkit-backdrop-filter: var(--blur);
-  transition: color .3s, background .3s;
+  font-variant-numeric: tabular-nums;
 }
-.pill.warn { color: #f59e0b; background: rgba(245,158,11,.12); border-color: rgba(245,158,11,.2); }
-.pill.good { color: #34d399; background: rgba(52,211,153,.08); border-color: rgba(52,211,153,.15); }
-.pill.conn-off { color: #f87171; background: rgba(248,113,113,.10); border-color: rgba(248,113,113,.2); }
-
-/* Settings button */
-#settings-btn {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text-dim);
-  width: 30px; height: 30px;
+#stats b { color: var(--ink-2); font-weight: 500; }
+#stats .warn { color: var(--warn); }
+#conn { color: var(--warn); }
+#conn.off { color: #ff453a; }
+.iconbtn {
+  background: none; border: none;
+  color: var(--ink-3);
+  width: 28px; height: 28px;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
-  backdrop-filter: var(--blur);
-  -webkit-backdrop-filter: var(--blur);
-  transition: color .15s, background .15s;
   font-size: 14px;
-}
-#settings-btn:hover { color: var(--text-primary); background: var(--surface-strong); }
-
-/* Flow link */
-#flow-link {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text-dim);
-  padding: 5px 9px;
+  border-radius: 7px;
+  transition: color .15s, background .15s;
   text-decoration: none;
-  font: 500 11px -apple-system, system-ui;
-  backdrop-filter: var(--blur);
-  -webkit-backdrop-filter: var(--blur);
-  transition: color .15s;
 }
-#flow-link:hover { color: var(--text-secondary); }
+.iconbtn:hover { color: var(--ink); background: var(--surface); }
 
-/* ── Settings panel ─────────────────────────────────────────────── */
+/* ── Settings panel ────────────────────────────────────────────── */
 #settings-panel {
-  position: fixed;
-  top: 54px;
-  right: 14px;
+  position: fixed; top: 56px; right: 14px;
   background: var(--surface-strong);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 16px;
-  width: 230px;
+  width: 232px;
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
-  box-shadow: var(--shadow);
+  box-shadow: 0 16px 48px rgba(0,0,0,.5);
   z-index: 200;
-  display: none;
-  flex-direction: column;
-  gap: 14px;
-  opacity: 0;
-  transform: translateY(-6px) scale(.97);
+  display: none; flex-direction: column; gap: 14px;
+  opacity: 0; transform: translateY(-6px) scale(.97);
   transition: opacity .18s, transform .18s;
 }
-#settings-panel.open {
-  display: flex;
-  opacity: 1;
-  transform: none;
-}
-
+#settings-panel.open { display: flex; opacity: 1; transform: none; }
 .setting-group { display: flex; flex-direction: column; gap: 6px; }
 .setting-label {
-  font: 600 10px/1 -apple-system, system-ui;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--text-dim);
+  font: 600 10px/1 var(--caption-font);
+  letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-3);
 }
 .seg-row {
   display: flex;
-  background: rgba(0,0,0,.2);
+  background: rgba(0,0,0,.25);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 2px;
-  gap: 2px;
+  padding: 2px; gap: 2px;
 }
 body.theme-light .seg-row { background: rgba(0,0,0,.06); }
 .seg-opt {
-  flex: 1;
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  font: 600 11px/1 -apple-system, system-ui;
-  padding: 5px 4px;
-  border-radius: 6px;
-  cursor: pointer;
-  text-align: center;
+  flex: 1; background: none; border: none;
+  color: var(--ink-2);
+  font: 600 11px/1 var(--caption-font);
+  padding: 6px 4px; border-radius: 6px;
+  cursor: pointer; text-align: center;
   transition: background .12s, color .12s;
 }
-.seg-opt.active {
-  background: var(--surface-strong);
-  color: var(--text-primary);
-}
-.settings-divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+.seg-opt.active { background: var(--surface-strong); color: var(--ink); }
+.settings-divider { border: none; border-top: 1px solid var(--border); }
 
-/* ── Caption container ──────────────────────────────────────────── */
+/* ── Idle stav: nie prázdna obrazovka ──────────────────────────── */
+#idle {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 18px;
+  z-index: 10;
+  opacity: 0; pointer-events: none;
+  transition: opacity .8s ease;
+}
+#idle.show { opacity: 1; }
+#idle-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--live);
+  box-shadow: 0 0 0 0 rgba(48,209,88,.45);
+  animation: breathe 2.6s ease-out infinite;
+}
+@keyframes breathe {
+  0% { box-shadow: 0 0 0 0 rgba(48,209,88,.45); }
+  70% { box-shadow: 0 0 0 18px rgba(48,209,88,0); }
+  100% { box-shadow: 0 0 0 0 rgba(48,209,88,0); }
+}
+#idle-title { font: 600 17px/1.3 var(--caption-font); letter-spacing: -.01em; color: var(--ink-2); }
+#idle-sub { font: 400 13px/1.5 var(--caption-font); color: var(--ink-3); text-align: center; }
+#idle-sub kbd {
+  font: 500 11px ui-monospace, "SF Mono", monospace;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 4px; padding: 1px 5px;
+}
+#idle.waiting #idle-dot { background: var(--warn); animation: none; box-shadow: none; }
+@media (prefers-reduced-motion: reduce) { #idle-dot, #eq.live i { animation: none; } }
+
+/* ── Scrim pod titulkami (dark theme, pozícia dole) ────────────── */
+#scrim {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  height: 32vh;
+  background: linear-gradient(to top, rgba(0,0,0,.72), rgba(0,0,0,.35) 55%, transparent);
+  z-index: 40;
+  opacity: 0; pointer-events: none;
+  transition: opacity .6s;
+}
+body:not(.theme-chroma):not(.theme-light) #scrim.show { opacity: 1; }
+
+/* ── Caption stage ─────────────────────────────────────────────── */
 #caption-wrap {
-  position: fixed;
-  left: 0; right: 0;
-  display: flex;
-  justify-content: center;
-  transition: bottom .4s cubic-bezier(.4,0,.2,1),
-              top .4s cubic-bezier(.4,0,.2,1),
-              opacity .5s;
+  position: fixed; left: 0; right: 0;
+  display: flex; justify-content: center;
   z-index: 50;
+  transition: opacity .5s;
 }
-/* Position variants */
-#caption-wrap.pos-bottom { bottom: 48px; top: auto; align-items: flex-end; }
+#caption-wrap.pos-bottom { bottom: 6vh; top: auto; align-items: flex-end; }
 #caption-wrap.pos-center { top: 50%; transform: translateY(-50%); bottom: auto; }
-#caption-wrap.pos-top    { top: 72px; bottom: auto; align-items: flex-start; }
-
+#caption-wrap.pos-top    { top: 80px; bottom: auto; align-items: flex-start; }
 #caption-wrap.hidden { opacity: 0; pointer-events: none; }
 
-/* Glass panel behind captions */
 #caption-glass {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 16px;
+  font-size: var(--font-size); /* ch v max-width musí škálovať s titulkami */
   padding: 16px 28px 18px;
+  max-width: min(var(--line-width), 92vw);
+  width: max-content;
+  border-radius: 16px;
+}
+/* glass panel len tam, kde text nemá scrim: chroma + light + ne-bottom */
+body.theme-chroma #caption-glass,
+body.theme-light #caption-glass {
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
-  box-shadow: var(--shadow);
-  max-width: min(var(--line-width), 90vw);
-  width: max-content;
-  transition: opacity .5s, transform .3s;
+  box-shadow: 0 8px 40px rgba(0,0,0,.35);
 }
-body.theme-chroma #caption-glass {
-  background: rgba(0,0,0,.82);
-  border-color: rgba(255,255,255,.08);
-}
+body.theme-chroma #caption-glass { background: rgba(0,0,0,.84); }
 
-/* ── DIKTOVANIE mode ───────────────────────────────────────────── */
-#subs {
+/* ── Typografia titulkov ───────────────────────────────────────── */
+#subs, #roll {
+  font-family: var(--caption-font);
   font-size: var(--font-size);
-  line-height: 1.3;
+  font-weight: 640;
+  line-height: 1.26;
+  letter-spacing: -.015em;
   text-align: left;
-  letter-spacing: -.01em;
+  text-shadow: 0 2px 14px rgba(0,0,0,.65), 0 1px 3px rgba(0,0,0,.5);
   display: none;
 }
-#committed { color: var(--text-primary); }
-#pending { color: var(--text-secondary); }
-#cursor {
-  color: var(--text-secondary);
+body.theme-light #subs, body.theme-light #roll { text-shadow: none; }
+
+#committed { color: var(--ink); }
+#pending { color: var(--ink-2); }
+#cursor, #rcursor {
+  color: var(--live);
   display: none;
   animation: blink .85s steps(2) infinite;
+  font-weight: 400;
 }
-
-/* ── TITULKY mode (2-line roll-up) ─────────────────────────────── */
-#roll {
-  font-size: var(--font-size);
-  line-height: 1.3;
-  text-align: left;
-  letter-spacing: -.01em;
-  display: none;
-}
-#roll .line { min-height: 1.3em; white-space: nowrap; overflow: hidden; }
-#roll .line.top { color: var(--text-secondary); }
-#roll .line.bot { color: var(--text-primary); }
-
-/* ── Word fade animation ────────────────────────────────────────── */
-.w {
-  display: inline;
-  animation: w-in .14s ease-out both;
-}
-@keyframes w-in { from { opacity: 0; filter: blur(3px); } to { opacity: 1; filter: none; } }
-
 @keyframes blink { 50% { opacity: 0; } }
 
-/* ── Font size scale ────────────────────────────────────────────── */
-/* Applied via --font-size custom prop; set by JS */
+#roll .line { min-height: 1.26em; white-space: nowrap; overflow: hidden; }
+#roll .line.top { color: var(--ink-2); }
+#roll .line.bot { color: var(--ink); }
+
+.w { display: inline; animation: w-in .16s ease-out both; }
+@keyframes w-in { from { opacity: 0; transform: translateY(3px); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+@media (prefers-reduced-motion: reduce) { .w { animation: none; } }
 </style>
 </head>
 <body>
 
 <!-- Top chrome -->
 <div id="topbar">
-  <a href="/flow" id="flow-link">⚡ flow</a>
-
-  <!-- Segmented mode switcher -->
-  <div id="mode-control" role="group" aria-label="Režim titulkov">
-    <button class="seg-btn" id="btn-titulky" title="Klávesa M">◼ Titulky</button>
-    <button class="seg-btn" id="btn-diktovanie" title="Klávesa M">▶ Diktovanie</button>
+  <div id="brand">
+    <span id="wordmark">TITULKY<span>&hairsp;.ŽIVO</span></span>
+    <div id="eq"><i></i><i></i><i></i></div>
   </div>
-
-  <!-- Status pills -->
-  <div id="status-row">
-    <span class="pill" id="pill-draft">draft –</span>
-    <span class="pill" id="pill-final">final –</span>
-    <span class="pill" id="pill-flicker" style="display:none">flicker –</span>
-    <span class="pill" id="pill-conn" style="display:none">⚡ čakám…</span>
+  <div id="topbar-center">
+    <div id="mode-control" role="group" aria-label="Režim">
+      <button class="seg-btn" id="btn-titulky" title="Klávesa M">Titulky</button>
+      <button class="seg-btn" id="btn-diktovanie" title="Klávesa M">Diktovanie</button>
+    </div>
   </div>
-
-  <!-- Settings gear -->
-  <button id="settings-btn" title="Nastavenia">⚙</button>
+  <div id="right">
+    <span id="stats"><span id="conn">čakám na server…</span></span>
+    <a href="/flow" class="iconbtn" title="Flow debug">⚡</a>
+    <button class="iconbtn" id="settings-btn" title="Nastavenia">⚙</button>
+  </div>
 </div>
 
 <!-- Settings panel -->
@@ -345,19 +338,29 @@ body.theme-chroma #caption-glass {
   </div>
 </div>
 
+<!-- Idle stav -->
+<div id="idle">
+  <div id="idle-dot"></div>
+  <div id="idle-title">Počúvam</div>
+  <div id="idle-sub">Začni hovoriť — prepis sa objaví okamžite.<br>Režim prepneš klávesou <kbd>M</kbd></div>
+</div>
+
+<!-- Scrim -->
+<div id="scrim"></div>
+
 <!-- Caption area -->
-<div id="caption-wrap" class="pos-bottom">
+<div id="caption-wrap" class="pos-bottom hidden">
   <div id="caption-glass">
     <!-- DIKTOVANIE -->
     <div id="subs">
-      <span id="committed"></span><span id="pending"></span><span id="cursor">▊</span>
+      <span id="committed"></span><span id="pending"></span><span id="cursor">▍</span>
     </div>
     <!-- TITULKY -->
     <div id="roll">
       <div class="line top" id="l1"></div>
       <div class="line bot" id="l2">
         <span id="l2t"></span>
-        <span id="rcursor" style="display:none;animation:blink .85s steps(2) infinite">▊</span>
+        <span id="rcursor" style="display:none;animation:blink .85s steps(2) infinite">▍</span>
       </div>
     </div>
   </div>
@@ -365,7 +368,7 @@ body.theme-chroma #caption-glass {
 
 <script>
 /* ── Settings ──────────────────────────────────────────────────── */
-const SIZES   = { S:'28px', M:'36px', L:'44px', XL:'56px' };
+const SIZES   = { S:'30px', M:'38px', L:'46px', XL:'58px' };
 const WIDTHS  = { narrow:'20ch', medium:'28ch', wide:'38ch' };
 const LS_PRE  = 'titulky_';
 
@@ -373,38 +376,31 @@ function ls(k, def) { return localStorage.getItem(LS_PRE+k) ?? def; }
 function lsSet(k, v) { localStorage.setItem(LS_PRE+k, v); }
 
 let cfg = {
-  mode:    ls('mode',    'titulky'),
-  size:    ls('size',    'L'),
-  pos:     ls('pos',     'bottom'),
-  theme:   ls('theme',   'dark'),
-  width:   ls('width',   'medium'),
+  mode:  ls('mode',  'titulky'),
+  size:  ls('size',  'L'),
+  pos:   ls('pos',   'bottom'),
+  theme: ls('theme', 'dark'),
+  width: ls('width', 'medium'),
 };
 
 function applyCfg() {
-  // Font size
   document.documentElement.style.setProperty('--font-size', SIZES[cfg.size] || SIZES.L);
-  // Line width
   document.documentElement.style.setProperty('--line-width', WIDTHS[cfg.width] || WIDTHS.medium);
-  LINE_CH = LINE_CHARS[cfg.width] || LINE_CHARS.medium;
-  // Position
   captionWrap.className = `pos-${cfg.pos}`;
   if (captionHidden) captionWrap.classList.add('hidden');
-  // Theme
-  document.body.className = document.body.className
-    .replace(/theme-\S+/g, '').trim();
+  document.body.className = document.body.className.replace(/theme-\S+/g, '').trim();
   if (cfg.theme !== 'dark') document.body.classList.add(`theme-${cfg.theme}`);
 
-  // Mode display
-  subsEl.style.display  = cfg.mode === 'diktovanie' ? 'block' : 'none';
-  rollEl.style.display  = cfg.mode === 'titulky'    ? 'block' : 'none';
+  subsEl.style.display = cfg.mode === 'diktovanie' ? 'block' : 'none';
+  rollEl.style.display = cfg.mode === 'titulky'    ? 'block' : 'none';
   document.getElementById('btn-titulky').classList.toggle('active', cfg.mode === 'titulky');
   document.getElementById('btn-diktovanie').classList.toggle('active', cfg.mode === 'diktovanie');
 
-  // Settings panel highlights
   document.querySelectorAll('[data-size]').forEach(b => b.classList.toggle('active', b.dataset.size === cfg.size));
   document.querySelectorAll('[data-pos]').forEach(b  => b.classList.toggle('active', b.dataset.pos  === cfg.pos));
   document.querySelectorAll('[data-theme]').forEach(b=> b.classList.toggle('active', b.dataset.theme=== cfg.theme));
   document.querySelectorAll('[data-width]').forEach(b=> b.classList.toggle('active', b.dataset.width=== cfg.width));
+  updateEmptyState();
 }
 
 /* ── DOM refs ──────────────────────────────────────────────────── */
@@ -417,13 +413,13 @@ const cursor      = document.getElementById('cursor');
 const l1          = document.getElementById('l1');
 const l2t         = document.getElementById('l2t');
 const rcursor     = document.getElementById('rcursor');
-const pillDraft   = document.getElementById('pill-draft');
-const pillFinal   = document.getElementById('pill-final');
-const pillFlicker = document.getElementById('pill-flicker');
-const pillConn    = document.getElementById('pill-conn');
+const statsEl     = document.getElementById('stats');
 const topbar      = document.getElementById('topbar');
 const settingsBtn = document.getElementById('settings-btn');
 const settingsPanel = document.getElementById('settings-panel');
+const idleEl      = document.getElementById('idle');
+const scrimEl     = document.getElementById('scrim');
+const eqEl        = document.getElementById('eq');
 
 /* ── Auto-hide topbar ──────────────────────────────────────────── */
 let topbarTimer = null;
@@ -440,7 +436,6 @@ showTopbar();
 settingsBtn.addEventListener('click', e => {
   e.stopPropagation();
   const open = settingsPanel.classList.toggle('open');
-  // Animate open
   if (open) {
     settingsPanel.style.display = 'flex';
     requestAnimationFrame(() => settingsPanel.classList.add('open'));
@@ -465,7 +460,7 @@ document.querySelectorAll('[data-width]').forEach(b => b.addEventListener('click
   cfg.width = b.dataset.width; lsSet('width', cfg.width); applyCfg();
 }));
 
-/* ── Mode switch ────────────────────────────────────────────────── */
+/* ── Mode switch ───────────────────────────────────────────────── */
 function toggleMode() {
   cfg.mode = cfg.mode === 'titulky' ? 'diktovanie' : 'titulky';
   lsSet('mode', cfg.mode);
@@ -477,47 +472,60 @@ document.addEventListener('keydown', e => {
   if (e.key.toLowerCase() === 'm' && !e.target.closest('#settings-panel')) toggleMode();
 });
 
-/* ── Caption auto-hide ─────────────────────────────────────────── */
+/* ── Caption / idle / scrim stav ───────────────────────────────── */
 let captionHidden = false;
 let hideTimer = null;
+let connected = false;
+
 function showCaption() {
   captionHidden = false;
   captionWrap.classList.remove('hidden');
   clearTimeout(hideTimer);
 }
-// prázdny panel = škaredá prázdna "pilulka" → skry ho, kým nie je čo ukázať
+function hasText() {
+  return cfg.mode === 'titulky'
+    ? !!(l1.textContent.trim() || l2t.textContent.trim())
+    : !!(committed.textContent.trim() || pending.textContent.trim());
+}
 function updateEmptyState() {
-  const mode = cfg.mode;
-  const hasText = mode === 'titulky'
-    ? (l1.textContent.trim() || l2t.textContent.trim())
-    : (c.textContent.trim() || p.textContent.trim());
-  captionWrap.classList.toggle('hidden', captionHidden || !hasText);
+  const visible = !captionHidden && hasText();
+  captionWrap.classList.toggle('hidden', !visible);
+  scrimEl.classList.toggle('show', visible && cfg.pos === 'bottom');
+  idleEl.classList.toggle('show', !visible);
+  idleEl.classList.toggle('waiting', !connected);
+  document.getElementById('idle-title').textContent =
+    connected ? 'Počúvam' : 'Čakám na server';
 }
 function scheduleHide() {
   hideTimer = setTimeout(() => {
     captionHidden = true;
-    captionWrap.classList.add('hidden');
+    updateEmptyState();
   }, 5000);
 }
 
-/* ── Roll-up state (TITULKY mode) ─────────────────────────────── */
-const LINE_CHARS = { narrow: 18, medium: 26, wide: 36 };  // musí sedieť s WIDTHS (ch mínus padding)
-let LINE_CH = LINE_CHARS.medium;
+/* ── Roll-up (TITULKY) ─────────────────────────────────────────── */
 let seenWords = 0;
 let committedBase = '';
+const LINE_CHARS = { narrow: 18, medium: 26, wide: 36 };
 
-// pixelové meranie riadku (ch nesedí s proporcionálnym fontom)
 const _measureCtx = document.createElement('canvas').getContext('2d');
 function lineFits(text) {
   const glass = document.getElementById('caption-glass');
   const cs = getComputedStyle(l2t.parentElement);
   _measureCtx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-  const maxPx = parseFloat(getComputedStyle(glass).maxWidth) - 56; // padding 28+28
-  return _measureCtx.measureText(text).width <= maxPx;
+  let maxPx = parseFloat(getComputedStyle(glass).maxWidth);
+  if (!Number.isFinite(maxPx)) {
+    // computed maxWidth môže byť "min(28ch, 92vw)" → parseFloat NaN
+    const chars = { narrow: 20, medium: 28, wide: 38 }[cfg.width] || 28;
+    maxPx = Math.min(window.innerWidth * 0.92,
+                     _measureCtx.measureText('n').width * chars);
+  }
+  return _measureCtx.measureText(text).width <= maxPx - 56;
 }
-/* ── Diarizácia: farba podľa rečníka (JBOP-100) ─────────────────── */
-const SPK_COLORS = ['', '#8fc2ff', '#ffc98f'];  // spk0 = default biela
-const spkMap = {};          // absolútny word index -> spk
+
+/* ── Diarizácia: farba podľa rečníka (JBOP-100) ────────────────── */
+const SPK_COLORS = ['', '#8fc2ff', '#ffc98f'];
+const spkMap = {};
 function applySpk(a, n, spk) {
   for (let i = a; i < a + n; i++) spkMap[i] = spk;
   document.querySelectorAll('[data-wi]').forEach(el => {
@@ -534,7 +542,7 @@ function rollAddWord(w, wi) {
   const col = SPK_COLORS[spkMap[wi]] || '';
   if (col) span.style.color = col;
   if (cur && !lineFits(cur + ' ' + w)) {
-    l1.innerHTML = l2t.innerHTML;   // roll-up so zachovaním farieb
+    l1.innerHTML = l2t.innerHTML;
     l2t.textContent = '';
     span.textContent = w;
   } else {
@@ -549,6 +557,7 @@ function rollUpdate(text, base) {
     l1.textContent = '';
     l2t.textContent = '';
     const ws2 = text.split(' ').filter(Boolean);
+    const LINE_CH = LINE_CHARS[cfg.width] || LINE_CHARS.medium;
     let keep = 0, ln = 0;
     for (let i = ws2.length - 1; i >= 0; i--) {
       ln += ws2[i].length + 1;
@@ -563,7 +572,7 @@ function rollUpdate(text, base) {
     rollAddWord(words[seenWords], (base || 0) + seenWords);
 }
 
-/* ── WS message handler ─────────────────────────────────────────── */
+/* ── WS message handler ────────────────────────────────────────── */
 let lastCommitted = '';
 
 function onMessage(d) {
@@ -597,7 +606,10 @@ function onMessage(d) {
   rollUpdate(d.committed, d.base);
   rcursor.style.display = d.speaking ? 'inline' : 'none';
 
-  /* — Auto-hide — */
+  /* — Live eq — */
+  eqEl.classList.toggle('live', !!d.speaking);
+
+  /* — Auto-hide / idle — */
   if (d.committed !== lastCommitted || d.pending || d.speaking) {
     lastCommitted = d.committed;
     showCaption();
@@ -605,56 +617,37 @@ function onMessage(d) {
   }
   updateEmptyState();
 
-  /* — Status pills — */
-  const dl = d.draft_latency_s;
-  const fl = d.final_latency_s;
-  const fr = d.flicker_rate;
-
-  pillDraft.textContent = dl != null ? `draft ${dl.toFixed(2)}s` : 'draft –';
-  pillDraft.className   = 'pill' + (dl != null && dl > 1.5 ? ' warn' : '');
-
-  pillFinal.textContent = fl != null ? `final ${fl.toFixed(2)}s` : 'final –';
-  pillFinal.className   = 'pill' + (fl != null && fl > 3 ? ' warn' : '');
-
-  if (fr != null) {
-    pillFlicker.style.display = '';
-    const pct = (fr * 100).toFixed(0);
-    pillFlicker.textContent = `flicker ${pct}%`;
-    pillFlicker.className   = 'pill' + (fr > 0.1 ? ' warn' : '');
-  }
+  /* — Telemetria (tichá, mono) — */
+  const dl = d.draft_latency_s, fl = d.final_latency_s;
+  const parts = [];
+  if (dl != null) parts.push(`draft <b${dl > 1.5 ? ' class="warn"' : ''}>${dl.toFixed(1)}s</b>`);
+  if (fl != null) parts.push(`final <b${fl > 4.5 ? ' class="warn"' : ''}>${fl.toFixed(1)}s</b>`);
+  if (parts.length) statsEl.innerHTML = parts.join(' &nbsp;·&nbsp; ');
 }
 
-/* ── WebSocket ──────────────────────────────────────────────────── */
+/* ── WebSocket ─────────────────────────────────────────────────── */
 function connect() {
   const ws = new WebSocket(`ws://${location.host}/ws`);
-
   ws.onopen = () => {
-    pillConn.style.display = 'none';
-    pillDraft.style.display = '';
-    pillFinal.style.display = '';
+    connected = true;
+    statsEl.innerHTML = '<b>pripojené</b>';
+    updateEmptyState();
   };
-
   ws.onmessage = e => {
     try { onMessage(JSON.parse(e.data)); } catch(_) {}
   };
-
   ws.onclose = () => {
-    pillConn.style.display = '';
-    pillConn.textContent = '⚡ odpojené';
-    pillConn.className = 'pill conn-off';
-    // Reconnect after 2s
+    connected = false;
+    statsEl.innerHTML = '<span id="conn" class="off">odpojené — pripájam…</span>';
+    eqEl.classList.remove('live');
+    updateEmptyState();
     setTimeout(connect, 2000);
   };
 }
 
-/* ── Init ───────────────────────────────────────────────────────── */
-pillConn.style.display = '';
-pillConn.textContent = '⚡ čakám…';
-pillConn.className = 'pill warn';
-pillDraft.style.display = 'none';
-pillFinal.style.display = 'none';
-
+/* ── Init ──────────────────────────────────────────────────────── */
 applyCfg();
+updateEmptyState();
 connect();
 </script>
 </body>
