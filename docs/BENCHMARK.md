@@ -445,3 +445,11 @@ Default ostáva exact. Ďalší smer ak treba <2.5s: commit z ANE agreementu
 - Okno 3.0s: draftACC 81-100% cista rec (p50 0.4-0.8s) — NASADENE ako default.
 - Okno 4.0s: horsie (p50 az 2.6s). Strop.
 - Noisy ostava slaby (62%) — energy gate + realne chyby v hluku, final WER tam 9.7%.
+
+## Parakeet-TDT 0.6B v3 vyhodnoteny a zamietnuty (23.10. noc)
+- Offline: WER 0-18.8% (fast/slow 18.8% — zlieva slova "zivurecna"), dekod celeho suboru 0.3-4.6s.
+- Streaming (chunk 0.5s, ctx 256/256): WER 12.9-29% — slovencina sa rozpadne
+  ("titloty", "zivurecna", "blúch"). Krok p50 0.27-0.43s.
+- Zaver: bez SK fine-tunu nepouzitelny; kinit whisper ostava. Buduca cesta
+  k <1s bielemu textu = fine-tune streaming modelu (Parakeet/RNN-T) na SK — iny projekt.
+- Pozn.: parakeet-mlx vyzaduje mlx<=0.28 (mx.concat API) a mx.array vstup.
