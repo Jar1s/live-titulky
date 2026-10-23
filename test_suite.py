@@ -10,6 +10,17 @@ from titulky.pipeline import TwoTierPipeline
 from bench import wer
 
 
+def draft_acc(pipe):
+    """Recall: koľko bielych slov bolo predtým zobrazených sivé (±2 s)."""
+    seen = pipe._seen_draft_words
+    tot = hit = 0
+    for sec, norm in pipe.final_word_keys:
+        tot += 1
+        if any((sec + d, norm) in seen for d in (-2, -1, 0, 1, 2)):
+            hit += 1
+    return hit / tot if tot else None
+
+
 def run(path):
     pipe = TwoTierPipeline()
     pipe.warmup()
@@ -43,21 +54,24 @@ def main():
             "final_p50": statistics.median(pipe.final_latencies)
                          if pipe.final_latencies else None,
             "flicker": pipe.final_agree.flicker_rate(),
+            "draft_acc": draft_acc(pipe) if ref else None,
             "hyp": hyp,
         })
         r = rows[-1]
         wtxt = f"{r['wer']:.1%}" if r["wer"] is not None else f"halluc={r['hallucinated_words']}"
-        print(f"\n== {r['test']}: WER={wtxt} "
+        dw = f"{r['draft_acc']:.1%}" if r.get("draft_acc") is not None else "–"
+        print(f"\n== {r['test']}: WER={wtxt} draftACC={dw} "
               f"draft_p50={r['draft_p50']} final_p50={r['final_p50']}")
         print("   HYP:", hyp[:160])
 
     print("\n===== SÚHRN =====")
-    print(f"{'test':14} {'WER':>8} {'draft p50':>10} {'final p50':>10} {'flicker':>8}")
+    print(f"{'test':14} {'WER':>8} {'draftACC':>9} {'draft p50':>10} {'final p50':>10} {'flicker':>8}")
     for r in rows:
         wtxt = f"{r['wer']:.1%}" if r["wer"] is not None else f"halluc={r['hallucinated_words']}sl"
         d = f"{r['draft_p50']:.2f}s" if r["draft_p50"] else "–"
         f_ = f"{r['final_p50']:.2f}s" if r["final_p50"] else "–"
-        print(f"{r['test']:14} {wtxt:>8} {d:>10} {f_:>10} {r['flicker']:>7.1%}")
+        dw = f"{r['draft_acc']:.1%}" if r.get("draft_acc") is not None else "–"
+        print(f"{r['test']:14} {wtxt:>8} {dw:>9} {d:>10} {f_:>10} {r['flicker']:>7.1%}")
     json.dump(rows, open("tests/results.json", "w"), ensure_ascii=False, indent=1)
     if crashes:
         print(f"\nZLYHANIE: {len(crashes)} test(ov) s pádom vlákna — exit 1")

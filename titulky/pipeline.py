@@ -18,7 +18,9 @@ import numpy as np
 from .asr import ASR, DRAFT_REPO, FINAL_REPO, SAMPLE_RATE, LocalAgreement
 
 DRAFT_STEP_S = 0.08
-DRAFT_WINDOW_S = 1.2
+DRAFT_WINDOW_S = float(os.environ.get("TITULKY_DRAFT_WIN", "3.0"))
+# ^ loop 23.10.: okno 1.2→3.0 zdvihlo draftACC (recall sivych slov) z 59-84%
+#   na 81-90% pri p50 0.4-0.9s; okno 4.0 horsie (p50 az 2.6s, acc kolise)
 DRAFT_MAX_WINDOW_S = 5.0  # strop dynamického okna (dlhá súvislá reč)
 DRAFT_HOLD_S = 0.10        # min interval prekreslenia draftu (stabilita očí)
 # ^ exp_grid 22.10.: base w1.5 s0.15 h0.3 → draft p50 0.73s (z 1.76s),
@@ -220,6 +222,9 @@ class TwoTierPipeline:
         self.compute_s = 0.0                 # súčet dekódovacieho času (RTF)
         self.final_latencies: list[float] = []
         self._seen_draft_words: dict[tuple, float] = {}
+        self.draft_shown: list[str] = []   # sekvencia sivých slov (draft acc metrika)
+        self.draft_final_pairs: list[tuple] = []  # (final_commit, sivy_text v momente commitu)
+        self.final_word_keys: list[tuple] = []    # (sekunda, norm_slovo) committed slov
         self.running = False
         # asynchrónna slovná korekcia (Azure ensemble; bez kľúča sa vypne)
         from .correction import CorrectionWorker
@@ -452,6 +457,7 @@ class TwoTierPipeline:
                     key = (round(off_s + w["start"]), self._norm_key(w["text"]))
                     if key not in self._seen_draft_words:
                         self._seen_draft_words[key] = now
+                        self.draft_shown.append(w["text"])
                         lat = (now - self.buf.t0) - (off_s + w["end"])
                         if 0 < lat < 30:
                             self.draft_latencies.append(lat)
@@ -557,6 +563,14 @@ class TwoTierPipeline:
                 commit_start_idx = len(self.final_text)
                 seg_start_s = self.final_upto_s
                 self.final_text.extend(new)
+                # draft-vs-final presnosť: čo visí sivé v momente commitu
+                self.draft_final_pairs.append(
+                    (" ".join(new), self.draft_text))
+                # časové kľúče committed slov (recall sivých slov v suite)
+                tailw = words[-len(new):] if len(words) >= len(new) else words
+                for txt, w in zip(new[-len(tailw):], tailw):
+                    self.final_word_keys.append(
+                        (round(off_s + w["start"]), self._norm_key(txt)))
                 idx = len(self.final_agree.committed) - 1
                 if flush_mode:
                     self.final_upto_s = flush_to

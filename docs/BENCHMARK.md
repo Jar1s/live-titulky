@@ -437,3 +437,11 @@ Default ostáva exact. Ďalší smer ak treba <2.5s: commit z ANE agreementu
   whisper.cpp plny ctx = 1.54s ≈ MLX 1.65s, ziadna vyhra. Final ostava MLX.
 - Konverzny postup: models/convert-h5-to-ggml.py + convert-h5-to-coreml.py
   + xcrun coremlcompiler; modely v /Volumes/GRINDCASTER/AI-MODELS/whispercpp/
+
+## Loop: draftACC metrika + ladenie okna (23.10. noc)
+- Nova metrika draftACC = recall: % committed slov, ktore divak videl sive vopred (±2s).
+- Baseline (base-sk, okno 1.2s): draftACC 59-84%, draft p50 0.23-0.63s.
+- small-sk draft: HORSI recall (28-75%) — pomalsi dekod = slova sa nestihnu ukazat. Zamietnute.
+- Okno 3.0s: draftACC 81-100% cista rec (p50 0.4-0.8s) — NASADENE ako default.
+- Okno 4.0s: horsie (p50 az 2.6s). Strop.
+- Noisy ostava slaby (62%) — energy gate + realne chyby v hluku, final WER tam 9.7%.
