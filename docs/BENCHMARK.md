@@ -427,3 +427,13 @@ final p50 3.5→2.1-2.6s, ALE WER 0-3%→6.5-12.9%, flicker 0-8→16-33%.
 Lepšie než čistý approx (WER 15-22%), stále pod kvalitatívnym cieľom.
 Default ostáva exact. Ďalší smer ak treba <2.5s: commit z ANE agreementu
 (biela by sa ale mohla meniť) alebo streaming model namiesto Whisper okien.
+
+## Draft upgrade na kinit-small-sk + whisper.cpp final zamietnuty (23.10. vecer)
+- A: draft base → kinit/whisper-small-sk (ggml konverzia + CoreML encoder na ANE):
+  3s okno 0.28s, bezchybna slovencina. Suite: draft p50 0.37-0.72s (lepsie nez base
+  0.54-1.22 — stabilny text = menej prepisovani), WER baseline. NASADENE.
+- B: whisper.cpp final s audio_ctx orezom: encoder 777→205ms, ALE halucinacie/
+  duplikacie pri kazdom ctx (turbo aj small, v3 aj v2 arch) — ZAMIETNUTE.
+  whisper.cpp plny ctx = 1.54s ≈ MLX 1.65s, ziadna vyhra. Final ostava MLX.
+- Konverzny postup: models/convert-h5-to-ggml.py + convert-h5-to-coreml.py
+  + xcrun coremlcompiler; modely v /Volumes/GRINDCASTER/AI-MODELS/whispercpp/

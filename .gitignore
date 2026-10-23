@@ -4,3 +4,4 @@ __pycache__/
 *.aiff
 .azure_key
 .runs/
+vendor/

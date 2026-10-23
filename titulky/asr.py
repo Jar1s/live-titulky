@@ -218,7 +218,11 @@ class AneDraftASR:
     --no-binary :all: pywhispercpp  (+ symlink libwhisper.1.dylib).
     """
 
-    MODEL = "/Volumes/GRINDCASTER/AI-MODELS/whispercpp/base/ggml-base.bin"
+    MODEL = os.environ.get(
+        "TITULKY_ANE_MODEL",
+        "/Volumes/GRINDCASTER/AI-MODELS/whispercpp/kinit-whisper-small-sk/ggml-model.bin")
+    # kinit small-sk (23.10.): 3s okno 0.28s na ANE, bezchybná slovenčina
+    # (base: 0.13-0.17s ale časté bľaboly — small-sk vymenil +0.1s za kvalitu)
 
     def __init__(self, model=None, threads=4):
         from pywhispercpp.model import Model
