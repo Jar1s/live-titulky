@@ -229,6 +229,7 @@ class TwoTierPipeline:
         self.draft_shown: list[str] = []   # sekvencia sivých slov (draft acc metrika)
         self.draft_final_pairs: list[tuple] = []  # (final_commit, sivy_text v momente commitu)
         self.final_word_keys: list[tuple] = []    # (sekunda, norm_slovo) committed slov
+        self.paused = False   # UI mute: mic callback píše ticho
         self.running = False
         # asynchrónna slovná korekcia (Azure ensemble; bez kľúča sa vypne)
         from .correction import CorrectionWorker
@@ -321,6 +322,8 @@ class TwoTierPipeline:
 
         def cb(indata, frames, t, status):
             a = indata[:, 0].copy()
+            if self.paused:
+                a[:] = 0.0   # ticho: VAD prirodzene flushne a nič nepribúda
             self.buf.append(a)
             now = time.monotonic()
             if now - getattr(self, "_last_rms_ev", 0) >= 0.5:

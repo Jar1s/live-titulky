@@ -23,6 +23,7 @@ from .pipeline import TwoTierPipeline
 
 CLIENTS = set()
 LOOP = None
+PIPE = None   # beziaca pipeline — pre UI pause toggle
 AUDIO_DIR = None  # nastaví main() po vytvorení trace adresára
 HTML = (pathlib.Path(__file__).parent / "overlay.html").read_bytes()
 FLOW = (pathlib.Path(__file__).parent / "flow.html").read_bytes()
@@ -39,7 +40,16 @@ def broadcast(data: dict):
 async def handler(ws):
     CLIENTS.add(ws)
     try:
-        await ws.wait_closed()
+        if PIPE is not None and PIPE.paused:
+            await ws.send(json.dumps({"event": {"t": "paused", "on": True}}))
+        async for raw in ws:
+            try:
+                d = json.loads(raw)
+            except (ValueError, TypeError):
+                continue
+            if d.get("t") == "pause" and PIPE is not None:
+                PIPE.paused = not PIPE.paused
+                broadcast({"event": {"t": "paused", "on": PIPE.paused}})
     finally:
         CLIENTS.discard(ws)
 
@@ -131,6 +141,8 @@ def main():
 
     pipe = TwoTierPipeline(language=args.language, on_update=on_update,
                            on_event=lambda e: broadcast({"event": e}))
+    global PIPE
+    PIPE = pipe
 
     # run-trace: beh viditeľný v Projektovník BUILD tab Flow
     tr = rt.RunTrace("titulky", spustil="rucne")

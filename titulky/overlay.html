@@ -103,6 +103,7 @@ body.theme-light #topbar::before { background: linear-gradient(to bottom, rgba(2
 }
 .seg-btn.active { background: var(--surface-strong); color: var(--ink); }
 .seg-btn:hover:not(.active) { color: var(--ink); }
+#mic-btn.paused { color: #ff6b6b; }
 
 /* Pravá strana: tichá mono telemetria + akcie */
 #right { display: flex; align-items: center; gap: 14px; min-width: 150px; justify-content: flex-end; }
@@ -294,6 +295,7 @@ body.theme-light #subs, body.theme-light #roll { text-shadow: none; }
   </div>
   <div id="right">
     <span id="stats"><span id="conn">čakám na server…</span></span>
+    <button class="iconbtn" id="mic-btn" title="Mikrofón zap/vyp (K)">⏸</button>
     <a href="/flow" class="iconbtn" title="Flow debug">⚡</a>
     <button class="iconbtn" id="settings-btn" title="Nastavenia">⚙</button>
   </div>
@@ -494,9 +496,9 @@ function updateEmptyState() {
   captionWrap.classList.toggle('hidden', !visible);
   scrimEl.classList.toggle('show', visible && cfg.pos === 'bottom');
   idleEl.classList.toggle('show', !visible);
-  idleEl.classList.toggle('waiting', !connected);
+  idleEl.classList.toggle('waiting', !connected || micPaused);
   document.getElementById('idle-title').textContent =
-    connected ? 'Počúvam' : 'Čakám na server';
+    !connected ? 'Čakám na server' : (micPaused ? 'Pozastavené' : 'Počúvam');
 }
 function scheduleHide() {
   hideTimer = setTimeout(() => {
@@ -578,6 +580,7 @@ function rollUpdate(text, base) {
 let lastCommitted = '';
 
 function onMessage(d) {
+  if (d.event && d.event.t === 'paused') { applyPaused(d.event.on); return; }
   if (d.t === 'spk') { applySpk(d.a, d.n, d.spk); return; }
   if (!('committed' in d)) return;
 
@@ -629,8 +632,25 @@ function onMessage(d) {
 }
 
 /* ── WebSocket ─────────────────────────────────────────────────── */
+let wsRef = null;
+let micPaused = false;
+const micBtn = document.getElementById('mic-btn');
+function applyPaused(on) {
+  micPaused = on;
+  micBtn.textContent = on ? '▶' : '⏸';
+  micBtn.classList.toggle('paused', on);
+  if (on) eqEl.classList.remove('live');
+  updateEmptyState();
+}
+micBtn.addEventListener('click', () => {
+  if (wsRef && wsRef.readyState === 1) wsRef.send(JSON.stringify({t: 'pause'}));
+});
+document.addEventListener('keydown', e => {
+  if (e.key.toLowerCase() === 'k' && !e.metaKey && !e.ctrlKey) micBtn.click();
+});
 function connect() {
   const ws = new WebSocket(`ws://${location.host}/ws`);
+  wsRef = ws;
   ws.onopen = () => {
     connected = true;
     statsEl.innerHTML = '<b>pripojené</b>';
