@@ -498,3 +498,24 @@ Default ostáva exact. Ďalší smer ak treba <2.5s: commit z ANE agreementu
 - NOVY TEST tests/continuous.wav: 37s suvislej reci bez pauz (say Laura).
   Baseline (nasadena konfiguracia): WER 5.6%, draftACC 91.5%, final p50 4.8s —
   suvisla rec v two-tier drzi; vnimany problem je latencia finalu, nie text.
+
+## Latencia loop 2 (24.10. vecer): cpp final, q4, win6 — vsetko zamietnute meranim
+Cielom bolo biele <1.5s. Vysledky:
+- FINAL_ENGINE=cpp (whisper.cpp Metal turbo-sk, text-only dekod 0.8-1.3s
+  + commity cez ANE draft kotvy): 6 kol ladenia (UTF-8 token splitting,
+  GPU kontencia draftu [use_gpu=False fix ostava], odseknute kotvy na
+  okraji okna, difflib zarovnanie, flush bez kotiev). Najlepsi stav:
+  WER 0-94% (fast.wav rozbity), final p50 3.9-10s — HORSIE nez baseline
+  na oboch osiach. Kotvy su bud konzervativne (stall) alebo rozbiju text.
+  Architektura "text z jedneho modelu, casy z druheho" na streame
+  NEFUNGUJE spolahlivo. Kod ostava za TITULKY_FINAL_ENGINE=cpp.
+- MLX q4 kvantizacia (tools/quantize_mlx.py): dekod 2.68 vs 2.75s f16
+  (nic) + kazi slova ("tituloky"). Zmazane.
+- FINAL_WIN=6: final p50 5.3-8.6 vs 4.3-5.7 pri 8s, WER +, draft horsi.
+  Kratsi dekod nevyvazi stratu kontextu a vacsi podiel edge guardu.
+POUCENIE: dekod MLX nie je bottleneck commitov — commity drzi agreement
++ edge guard, a tie su to, co drzi WER nizko. Dalsie znizenie bielej
+latencie vyzaduje presny lacny SK final model (distill/finetune), nie
+infra triky. Deployed config (XAGREE, win 8, mlx) = overene optimum.
+POZOR: pywhispercpp je odteraz build s Metal+CoreML (--no-cache-dir!)
+a draft MUSI mat context_params={"use_gpu": False}.

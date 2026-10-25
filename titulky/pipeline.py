@@ -12,6 +12,7 @@ import os
 import re
 import threading
 import time
+import difflib
 
 import numpy as np
 
@@ -31,6 +32,9 @@ FINAL_STEP_S = float(os.environ.get("TITULKY_FINAL_STEP", "1.0"))
 # (iný model, zhodný text aj čas) sa commitne po PRVOM final behu —
 # ušetrí celý druhý cyklus (~1.6-2.6s). Vypnutie: TITULKY_XAGREE=0
 XAGREE = os.environ.get("TITULKY_XAGREE", "1") == "1"
+# final engine: mlx (DTW presné časy, dekód ~1.6s) | cpp (whisper.cpp Metal,
+# dekód ~0.8-1.3s, časy heuristické=nanič → commity len cez draft kotvy)
+FINAL_ENGINE = os.environ.get("TITULKY_FINAL_ENGINE", "mlx")
 FINAL_WINDOW_S = float(os.environ.get("TITULKY_FINAL_WIN", "8.0"))
 # FAST_FINAL (experiment): final dekód bez DTW word_timestamps (-0.9s),
 # hranice commitov sa snapujú na reálne časy slov z ANE draftu
@@ -210,7 +214,15 @@ class TwoTierPipeline:
             self.draft_asr = ASR(draft_repo)
         # prompt v streamingu NEPOUŽÍVAŤ: pri krátkych oknách ho Whisper
         # halucinuje do výstupu (zisk promptu bol len ~0.3 p.b., škoda veľká)
-        self.final_asr = ASR(final_repo)
+        if FINAL_ENGINE == "cpp":
+            from .asr import FinalCppASR
+            self.final_asr = FinalCppASR()
+        else:
+            self.final_asr = ASR(final_repo)
+        self._cpp_bound = None   # abs koniec posledného ukotveného commitu
+        self._cpp_keys: list[tuple] = []
+        self._cpp_stall = 0      # cykly bez kotvy (poistka degradácie)
+        self._cpp_degraded = False
         self.final_agree = LocalAgreement()
         self.slevel = SpeechLevel()
         self.final_text: list[str] = []      # potvrdený presný text (celý)
@@ -288,6 +300,71 @@ class TwoTierPipeline:
             nw["start"], nw["end"] = s, e
             out.append(nw)
         return out
+
+    def _anchor_walk(self, seq: list[str], edge_abs=None, min_shown_s=0.4):
+        """cpp final: sekvenčné ukotvenie slov na reálne časy z ANE draftu.
+
+        Vráti (kept, bound_abs, keys): commitnuteľný prefix, absolútny
+        koniec posledného ukotveného slova a (sec, norm) kľúče pre suite.
+        Jedno slovo bez kotvy prejde ako bridge, ak sa ukotví nasledujúce
+        (draft občas slovo vynechá). Guardy: kotva nesmie byť pri okraji
+        okna (edge_abs) a draft ju musel ukazovať aspoň min_shown_s."""
+        cand = sorted((c for c in self._draft_times
+                       if c[2] > self.final_upto_s - 0.3),
+                      key=lambda c: c[2])
+        now_m = time.monotonic()
+
+        def guard_ok(s_abs, e_abs, norm):
+            if edge_abs is not None and e_abs >= edge_abs:
+                return False
+            if min_shown_s:
+                # ±2s tolerancia ako XAGREE: display kľúč mohol vzniknúť
+                # zo skoršej (odseknutej) inštancie s iným zaokrúhlením
+                sec = round(s_abs)
+                if not any(
+                        now_m - self._seen_draft_words.get((sec + d, norm),
+                                                           now_m)
+                        > min_shown_s for d in (-2, -1, 0, 1, 2)):
+                    return False
+            return True
+
+        # globálne monotónne zarovnanie (difflib) namiesto greedy find:
+        # krátke časté slová („a", „o") sa inak chytia na zlú inštanciu
+        # a hranica skáče/duplikuje. Izolovaný match 1-2 znakového slova
+        # (blok dĺžky 1) sa nepočíta — primálo dôkazu.
+        norms = [_norm_w(t) for t in seq]
+        sm = difflib.SequenceMatcher(a=norms, b=[c[0] for c in cand],
+                                     autojunk=False)
+        amap = {}
+        for blk in sm.get_matching_blocks():
+            for k in range(blk.size):
+                if blk.size == 1 and len(norms[blk.a]) <= 2:
+                    continue
+                amap[blk.a + k] = blk.b + k
+
+        kept, keys, bound, i = [], [], None, 0
+        while i < len(seq):
+            hit = amap.get(i)
+            if hit is None and i + 1 in amap:
+                # bridge: slovo bez kotvy prejde, ak sa ukotví nasledujúce
+                _n2, s2, e2 = cand[amap[i + 1]]
+                if not guard_ok(s2, e2, norms[i + 1]):
+                    break
+                kept.extend([seq[i], seq[i + 1]])
+                keys.extend([(round(s2), norms[i]), (round(s2), norms[i + 1])])
+                bound = e2
+                i += 2
+                continue
+            if hit is None:
+                break
+            _n, s_abs, e_abs = cand[hit]
+            if not guard_ok(s_abs, e_abs, norms[i]):
+                break
+            kept.append(seq[i])
+            keys.append((round(s_abs), norms[i]))
+            bound = e_abs
+            i += 1
+        return kept, bound, keys
 
     def _apply_corrections(self, start_idx: int, changes: list[dict]):
         """Callback z CorrectionWorker — opraví committed slová a emitne."""
@@ -450,11 +527,27 @@ class TwoTierPipeline:
             # (dych/šum nad prahom ticha inak preblikáva ako „Ďakujem!")
             ref = max(self.slevel.level, float(np.sqrt(np.mean(audio ** 2))))
             words = [w for w in words if word_energy_ok(audio, w, ref)]
-            if FAST_FINAL:
-                # ANE časy slov pre snap final hraníc (experiment FAST_FINAL)
-                self._draft_times.extend(
-                    (_norm_w(w["text"]), off_s + w["start"], off_s + w["end"])
-                    for w in words)
+            if FAST_FINAL or FINAL_ENGINE == "cpp":
+                # ANE časy slov: snap hraníc (FAST_FINAL) / kotvy commitov (cpp)
+                # 1) slovo končiace pri okraji draft okna je ODSEKNUTÉ —
+                #    jeho end je falošne skorý a hranica by rezala slovo
+                #    v strede („utulky"); ďalší dekód ho uvidí celé
+                # 2) nová inštancia toho istého slova (viac audia = presnejší
+                #    čas) PREPÍŠE starú, nehromadí duplikáty
+                win_end = len(audio) / SAMPLE_RATE
+                for w in words:
+                    if w["end"] > win_end - 0.25:
+                        continue
+                    rec = (_norm_w(w["text"]),
+                           off_s + w["start"], off_s + w["end"])
+                    for k in range(len(self._draft_times) - 1,
+                                   max(len(self._draft_times) - 9, -1), -1):
+                        n2, s2, _e2 = self._draft_times[k]
+                        if n2 == rec[0] and abs(s2 - rec[1]) < 0.5:
+                            self._draft_times[k] = rec
+                            break
+                    else:
+                        self._draft_times.append(rec)
                 del self._draft_times[:-300]
             now = time.monotonic()
             # draft = slová za final hranicou
@@ -572,7 +665,7 @@ class TwoTierPipeline:
             # halucinácie z ticha („Ďakujem za pozornosť")
             ref = max(float(np.sqrt(np.mean(audio ** 2))) if len(audio) else 0.0,
                       self.slevel.level)
-            if not FAST_FINAL:
+            if not FAST_FINAL and FINAL_ENGINE != "cpp":
                 # energy gate potrebuje presné časy slov — pri approx časoch
                 # strieľal do dobrých slov (WER experiment 23.10.)
                 words = [w for w in words if word_energy_ok(audio, w, ref)]
@@ -593,14 +686,45 @@ class TwoTierPipeline:
                 continue
             now = time.monotonic()
             if flush_mode:
-                # celý výrok naraz: commitni všetko, agreement netreba
+                # celý výrok naraz: commitni VŠETKO — blok je uzavretý,
+                # hranicu dáva VAD (flush_to), kotvy netreba; walk by
+                # vyhádzal slová, ktoré draft nestihol (rýchla reč)
                 new, pending = [w["text"] for w in words], []
+                if FINAL_ENGINE == "cpp":
+                    self._cpp_degraded = False
+                    self._cpp_keys = [
+                        (round(flush_to), _norm_w(t)) for t in new]
             else:
                 new, pending = self.final_agree.update(words)
-                # cross-model agreement (XAGREE): prefix pending slov, ktoré
-                # draft model už zobrazil (zhodný text, čas ±2s) — zhoda
-                # dvoch rôznych modelov nahrádza čakanie na druhý final beh
-                if XAGREE and pending:
+                if FINAL_ENGINE == "cpp":
+                    # commity LEN cez draft kotvy: agreement potvrdí text,
+                    # kotva dá reálny čas hranice; neukotvené slová počkajú.
+                    # Kotvenie pending slov zároveň nahrádza XAGREE (zhoda
+                    # dvoch modelov sekvenčne, nie cez ±2s časové kľúče).
+                    base = len(self.final_agree.committed) - len(new)
+                    seq = new + pending
+                    edge = off_s + len(audio) / SAMPLE_RATE - 1.2
+                    kept, bound, keys = self._anchor_walk(seq, edge_abs=edge)
+                    self._cpp_stall = self._cpp_stall + 1 if (new and not kept) else 0
+                    self._cpp_degraded = (
+                        self._cpp_stall >= 4
+                        and total_s - self.final_upto_s > FINAL_WINDOW_S)
+                    if self._cpp_degraded:
+                        # draft kotvy dlhodobo zlyhávajú (ANE mŕtvy?) —
+                        # radšej commit s approx hranicou než večný stall
+                        self._cpp_stall = 0
+                        self.on_event({"t": "cppstall"})
+                    else:
+                        cur = len(self.final_agree.committed)
+                        want = base + len(kept)
+                        if want < cur:
+                            del self.final_agree.committed[want - cur:]
+                        elif want > cur:
+                            self.final_agree.committed.extend(kept[cur - base:])
+                        new, pending = kept, seq[len(kept):]
+                        self._cpp_keys = keys
+                        self._cpp_bound = bound
+                elif XAGREE and pending:
                     tailw = words[len(words) - len(pending):]
                     # slová pri okraji okna sú nestabilné (odseknutý kontext)
                     # — tam sa draft aj final mýlia SPOLU, zhoda neplatí
@@ -640,10 +764,13 @@ class TwoTierPipeline:
                 self.draft_final_pairs.append(
                     (" ".join(new), self.draft_text))
                 # časové kľúče committed slov (recall sivých slov v suite)
-                tailw = words[-len(new):] if len(words) >= len(new) else words
-                for txt, w in zip(new[-len(tailw):], tailw):
-                    self.final_word_keys.append(
-                        (round(off_s + w["start"]), self._norm_key(txt)))
+                if FINAL_ENGINE == "cpp" and not self._cpp_degraded:
+                    self.final_word_keys.extend(self._cpp_keys[-len(new):])
+                else:
+                    tailw = words[-len(new):] if len(words) >= len(new) else words
+                    for txt, w in zip(new[-len(tailw):], tailw):
+                        self.final_word_keys.append(
+                            (round(off_s + w["start"]), self._norm_key(txt)))
                 idx = len(self.final_agree.committed) - 1
                 if flush_mode:
                     self.final_upto_s = flush_to
@@ -653,8 +780,21 @@ class TwoTierPipeline:
                     # flush je definitívne znenie práve uzavretého bloku —
                     # zobraz ho; skry len ak už beží nová reč (neinterleavovať)
                     belongs_to_old_block = getattr(self, "speaking", False)
+                elif FINAL_ENGINE == "cpp" and not self._cpp_degraded:
+                    if self._cpp_bound:
+                        self.final_upto_s = max(self._cpp_bound,
+                                                self.final_upto_s)
+                        lat = (now - self.buf.t0) - self.final_upto_s
+                        if 0 < lat < 60:
+                            self.final_latencies.append(lat)
+                    belongs_to_old_block = (self.final_upto_s
+                                            <= self.block_start_s)
                 elif idx < len(words):
                     end = off_s + words[idx]["end"]
+                    if FINAL_ENGINE == "cpp":
+                        # degradovaný režim: cpp slová nemajú časy — posuň
+                        # hranicu konzervatívne na okno mínus okraj
+                        end = off_s + max(0.0, len(audio) / SAMPLE_RATE - 1.2)
                     self.final_upto_s = end
                     lat = (now - self.buf.t0) - self.final_upto_s
                     if 0 < lat < 60:

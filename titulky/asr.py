@@ -226,8 +226,12 @@ class AneDraftASR:
 
     def __init__(self, model=None, threads=4):
         from pywhispercpp.model import Model
+        # use_gpu=False: draft NESMIE na Metal — final (cpp engine) by ho
+        # vytlačil z GPU fronty (merané 24.10.: draft p50 1.5-3.2s namiesto
+        # 0.4-0.8s). CoreML encoder (ANE) + CPU decoder ako doteraz.
         self.model = Model(model or self.MODEL, n_threads=threads,
-                           print_progress=False, print_realtime=False)
+                           print_progress=False, print_realtime=False,
+                           context_params={"use_gpu": False})
         self.last_stats = {}
 
     def warmup(self):
@@ -254,6 +258,50 @@ class AneDraftASR:
             # t0/t1 sú v centisekundách
             words.append({"text": txt, "start": s.t0 / 100.0,
                           "end": s.t1 / 100.0})
+        self.last_stats = {"lock_wait_s": 0.0,
+                           "decode_s": round(time.monotonic() - t0, 3),
+                           "drops": drops}
+        return words
+
+
+class FinalCppASR:
+    """Final na whisper.cpp Metal (kinit-turbo-sk ggml): dekód 8s okna
+    ~0.8-1.3s vs MLX DTW 1.6s. POZOR: token časy sú heuristické a pri
+    kinit fine-tune NEPOUŽITEĽNÉ (timestamp tokeny degradované) — commity
+    musia ísť len cez draft kotvy (pipeline ANCHOR_COMMITS). DTW v cpp
+    meraný 24.10.: +1s réžia (1.8-2.1s) → horší než MLX, nepoužívame."""
+
+    MODEL = os.environ.get(
+        "TITULKY_CPP_FINAL_MODEL",
+        "/Volumes/GRINDCASTER/AI-MODELS/whispercpp/"
+        "kinit-whisper-large-v3-turbo-sk/ggml-model.bin")
+
+    def __init__(self, model=None, threads=4):
+        from pywhispercpp.model import Model
+        self.model = Model(model or self.MODEL, n_threads=threads,
+                           print_progress=False, print_realtime=False)
+        self.last_stats = {}
+
+    def warmup(self):
+        rng = np.random.default_rng(0)
+        self.transcribe(rng.normal(0, 0.01, SAMPLE_RATE * 8)
+                        .astype(np.float32))
+
+    def transcribe(self, audio, language="sk", skip_if_busy=False,
+                   word_ts_exact=None):
+        """Text-only dekód: BEZ token_timestamps a BEZ max_len=1 —
+        token splitting mrzačí UTF-8 diakritiku („Tituloky") a slovenské
+        slová (merané 24.10., WER 45-88%). Slová vzniknú split()-om,
+        časy sú nulové — commit časy dáva anchor walk z draftu."""
+        t0 = time.monotonic()
+        segs = self.model.transcribe(preprocess(audio), language=language)
+        words, drops = [], []
+        for s in segs:
+            for txt in s.text.split():
+                if not any(c.isalnum() for c in txt):
+                    drops.append(("len-interpunkcia", txt))
+                    continue
+                words.append({"text": txt, "start": 0.0, "end": 0.0})
         self.last_stats = {"lock_wait_s": 0.0,
                            "decode_s": round(time.monotonic() - t0, 3),
                            "drops": drops}
