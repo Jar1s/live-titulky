@@ -24,9 +24,78 @@ from .pipeline import TwoTierPipeline
 CLIENTS = set()
 LOOP = None
 PIPE = None   # beziaca pipeline — pre UI pause toggle
+ENGINE = {"engine": None, "model": None, "switching": False,
+          "language": "sk"}
+ENGINE_LOCK = threading.Lock()
 AUDIO_DIR = None  # nastaví main() po vytvorení trace adresára
 HTML = (pathlib.Path(__file__).parent / "overlay.html").read_bytes()
 FLOW = (pathlib.Path(__file__).parent / "flow.html").read_bytes()
+STUDIO = (pathlib.Path(__file__).parent / "studio.html").read_bytes()
+
+# modely dostupné v Studio prepínači
+ENGINE_CATALOG = [
+    {"id": "local", "label": "Lokál — kinit-turbo-sk (offline)",
+     "engine": "local", "model": None},
+    {"id": "cloud-live", "label": "Cloud — gpt-live-transcribe",
+     "engine": "cloud", "model": "gpt-live-transcribe"},
+    {"id": "cloud-4o", "label": "Cloud — gpt-4o-transcribe",
+     "engine": "cloud", "model": "gpt-4o-transcribe"},
+    {"id": "cloud-mini", "label": "Cloud — gpt-4o-mini-transcribe",
+     "engine": "cloud", "model": "gpt-4o-mini-transcribe"},
+]
+
+
+def _on_update(d):
+    broadcast(d)
+
+
+def _engine_state_msg():
+    return {"event": {"t": "engine_state", **{k: ENGINE[k] for k in
+                                              ("engine", "model",
+                                               "switching")},
+                      "catalog": ENGINE_CATALOG}}
+
+
+def switch_engine(engine: str, model: str | None):
+    """Zastav bežiacu pipeline a naštartuj novú (mikrofón)."""
+    global PIPE
+    with ENGINE_LOCK:
+        if ENGINE["switching"]:
+            return
+        ENGINE["switching"] = True
+    broadcast(_engine_state_msg())
+    try:
+        old = PIPE
+        if old is not None:
+            try:
+                old.stop()
+            except Exception:
+                pass
+        if engine == "cloud":
+            from .cloud_engine import CloudPipeline
+            if model:
+                from . import cloud_engine
+                cloud_engine.CLOUD_MODEL = model
+            pipe = CloudPipeline(language=ENGINE["language"],
+                                 on_update=_on_update,
+                                 on_event=lambda e: broadcast({"event": e}))
+            pipe.start_mic(os.environ.get("TITULKY_DEVICE") or None)
+        else:
+            pipe = TwoTierPipeline(language=ENGINE["language"],
+                                   on_update=_on_update,
+                                   on_event=lambda e: broadcast(
+                                       {"event": e}))
+            pipe.warmup()
+            pipe.start_mic()
+            threading.Thread(target=pipe.run, daemon=True).start()
+        PIPE = pipe
+        ENGINE.update(engine=engine, model=model)
+    except Exception as e:
+        broadcast({"event": {"t": "cloud_err",
+                             "msg": f"switch zlyhal: {e}"[:200]}})
+    finally:
+        ENGINE["switching"] = False
+        broadcast(_engine_state_msg())
 
 
 def broadcast(data: dict):
@@ -50,6 +119,19 @@ async def handler(ws):
             if d.get("t") == "pause" and PIPE is not None:
                 PIPE.paused = not PIPE.paused
                 broadcast({"event": {"t": "paused", "on": PIPE.paused}})
+            elif d.get("t") == "engine":
+                threading.Thread(target=switch_engine,
+                                 args=(d.get("engine", "local"),
+                                       d.get("model")),
+                                 daemon=True).start()
+            elif d.get("t") == "state":
+                await ws.send(json.dumps(_engine_state_msg(),
+                                         ensure_ascii=False))
+            elif d.get("t") == "transcript" and PIPE is not None:
+                await ws.send(json.dumps(
+                    {"event": {"t": "transcript",
+                               "text": " ".join(PIPE.final_text)}},
+                    ensure_ascii=False))
     finally:
         CLIENTS.discard(ws)
 
@@ -59,6 +141,8 @@ def serve_html(connection, request):
         return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), HTML)
     if request.path == "/flow":
         return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), FLOW)
+    if request.path == "/studio":
+        return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), STUDIO)
     if request.path.startswith("/audio/") and AUDIO_DIR:
         # audit WAV segmentov — len basename, žiadne traverzovanie
         name = os.path.basename(request.path[len("/audio/"):])
@@ -146,6 +230,8 @@ def main():
         pipe = CloudPipeline(language=args.language, on_update=on_update,
                              on_event=lambda e: broadcast({"event": e}))
         PIPE = pipe
+        ENGINE.update(engine="cloud", model=CLOUD_MODEL,
+                      language=args.language)
         print(f"CLOUD režim: {CLOUD_MODEL} (OpenAI Realtime)")
         if args.file:
             pipe.start_file(args.file)
@@ -170,6 +256,7 @@ def main():
     pipe = TwoTierPipeline(language=args.language, on_update=on_update,
                            on_event=lambda e: broadcast({"event": e}))
     PIPE = pipe
+    ENGINE.update(engine="local", model=None, language=args.language)
 
     # run-trace: beh viditeľný v Projektovník BUILD tab Flow
     tr = rt.RunTrace("titulky", spustil="rucne")
