@@ -14,6 +14,7 @@ import base64
 import json
 import os
 import pathlib
+import re
 import threading
 import time
 
@@ -116,10 +117,12 @@ class CloudPipeline:
                     },
                 }))
                 sender = asyncio.create_task(self._send_audio(ws, source))
+                committer = asyncio.create_task(self._auto_commit())
                 try:
                     await self._receive(ws)
                 finally:
                     sender.cancel()
+                    committer.cancel()
         except Exception as e:
             self.on_event({"t": "cloud_err", "msg": str(e)[:200]})
             print(f"[cloud] CHYBA: {e}")
@@ -188,13 +191,38 @@ class CloudPipeline:
             ev = json.loads(raw)
             t = ev.get("type", "")
             if t == "conversation.item.input_audio_transcription.delta":
+                item = ev.get("item_id")
+                if getattr(self, "_cur_item", None) not in (None, item):
+                    # novy item — predosly sedy text commitni (live-transcribe
+                    # bez VAD nie vzdy posle completed)
+                    if self.draft_text.strip():
+                        self.final_text.extend(self.draft_text.split())
+                        if self._t_last_voice:
+                            self.final_latencies.append(
+                                time.monotonic() - self._t_last_voice)
+                    self.draft_text = ""
+                self._cur_item = item
                 self.draft_text = (self.draft_text + ev.get("delta", "")) \
                     if self.draft_text else ev.get("delta", "")
+                self._t_last_delta = time.monotonic()
+                # uzavrete vety commitni HNED, ked uz bezi dalsia veta —
+                # deltas su append-only, revizia nehrozi
+                m = None
+                for m in re.finditer(r"[.!?…]\s+", self.draft_text):
+                    pass
+                if m and len(self.draft_text) > m.end() + 1:
+                    head = self.draft_text[:m.end()].strip()
+                    self.final_text.extend(head.split())
+                    if self._t_last_voice:
+                        self.final_latencies.append(
+                            time.monotonic() - self._t_last_voice)
+                    self.draft_text = self.draft_text[m.end():].lstrip()
                 if self._t_last_voice:
                     self.draft_latencies.append(
                         time.monotonic() - self._t_last_voice)
                 self._emit()
             elif t == "conversation.item.input_audio_transcription.completed":
+                self._cur_item = None
                 txt = ev.get("transcript", "").strip()
                 if txt:
                     self.final_text.extend(txt.split())
@@ -209,6 +237,34 @@ class CloudPipeline:
                 self.on_event({"t": "cloud_err",
                                "msg": str(ev.get("error"))[:200]})
                 print(f"[cloud] API error: {ev.get('error')}")
+
+    async def _auto_commit(self):
+        """gpt-live-transcribe nedava completed — commituj dokoncene vety,
+        ked sa delta tok na chvilu odmlci (hranica vety + 0.8 s ticha)."""
+        SENT_END = re.compile(r"[.!?…]\s")
+        while self.running:
+            await asyncio.sleep(0.1)
+            d = self.draft_text
+            t_last = getattr(self, "_t_last_delta", None)
+            if not d or t_last is None:
+                continue
+            idle = time.monotonic() - t_last
+            cut = 0
+            if idle > 0.45:
+                ends = [m.end() for m in SENT_END.finditer(d + " ")]
+                if ends:
+                    cut = ends[-1]
+            if idle > 2.0:          # dlhe ticho — commitni vsetko
+                cut = len(d)
+            if cut:
+                head = d[:cut].strip()
+                if head:
+                    self.final_text.extend(head.split())
+                    if self._t_last_voice:
+                        self.final_latencies.append(
+                            time.monotonic() - self._t_last_voice)
+                self.draft_text = d[cut:].lstrip()
+                self._emit()
 
     def _emit(self):
         self.on_update({
