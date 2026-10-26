@@ -519,3 +519,33 @@ latencie vyzaduje presny lacny SK final model (distill/finetune), nie
 infra triky. Deployed config (XAGREE, win 8, mlx) = overene optimum.
 POZOR: pywhispercpp je odteraz build s Metal+CoreML (--no-cache-dir!)
 a draft MUSI mat context_params={"use_gpu": False}.
+
+## Nocny beh 25.10.: cesty 1+2 (small final, parakeet) — PARAKEET VYHRAL LATENCIU
+Ciel: biele <1.5-2s pri drzatelnom WER. Vsetko merane suite-om, serialne na GPU.
+
+### Cesta 1: kinit-small-sk ako MLX final — ZAMIETNUTA
+Konverzia OK (tools + mlx convert z HF), standalone dekod 1.7s vs turbo 2.1s
+(rezia mel+DTW dominuje, vahy nerozhoduju). Suite: WER 9.7-41.9% (vs turbo
+0-19.4) a final p50 5.6-21s — mensi model je NESTABILNEJSI medzi behmi,
+agreement sa nezhodne, commity stoja. Maly model nie je cesta k latencii.
+
+### Cesta 2: NVIDIA parakeet-tdt-0.6b-v3 (MLX) — KANDIDAT NA NASADENIE
+- Offline kvalita (cely subor): WER 0-18.8%, noisy 9.7% (LEPSI nez whisper
+  19.4). Dekod 8s okna 0.38s = 4x rychlejsi nez turbo. Nativne TDT casy.
+- Streaming mod parakeet-mlx: MRTVY (RTF ~3, WER 16-52%, lokalna attention
+  + prepocet encodera per chunk). Nikdy nepouzivat.
+- Ako okienkovy final (TITULKY_FINAL_ENGINE=parakeet): lazy init v final
+  vlakne (MLX stream per-thread!), + PARAKEET_LEAD 1.5s rozbeh pred
+  hranicou (TDT nezvlada tvrdy strih na zaciatku okna — svikove artefakty).
+  Vysledok: final p50 1.3-2.8s (baseline 4.3-5.7s), WER 9.7-25%.
+- Zvysny WER je dominovany JEDNYM kvirkom: parakeet zlepuje "zivu rec na"
+  -> "zivurecna" (3 slova = 6-9 p.b. na kratkych refoch; testovacia veta
+  je vo vsetkych suboroch). Na realnej reci nemerane — nutny zivy A/B test.
+- drobnosti: obcas dup "system system" na sviku (dedup_boundary neberie
+  case/punct variant), chybajuce velke pismena na zaciatku vety po sviku.
+
+### Odporucanie
+Default ostava mlx (overeny). Zivy test: TITULKY_FINAL_ENGINE=parakeet
+HF_HOME=... python -m titulky.main — ak realna rec nema "zivurecna" efekt,
+prepnut default. Dalsi kandidat na kvalitu: flush refine cez kinit-turbo
+(flush az po pauze, parakeet drzi stream).

@@ -35,6 +35,10 @@ XAGREE = os.environ.get("TITULKY_XAGREE", "1") == "1"
 # final engine: mlx (DTW presné časy, dekód ~1.6s) | cpp (whisper.cpp Metal,
 # dekód ~0.8-1.3s, časy heuristické=nanič → commity len cez draft kotvy)
 FINAL_ENGINE = os.environ.get("TITULKY_FINAL_ENGINE", "mlx")
+# parakeet: rozbehové audio PRED committed hranicou — TDT zle dekóduje
+# tvrdý strih na začiatku okna (švíkové artefakty „Živúrečná", caps);
+# slová končiace pred hranicou sa po dekóde zahodia (reálne časy)
+PARAKEET_LEAD_S = float(os.environ.get("TITULKY_PARAKEET_LEAD", "1.5"))
 FINAL_WINDOW_S = float(os.environ.get("TITULKY_FINAL_WIN", "8.0"))
 # FAST_FINAL (experiment): final dekód bez DTW word_timestamps (-0.9s),
 # hranice commitov sa snapujú na reálne časy slov z ANE draftu
@@ -217,6 +221,9 @@ class TwoTierPipeline:
         if FINAL_ENGINE == "cpp":
             from .asr import FinalCppASR
             self.final_asr = FinalCppASR()
+        elif FINAL_ENGINE == "parakeet":
+            from .asr import ParakeetFinalASR
+            self.final_asr = ParakeetFinalASR()
         else:
             self.final_asr = ASR(final_repo)
         self._cpp_bound = None   # abs koniec posledného ukotveného commitu
@@ -622,8 +629,10 @@ class TwoTierPipeline:
                     min(FINAL_WINDOW_S * 2, flush_to - self.final_upto_s))
             else:
                 # vždy od potvrdenej hranice — okno sa neposúva pod agreementom
+                lead = PARAKEET_LEAD_S if FINAL_ENGINE == "parakeet" else 0.0
+                start_s = max(0.0, self.final_upto_s - lead)
                 audio, off_s, total_s = self.buf.snapshot_from(
-                    self.final_upto_s, FINAL_WINDOW_S)
+                    start_s, FINAL_WINDOW_S)
             if len(audio) < SAMPLE_RATE * 1.0 and not self.buf.eof \
                and not flush_mode:  # flush: aj krátky výrok („ahoj") sa dekóduje
                 time.sleep(0.2)
@@ -655,6 +664,10 @@ class TwoTierPipeline:
             self.compute_s += time.monotonic() - t_start
             words = dedupe_repeats(words)
             words = dedup_boundary(words, self.final_text)
+            if FINAL_ENGINE == "parakeet" and not flush_mode:
+                # zahoď slová z rozbehovej (už committed) zóny pred hranicou
+                words = [w for w in words
+                         if off_s + w["end"] > self.final_upto_s + 0.05]
             if FAST_FINAL:
                 # v2: reálne časy z ANE draftu namiesto DTW — konzistentné
                 # s XAGREE kľúčmi (rovnaký zdroj časov)

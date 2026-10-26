@@ -352,3 +352,79 @@ class LocalAgreement:
 
     def flicker_rate(self) -> float:
         return self.flicker / self.total if self.total else 0.0
+
+
+class ParakeetFinalASR:
+    """Final na NVIDIA Parakeet TDT 0.6B v3 (MLX, 25 jazykov vr. SK).
+
+    Merané 25.10.: dekód 8s okna 0.38s (vs MLX whisper turbo 2.1s),
+    offline WER 0-18.8% na test setoch, NATÍVNE token časy z TDT —
+    celá commit mašinéria (energy gate, agreement, XAGREE, boundary)
+    funguje bez zmien. Streaming mód parakeet-mlx NEPOUŽÍVAŤ: RTF ~3
+    a WER 16-52% (lokálna attention + prepočet mel/encoder per chunk).
+    Kvirk: občas zlepí slová („živúrečná") — WER daň ~2-5 p.b.
+    """
+
+    REPO = os.environ.get("TITULKY_PARAKEET_REPO",
+                          "mlx-community/parakeet-tdt-0.6b-v3")
+
+    def __init__(self, repo=None):
+        # LAZY init: MLX streamy sú per-vlákno — model MUSÍ vzniknúť
+        # vo vlákne, kde pobeží generate (inak RuntimeError:
+        # "There is no Stream(cpu, 1) in current thread")
+        self._repo = repo or self.REPO
+        self.model = None
+        self._get_logmel = None
+        self.last_stats = {}
+
+    def _ensure(self):
+        if self.model is None:
+            from parakeet_mlx import from_pretrained
+            from parakeet_mlx.audio import get_logmel
+            self._get_logmel = get_logmel
+            self.model = from_pretrained(self._repo)
+
+    def warmup(self):
+        # ÚMYSELNE nerobí dekód: model sa inicializuje lazy v final
+        # vlákne (_ensure) — dekód z main threadu by vytvoril MLX
+        # stream v zlom vlákne. Cena: prvý ostrý dekód ~+1.5s, raz.
+        return
+
+    def transcribe(self, audio, language="sk", skip_if_busy=False,
+                   word_ts_exact=None):
+        """Vráti slová (text, start, end) s reálnymi TDT časmi.
+        language sa ignoruje — model je multilingválny bez prepínača.
+        POZOR: volať LEN z final vlákna (lazy _ensure, MLX stream)."""
+        import mlx.core as mx
+        self._ensure()
+        t0 = time.monotonic()
+        mel = self._get_logmel(mx.array(preprocess(audio)),
+                               self.model.preprocessor_config)
+        res = self.model.generate(mel)[0]
+        words, drops = [], []
+        cur, cs, ce, confs = "", 0.0, 0.0, []
+        def close():
+            if not cur:
+                return
+            if sum(confs) / len(confs) < 0.3:
+                drops.append(("conf<0.3", cur))
+            else:
+                words.append({"text": cur, "start": cs, "end": ce})
+        for sent in res.sentences:
+            for tk in sent.tokens:
+                t = tk.text
+                if t.startswith(" ") and cur:
+                    close()
+                    cur, cs, confs = "", tk.start, []
+                if not cur:
+                    cs = tk.start
+                cur += t.strip() if not cur else t
+                ce = tk.end
+                confs.append(getattr(tk, "confidence", 1.0) or 1.0)
+            if cur:
+                close()
+                cur, confs = "", []
+        self.last_stats = {"lock_wait_s": 0.0,
+                           "decode_s": round(time.monotonic() - t0, 3),
+                           "drops": drops}
+        return words
