@@ -643,3 +643,22 @@ zlomi hned. Navyse +0.4s rezia/cyklus -> final p50 horsi (9-13s vs 7-8s).
 ZAVER: mechanizmus je spravny a hotovy, blokuje ho SK kvalita parakeetu
 (ta ista korenova pricina ako pri finale/drafte). Odomkne ho az presny
 SK druhy model — potom staci TITULKY_XMODEL=1.
+
+### Cloud engine (OpenAI Realtime STT) — 26.10., JBOP-125
+TITULKY_ENGINE=cloud, prepínateľný, lokál ostáva default (semestrálka).
+Čisté audio (normal/fast, presné refs): **WER 0.0 %, biele p50 0.4-0.5 s** — brutál.
+Reálne prednáškové fixtures (pseudo-refs kinit offline, bias k lokálu):
+
+| model | WER avg | biele p50 | cena |
+|---|---|---|---|
+| gpt-4o-mini-transcribe | 88.7 % | 0.3-0.8 s | $0.003/min |
+| gpt-4o-transcribe | 77.8 % | 0.5 s | $0.006/min |
+| gpt-live-transcribe | **57.3 %** | 0.8-3.0 s | $0.017/min |
+| lokál (kinit streaming) | **~37 %** | 2.5 s | 0 |
+
+ZÁVER: na vzdialený mikrofón v posluchárni je kinit SK fine-tune stále
+najlepší — cloud modely komolia sémantiku (väzenská cela v telekom
+prednáške). Cloud vyhráva na čistom/blízkom audiu (diktovanie: 0 % WER
+pri 0.5 s bielom). Použitie: diktovanie/čistý vstup → cloud; poslucháreň
+→ lokál. Pseudo-refs sú kinit-biased, ale sémantické chyby cloudu sú
+viditeľné aj bez refov.

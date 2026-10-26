@@ -5,3 +5,4 @@ __pycache__/
 .azure_key
 .runs/
 vendor/
+.openai_key

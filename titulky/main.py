@@ -132,6 +132,7 @@ def main():
     ap.add_argument("--language", default="sk")
     ap.add_argument("--port", type=int, default=8765)
     args = ap.parse_args()
+    global PIPE
 
     def on_update(d):
         print(f"[{d['audio_s']:6.1f}s draft={d['draft_latency_s'] and round(d['draft_latency_s'],2)} "
@@ -139,9 +140,35 @@ def main():
               f"{d['committed'][-70:]} | {d['pending'][:50]}")
         broadcast(d)
 
+    if os.environ.get("TITULKY_ENGINE") == "cloud":
+        # cloud režim: OpenAI Realtime STT namiesto lokálnej pipeline
+        from .cloud_engine import CloudPipeline, CLOUD_MODEL
+        pipe = CloudPipeline(language=args.language, on_update=on_update,
+                             on_event=lambda e: broadcast({"event": e}))
+        PIPE = pipe
+        print(f"CLOUD režim: {CLOUD_MODEL} (OpenAI Realtime)")
+        if args.file:
+            pipe.start_file(args.file)
+        else:
+            pipe.start_mic(os.environ.get("TITULKY_DEVICE") or None)
+            print("Počúvam mikrofón — hovor.")
+        try:
+            asyncio.run(ws_main("localhost", args.port))
+        except KeyboardInterrupt:
+            pass
+        finally:
+            pipe.stop()
+            print("Prepis:", " ".join(pipe.final_text))
+            for name, xs in (("DRAFT", pipe.draft_latencies),
+                             ("FINAL", pipe.final_latencies)):
+                if xs:
+                    xs2 = sorted(xs)
+                    print(f"{name}: p50={xs2[len(xs2)//2]:.2f}s "
+                          f"avg={sum(xs)/len(xs):.2f}s n={len(xs)}")
+        return
+
     pipe = TwoTierPipeline(language=args.language, on_update=on_update,
                            on_event=lambda e: broadcast({"event": e}))
-    global PIPE
     PIPE = pipe
 
     # run-trace: beh viditeľný v Projektovník BUILD tab Flow
