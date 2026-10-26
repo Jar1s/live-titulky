@@ -549,3 +549,14 @@ Default ostava mlx (overeny). Zivy test: TITULKY_FINAL_ENGINE=parakeet
 HF_HOME=... python -m titulky.main — ak realna rec nema "zivurecna" efekt,
 prepnut default. Dalsi kandidat na kvalitu: flush refine cez kinit-turbo
 (flush az po pauze, parakeet drzi stream).
+
+### Zivy test parakeet finalu 26.10. (realna prednaska, mikrofon) — ZAMIETNUTY
+Na zivej SK prednaske parakeet v3 UTEKA DO INYCH JAZYKOV po oknach:
+polstina ("czy tu w tej nitre"), chorvatcina ("bilo bili izmanki krok
+modernizacije"), anglictina ("with telecommunication and see it") +
+mrzacenie slov ("Skonavek", "purocime"). TDT v3 NEMA language forcing
+(auto-detect per dekod) — na TTS testoch sa to neprejavilo, na realnej
+reci s ozvenou fatalne. Zaver: parakeet NESMIE byt zdroj commitov.
+Latencia 1.3-2.8s bola realna, ale kvalita robi engine nepouzitelnym.
+Pripadny buduci smer: parakeet len ako draft (sede je docasne), NIE final.
+Default: mlx kinit-turbo (vrateny, overeny).
