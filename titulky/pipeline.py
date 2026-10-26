@@ -211,6 +211,11 @@ class TwoTierPipeline:
         if backend == "ane":
             from .asr import AneDraftASR
             self.draft_asr = AneDraftASR()
+        elif backend == "parakeet":
+            # experiment: parakeet ako draft (šedé je dočasné, drift
+            # opraví biele); POZOR: zdieľa Metal s MLX finalom
+            from .asr import ParakeetFinalASR
+            self.draft_asr = ParakeetFinalASR()
         elif backend == "cpu":
             from .asr import CpuDraftASR
             self.draft_asr = CpuDraftASR()

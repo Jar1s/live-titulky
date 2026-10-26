@@ -560,3 +560,12 @@ reci s ozvenou fatalne. Zaver: parakeet NESMIE byt zdroj commitov.
 Latencia 1.3-2.8s bola realna, ale kvalita robi engine nepouzitelnym.
 Pripadny buduci smer: parakeet len ako draft (sede je docasne), NIE final.
 Default: mlx kinit-turbo (vrateny, overeny).
+
+### Parakeet ako DRAFT (26.10.) — ZAMIETNUTY (GPU kontencia)
+TITULKY_DRAFT_BACKEND=parakeet: draft p50 3.8-8.2s (ANE: 0.35-1.1s),
+final p50 8-18s (baseline 4.3-5.7s) — dva MLX modely na jednom Metale
+sa vzajomne dusia. WER sice 0% (lepsi draft text pre XAGREE), ale
+latencia 10x horsia = bezcenne. ANE draft je nenahraditelny prave
+preto, ze bezi na inom compute unite. Pripadna buduca cesta: CoreML
+export parakeetu (FluidInference/parakeet-tdt-0.6b-v3-coreml) na ANE —
+vyzaduje vlastny TDT dekoder, netrivialne.
