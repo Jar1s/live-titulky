@@ -31,6 +31,7 @@ AUDIO_DIR = None  # nastaví main() po vytvorení trace adresára
 HTML = (pathlib.Path(__file__).parent / "overlay.html").read_bytes()
 FLOW = (pathlib.Path(__file__).parent / "flow.html").read_bytes()
 STUDIO = (pathlib.Path(__file__).parent / "studio.html").read_bytes()
+LAB = (pathlib.Path(__file__).parent / "lab.html").read_bytes()
 
 # modely dostupné v Studio prepínači
 ENGINE_CATALOG = [
@@ -143,6 +144,8 @@ def serve_html(connection, request):
         return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), FLOW)
     if request.path == "/studio":
         return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), STUDIO)
+    if request.path == "/lab":
+        return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), LAB)
     if request.path.startswith("/audio/") and AUDIO_DIR:
         # audit WAV segmentov — len basename, žiadne traverzovanie
         name = os.path.basename(request.path[len("/audio/"):])

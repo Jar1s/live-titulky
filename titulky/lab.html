@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TITULKY.ŽIVO — Lab</title>
+<style>
+:root {
+  --bg:#0b0d10; --panel:#14171c; --panel2:#1a1e24; --line:#262b33;
+  --ink:#f2f4f7; --ink2:#9aa3af; --ink3:#5b6470;
+  --acc:#4f8ef7; --ok:#34c77b; --warn:#f7b64f; --err:#f75f4f;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { background:var(--bg); color:var(--ink);
+  font:15px/1.55 -apple-system,"SF Pro Text",Inter,sans-serif; }
+#top { position:sticky; top:0; z-index:5; display:flex; align-items:center;
+  gap:14px; padding:10px 22px; background:var(--panel);
+  border-bottom:1px solid var(--line); }
+#wordmark { font-weight:800; letter-spacing:.14em; font-size:13px; }
+#wordmark span { color:var(--acc); }
+#top a { color:var(--ink2); text-decoration:none; font-size:12.5px;
+  padding:5px 11px; border:1px solid var(--line); border-radius:8px; }
+#top a:hover { border-color:var(--acc); color:var(--ink); }
+main { max-width:1060px; margin:0 auto; padding:34px 24px 80px; }
+h1 { font-size:26px; margin-bottom:6px; }
+.sub { color:var(--ink2); margin-bottom:34px; font-size:14.5px; }
+h2 { font-size:17px; margin:44px 0 6px; display:flex; align-items:center; gap:9px; }
+h2 .n { color:var(--acc); font-variant-numeric:tabular-nums; }
+.lead { color:var(--ink2); font-size:13.5px; margin-bottom:16px; max-width:760px; }
+.card { background:var(--panel); border:1px solid var(--line);
+  border-radius:14px; padding:18px 20px; margin-bottom:14px; }
+.kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:12px; margin-bottom:8px; }
+.kpi { background:var(--panel); border:1px solid var(--line); border-radius:14px;
+  padding:14px 16px; }
+.kpi .v { font-size:24px; font-weight:800; font-variant-numeric:tabular-nums; }
+.kpi .v small { font-size:13px; color:var(--ink2); font-weight:500; }
+.kpi .l { font-size:11px; color:var(--ink3); text-transform:uppercase;
+  letter-spacing:.07em; margin-top:2px; }
+table { width:100%; border-collapse:collapse; font-size:13.5px;
+  font-variant-numeric:tabular-nums; }
+th { text-align:left; color:var(--ink3); font-size:11px; letter-spacing:.07em;
+  text-transform:uppercase; padding:7px 10px; border-bottom:1px solid var(--line); }
+td { padding:7px 10px; border-bottom:1px solid #1d2229; }
+tr:last-child td { border-bottom:none; }
+td.g { color:var(--ok); font-weight:600; }
+td.b { color:var(--err); }
+td.m { color:var(--ink2); }
+.bar-row { display:grid; grid-template-columns:230px 1fr 64px; gap:10px;
+  align-items:center; font-size:12.5px; margin:5px 0; }
+.bar-row .lbl { color:var(--ink2); white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis; }
+.bar-row.win .lbl { color:var(--ink); font-weight:600; }
+.track { background:#10141a; border-radius:5px; height:16px; overflow:hidden; }
+.fill { height:100%; border-radius:5px; background:var(--ink3); }
+.bar-row.win .fill { background:var(--acc); }
+.bar-row .val { text-align:right; color:var(--ink2); }
+.bar-row.win .val { color:var(--acc); font-weight:700; }
+.verdict { display:inline-block; font-size:10.5px; font-weight:700;
+  letter-spacing:.06em; padding:2px 8px; border-radius:20px; }
+.v-dead { background:#f75f4f22; color:var(--err); }
+.v-live { background:#34c77b22; color:var(--ok); }
+.v-opt  { background:#f7b64f22; color:var(--warn); }
+.exp { display:grid; grid-template-columns:150px 1fr 92px; gap:12px;
+  padding:11px 4px; border-bottom:1px solid #1d2229; font-size:13.5px;
+  align-items:baseline; }
+.exp:last-child { border-bottom:none; }
+.exp b { font-weight:650; }
+.exp .why { color:var(--ink2); font-size:12.5px; }
+.note { font-size:12px; color:var(--ink3); margin-top:10px; }
+.flow3 { display:flex; gap:10px; flex-wrap:wrap; margin-top:4px; }
+.stage { flex:1; min-width:180px; background:var(--panel2); border:1px solid
+  var(--line); border-radius:12px; padding:13px 15px; }
+.stage .t { font-size:12px; color:var(--ink3); text-transform:uppercase;
+  letter-spacing:.07em; }
+.stage .big { font-size:21px; font-weight:800; margin:3px 0; }
+.stage .d { font-size:12px; color:var(--ink2); }
+.stage.s1 .big { color:var(--ink2); }
+.stage.s2 .big { color:#c8d0da; }
+.stage.s3 .big { color:#fff; }
+code { background:#10141a; border:1px solid var(--line); border-radius:5px;
+  padding:1px 6px; font-size:12.5px; }
+</style>
+</head>
+<body>
+<div id="top">
+  <span id="wordmark">TITULKY<span>&hairsp;.ŽIVO</span></span>
+  <span style="color:var(--ink3);font-size:12px">LAB — výsledky a poznatky z vývoja</span>
+  <span style="flex:1"></span>
+  <a href="/">Overlay</a><a href="/studio">Studio</a><a href="/flow">Flow</a>
+</div>
+<main>
+
+<h1>Čo sme zmerali, kým vznikol tento systém</h1>
+<p class="sub">Všetky čísla sú reálne namerané (M3 Pro/Max, mlx-whisper, suite 7+ WAV,
+FLEURS SK 120 viet, reálne prednáškové nahrávky). Plný dokument:
+<code>docs/BENCHMARK.md</code>.</p>
+
+<div class="kpis">
+  <div class="kpi"><div class="v">5,81<small> %</small></div>
+    <div class="l">WER kinit-sk · FLEURS korpus</div></div>
+  <div class="kpi"><div class="v">0,4–0,9<small> s</small></div>
+    <div class="l">šedé slovo (draft, ANE)</div></div>
+  <div class="kpi"><div class="v">2–3<small> s</small></div>
+    <div class="l">biele slovo (final, live)</div></div>
+  <div class="kpi"><div class="v">0</div>
+    <div class="l">halucinácie z ticha (gate v2)</div></div>
+  <div class="kpi"><div class="v">16+</div>
+    <div class="l">zamietnutých experimentov</div></div>
+</div>
+
+<h2><span class="n">01</span> Trojstupňová odozva</h2>
+<p class="lead">Užívateľ potrebuje vidieť reakciu &lt; 300 ms, ale presný text potrebuje
+kontext. Riešenie: tri vrstvy s rôznou zárukou.</p>
+<div class="flow3">
+  <div class="stage s1"><div class="t">kurzor ▊</div><div class="big">&lt; 0,2 s</div>
+    <div class="d">reakcia na RMS — „systém ťa počuje"</div></div>
+  <div class="stage s2"><div class="t">šedý draft</div><div class="big">~0,5 s</div>
+    <div class="d">whisper.cpp na ANE, okno 3 s, krok 0,08 s</div></div>
+  <div class="stage s3"><div class="t">biely final</div><div class="big">~2–3 s</div>
+    <div class="d">kinit-turbo-sk MLX + cross-model agreement</div></div>
+</div>
+
+<h2><span class="n">02</span> Výber final modelu — fine-tune vyhráva o 45 %</h2>
+<div class="card">
+<table>
+<tr><th>test</th><th>large-v3-turbo</th><th>kinit-turbo-sk</th></tr>
+<tr><td>FLEURS SK korpus (120 viet, reálni rečníci)</td><td>10,54 %</td><td class="g">5,81 %</td></tr>
+<tr><td>syntetická sada (normal/fast/quiet/noisy/pauses)</td><td>0–3,2 %</td><td class="g">0,0 %</td></tr>
+<tr><td class="m">podcast, spontánna SK (kvalit. analýza)</td><td class="b">„išel", „bátislave", „svetho júra"</td><td class="g">„išiel", „v Bratislave", „Svätý Jur"</td></tr>
+</table>
+<p class="note">Jediná výnimka: anglicizmy („hard techno" vs „hartéchno") — kandidát na
+slovníkovú korekciu. Pri českom hosťovi sa SK fine-tune rozpadá — mimo zadania.</p>
+</div>
+
+<h2><span class="n">03</span> Draft latencia — grid 11+16 konfigurácií</h2>
+<p class="lead">Kľúčový objav: latenciu nedominoval dekód, ale <b>display-hold</b> a čakanie
+na pravý kontext. Metrika bola opravená z „času dekódu" na „čas prvého zobrazenia"
+a celý grid premeraný nanovo.</p>
+<div class="card" id="gridChart">
+  <div class="bar-row"><span class="lbl">small · 3,0 s · hold 0,8 (pôvodné)</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="val">1,76 s</span></div>
+  <div class="bar-row"><span class="lbl">small · 1,5 s · hold 0,8</span><div class="track"><div class="fill" style="width:64%"></div></div><span class="val">1,12 s</span></div>
+  <div class="bar-row"><span class="lbl">base · 2,0 s · hold 0,8</span><div class="track"><div class="fill" style="width:60%"></div></div><span class="val">1,05 s</span></div>
+  <div class="bar-row"><span class="lbl">base · 1,5 s · hold 0,3</span><div class="track"><div class="fill" style="width:42%"></div></div><span class="val">0,73 s</span></div>
+  <div class="bar-row win"><span class="lbl">tiny→ANE · 1,2–3,0 s · hold 0,1 (nasadené)</span><div class="track"><div class="fill" style="width:27%"></div></div><span class="val">0,47 s</span></div>
+  <p class="note">Fyzikálne dno kĺzavého okna ≈ 0,35–0,45 s: krok okna (80 ms) + dekód
+(~120 ms) + Whisper slovo uzná až s ďalším kúskom kontextu. Preto vnímanú odozvu
+rieši ghost-kurzor, nie rýchlejší dekód. Stitch (dlhé okno na backfill) zdvihol
+pokrytie súvislej reči na draftACC 81–100 %.</p>
+</div>
+
+<h2><span class="n">04</span> Halucinácie z ticha — vývoj gate-u</h2>
+<div class="card">
+<table>
+<tr><th>verzia</th><th>princíp</th><th>výsledok</th></tr>
+<tr><td>v0 — fixný RMS prah</td><td class="m">konštanta</td><td class="b">zlyháva pri hlasnom miku („Ďakujem za pozornosť" × 11)</td></tr>
+<tr><td>v1 — dynamika amplitúdy</td><td class="m">reč má dynamiku, šum je plochý</td><td class="b">halluc 0, ale rýchla súvislá reč je tiež „plochá" → fast.wav WER 62,5 %</td></tr>
+<tr><td>v2 — dynamika ∧ spektrálny flux</td><td class="m">šum = plochá amplitúda <b>a zároveň</b> statické spektrum</td><td class="g">halluc 0 a fast 0,0 % súčasne</td></tr>
+</table>
+<p class="note">Prahy merané na reálnych dátach (room tone flux 0,131 · reč 0,31–0,46).
+Regresný test používa fixture skutočného šumu — biely šum má flux 0,55 a prešiel by.</p>
+</div>
+
+<h2><span class="n">05</span> Cintorín experimentov — čo NEfunguje (a prečo)</h2>
+<p class="lead">Každý zamietnutý smer má namerané číslo. Toto je polovica hodnoty projektu.</p>
+<div class="card">
+  <div class="exp"><b>word_timestamps approx</b><span class="why">dekód −1,1 s, ale WER 3→15 % — agreement sa rozpadá na nepresných časoch</span><span class="verdict v-dead">zamietnuté</span></div>
+  <div class="exp"><b>kinit int4 kvantizácia</b><span class="why">2,89 s vs 2,69 s fp16 — dequant réžia pri batch-1 preváži, horší text</span><span class="verdict v-dead">zamietnuté</span></div>
+  <div class="exp"><b>FAST_FINAL (bez DTW)</b><span class="why">final 3,5→2,1 s, ale WER 6,5–29 % — approx časy rozbijú commit mapovanie</span><span class="verdict v-dead">zamietnuté</span></div>
+  <div class="exp"><b>whisper.cpp final + audio_ctx orez</b><span class="why">encoder 777→205 ms, ale halucinácie pri každom ctx; plný ctx = žiadna výhra</span><span class="verdict v-dead">zamietnuté</span></div>
+  <div class="exp"><b>kinit-small-sk ako final</b><span class="why">WER 9,7–41,9 %, final p50 až 21 s — malý model je nestabilnejší, agreement stojí</span><span class="verdict v-dead">zamietnuté</span></div>
+  <div class="exp"><b>Parakeet-TDT 0.6B v3 final</b><span class="why">latencia 1,3–2,8 s reálna, ale na živej prednáške uteká do PL/HR/EN (TDT nemá language forcing)</span><span class="verdict v-dead">zamietnuté</span></div>
+  <div class="exp"><b>Parakeet ako draft</b><span class="why">dva MLX modely na jednom Metale sa dusia: draft 3,8–8,2 s (ANE: 0,35–1,1 s)</span><span class="verdict v-dead">zamietnuté</span></div>
+  <div class="exp"><b>Nemotron streaming 0.6b</b><span class="why">hotový SK streaming model, ale fast 62,5 % / slow 43,8 % — pod latkou</span><span class="verdict v-dead">zamietnuté</span></div>
+  <div class="exp"><b>XMODEL (parakeet potvrdzuje kinit)</b><span class="why">mechanizmus funguje na TTS, na reálnej reči 0 promotov — parakeet komolí SK prefix</span><span class="verdict v-dead">zamietnuté</span></div>
+  <div class="exp"><b>LLM korekcia v commite (qwen3:8b)</b><span class="why">1,3 s/oprava OK, ale Metal kontencia s MLX finalom → fronta; len batch na pauze</span><span class="verdict v-opt">vypnuté</span></div>
+  <div class="exp"><b>Spellfix (3M trie, dist-1)</b><span class="why">−5,7 až −6,8 p.b. na 3/5 prednášok, ale false-hity zhoršia 2/5 — opt-in</span><span class="verdict v-opt">opt-in</span></div>
+  <div class="exp"><b>XAGREE (draft potvrdzuje final)</b><span class="why">final −1,5 až −2 s pri WER 0–6,5 % — s edge guardom a 0,4 s stabilitou</span><span class="verdict v-live">nasadené</span></div>
+</div>
+<p class="note">Poučenie celej série: dekód nie je bottleneck bieleho textu — drží ho
+agreement + edge guard, a presne tie držia WER nízko. Rýchlejšie biele = presný SK
+streaming model (fine-tune), nie infra triky.</p>
+
+<h2><span class="n">06</span> Lokál vs cloud — kedy čo</h2>
+<div class="card">
+<table>
+<tr><th>scenár</th><th>lokál (kinit)</th><th>cloud live</th><th>cloud 4o</th><th>cloud mini</th></tr>
+<tr><td>čisté/blízke audio — WER</td><td>0–3 %</td><td class="g">0,0 %</td><td class="g">0,0 %</td><td class="g">0,0 %</td></tr>
+<tr><td>čisté audio — biele p50</td><td>2,5 s</td><td class="g">0,4–0,8 s</td><td class="g">0,5 s</td><td class="g">0,3–0,8 s</td></tr>
+<tr><td>poslucháreň (vzdialený mik) — WER*</td><td class="g">~37 %</td><td class="b">57,3 %</td><td class="b">77,8 %</td><td class="b">88,7 %</td></tr>
+<tr><td>cena</td><td class="g">0 € · offline</td><td>$1,02/h</td><td>$0,36/h</td><td>$0,18/h</td></tr>
+</table>
+<p class="note">* pseudo-referencie z kinit offline (bias k lokálu), ale sémantické chyby
+cloudu („väzenská cela" v telekom prednáške) sú viditeľné aj bez referencií.
+<b>Záver: diktovanie/čistý vstup → cloud · poslucháreň → lokál.</b> Presne na to je
+prepínač v Studiu.</p>
+</div>
+
+<h2><span class="n">07</span> Stabilita — termálny beh 26 min</h2>
+<div class="card">
+<p class="lead" style="margin-bottom:8px">12 × continuous.wav za sebou (M3 Max, ANE+Metal
+naplno): latencie oscilujú (MLX fronta, scheduling), ale <b>žiadny monotónny nárast</b>.
+<code>pmset -g therm</code> bez throttlingu. Stroj drží 30 min naplno.</p>
+<p class="lead" style="margin-bottom:0">Flicker stabilný 6–11 % naprieč behmi; halucinácie 0.</p>
+</div>
+
+<h2><span class="n">08</span> Vlastný prínos (vs prevzaté)</h2>
+<div class="card">
+<table>
+<tr><th>vlastné</th><th>prevzaté</th></tr>
+<tr><td class="g">dvojvrstvová architektúra draft(ANE)/final(MLX) s GPU arbitrážou</td><td class="m">Whisper modely, mlx-whisper, kinit váhy</td></tr>
+<tr><td class="g">dvojitý šumový gate (dynamika ∧ flux) s reálnymi prahmi a fixture šumu</td><td class="m">LocalAgreement-2 myšlienka (Macháček 2023)</td></tr>
+<tr><td class="g">poctivá zobrazovacia metrika latencie + draftACC (recall šedého)</td><td class="m">hunspell SK, jiwer, FLEURS</td></tr>
+<tr><td class="g">XAGREE cross-model commit s edge guardom</td><td class="m">draft/final UX vzor (Google Meet)</td></tr>
+<tr><td class="g">evaluačná infra: realtime harness, grid runner, run-trace JSONL s audit WAV</td><td class="m">OpenAI Realtime API (cloud režim)</td></tr>
+</table>
+</div>
+
+</main>
+</body>
+</html>

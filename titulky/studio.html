@@ -133,6 +133,7 @@ select, .row-btns button {
   <button class="tbtn" id="btnPause">⏸ Pauza</button>
   <button class="tbtn" onclick="location.href='/'">Overlay</button>
   <button class="tbtn" onclick="location.href='/flow'">Flow</button>
+  <button class="tbtn" onclick="location.href='/lab'">Lab</button>
 </div>
 
 <div id="main">
@@ -242,10 +243,11 @@ function handle(d) {
   $("stWords").textContent = words.length;
   const min = (Date.now() - t0) / 60000;
   $("stWpm").textContent = min > 0.2 ? Math.round(words.length / min) : "—";
-  if (d.draft_latency_s != null)
-    $("stDraft").textContent = d.avg_draft_latency_s?.toFixed(2) + "s";
+  if (d.avg_draft_latency_s != null)
+    $("stDraft").textContent = d.avg_draft_latency_s.toFixed(2) + "s";
+  if (d.avg_final_latency_s != null)
+    $("stFinal").textContent = d.avg_final_latency_s.toFixed(2) + "s";
   if (d.final_latency_s != null) {
-    $("stFinal").textContent = d.avg_final_latency_s?.toFixed(2) + "s";
     finLat.push(d.final_latency_s); if (finLat.length > 60) finLat.shift();
     drawSpark();
   }
