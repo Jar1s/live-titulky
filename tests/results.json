@@ -1,82 +1,12 @@
 [
  {
-  "test": "normal.wav",
-  "wer": 0.0,
-  "hallucinated_words": null,
-  "draft_p50": 8.24166041652672,
-  "final_p50": 18.45856891702395,
-  "flicker": 0.018867924528301886,
-  "draft_acc": 0.8064516129032258,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. kvalita rozpoznávania závisí od hluku v okolí výslovnosti a rýchlosti reči Meranie presnosti je dôležité."
- },
- {
-  "test": "fast.wav",
-  "wer": 0.0,
-  "hallucinated_words": null,
-  "draft_p50": 5.278273249962367,
-  "final_p50": 8.033624082966707,
-  "flicker": 0.03125,
-  "draft_acc": 0.625,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne."
- },
- {
-  "test": "slow.wav",
-  "wer": 0.0,
-  "hallucinated_words": null,
-  "draft_p50": 6.630437874984927,
-  "final_p50": 8.789625083394348,
-  "flicker": 0.037037037037037035,
-  "draft_acc": 0.75,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne."
- },
- {
-  "test": "quiet.wav",
-  "wer": 0.0,
-  "hallucinated_words": null,
-  "draft_p50": 3.765008375006728,
-  "final_p50": 8.529563583103009,
-  "flicker": 0.031746031746031744,
-  "draft_acc": 0.8709677419354839,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. kvalita rozpoznávania závisí od hluku v okolí výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
- },
- {
-  "test": "noisy.wav",
-  "wer": 0.12903225806451613,
-  "hallucinated_words": null,
-  "draft_p50": 4.7179781455313785,
-  "final_p50": 10.441034999969416,
-  "flicker": 0.06557377049180328,
-  "draft_acc": 0.7096774193548387,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. valita rozpoznávania závislých od bloku v okolí výslovnosti a rýchlosti reči Meranie presnosti je dôležitá."
- },
- {
-  "test": "pauses.wav",
-  "wer": 0.0,
-  "hallucinated_words": null,
-  "draft_p50": 4.860932457991876,
-  "final_p50": 8.550036958518904,
-  "flicker": 0.046511627906976744,
-  "draft_acc": 0.6451612903225806,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. kvalita rozpoznávania závisí od hluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
- },
- {
-  "test": "silence.wav",
-  "wer": null,
-  "hallucinated_words": 0,
-  "draft_p50": null,
-  "final_p50": null,
-  "flicker": 0.0,
-  "draft_acc": null,
-  "hyp": ""
- },
- {
   "test": "continuous.wav",
-  "wer": 0.05555555555555555,
+  "wer": 0.06944444444444445,
   "hallucinated_words": null,
-  "draft_p50": 5.716179416943341,
-  "final_p50": 8.696120749940166,
-  "flicker": 0.05217391304347826,
-  "draft_acc": 0.8169014084507042,
-  "hyp": "automatické titulkovanie súvislej rečí je najťažšia disciplína, pretože hovoriaci nerobí žiadne prestávky a systém musí priebežne potvrdzovať slová bez čakania naticho. Kvalita rozpoznávania pritom nesmie klesnúť a text musí plynúť na obrazovku rovnomerne ako pri bežnom čítaní správ. Divák si všimne každé zaváhanie preto meriame latenciu aj presnosť na dlhom neprerušovanom úseku, ktorý trvá viac než 30 sekúnd a obsahuje bežnú slovnú zásobu aj odborné výrazy ako neurónová sieť alebo akcelerátor"
+  "draft_p50": 12.04686304201605,
+  "final_p50": 13.09985462553799,
+  "flicker": 0.0625,
+  "draft_acc": 0.14084507042253522,
+  "hyp": "automatické titulkovanie súvislej reči je najťažšia disciplína pretože hovoriaci nerobí žiadne prestávky a systém musí priebežne potvrdzovať slová bez čakania naticho. Kvalita rozpoznávania pritom nesmie klesnúť a text musí plynúť na obrazovku rovnomerne ako popri bežnom čítaní správ. Divák si všimne každé zaváhanie, preto meriame latenciu aj presnosti na dlhom neprerušovanom úseku, ktorý trvá viac než 30 sekúnd a obsahuje bežnú slovnú zásobu aj odborné výrazy ako neurónová sieť alebo akcelerátor."
  }
 ]

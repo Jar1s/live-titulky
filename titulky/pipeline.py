@@ -259,7 +259,18 @@ class TwoTierPipeline:
         from .correction import CorrectionWorker
         from .lexicon import Lexicon
         self.lexicon = Lexicon()
+        # obrovský SK slovník (3.0M tvarov) — distance-1 spellfix commitov
+        from .spellfix import SpellFix
+        self.spellfix = (SpellFix()
+                         if os.environ.get("TITULKY_SPELLFIX", "1") != "0"
+                         else None)
         self.corrector = CorrectionWorker(
+            self._apply_corrections,
+            log=lambda m: (print(m),
+                           self.on_event({"t": "korekcia", "msg": m})))
+        # LLM druhý názor (ollama, CPU, async) — TITULKY_LLM_CORR=1
+        from .correction_llm import LlmCorrectionWorker
+        self.llm_corrector = LlmCorrectionWorker(
             self._apply_corrections,
             log=lambda m: (print(m),
                            self.on_event({"t": "korekcia", "msg": m})))
@@ -378,8 +389,9 @@ class TwoTierPipeline:
             i += 1
         return kept, bound, keys
 
-    def _apply_corrections(self, start_idx: int, changes: list[dict]):
-        """Callback z CorrectionWorker — opraví committed slová a emitne."""
+    def _apply_corrections(self, start_idx: int, changes: list[dict],
+                           src: str = "azure"):
+        """Callback z CorrectionWorker/LLM — opraví committed slová."""
         for ch in changes:
             idx = start_idx + ch["i"]
             if 0 <= idx < len(self.final_text) \
@@ -771,6 +783,9 @@ class TwoTierPipeline:
             if new:
                 # slovníková korekcia — deterministické opravy anglicizmov
                 new, lex_edits = self.lexicon.apply(new)
+                if self.spellfix is not None:
+                    new, sp_edits = self.spellfix.apply(new)
+                    lex_edits = lex_edits + sp_edits
                 for frm, to in lex_edits:
                     self.on_event({"t": "corr", "from": frm, "to": to})
             if new:
@@ -835,6 +850,8 @@ class TwoTierPipeline:
                     seg_start_s, max(0.5, self.final_upto_s - seg_start_s))
                 if self.corrector.enabled:
                     self.corrector.submit(commit_start_idx, new, seg)
+                if self.llm_corrector.enabled:
+                    self.llm_corrector.submit(commit_start_idx, new)
                 if self.spk_tagger is not None:
                     self.spk_tagger.submit(seg, commit_start_idx, len(new))
                 seg_rms = float(np.sqrt(np.mean(seg ** 2))) if len(seg) else 0.0

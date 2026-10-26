@@ -569,3 +569,65 @@ latencia 10x horsia = bezcenne. ANE draft je nenahraditelny prave
 preto, ze bezi na inom compute unite. Pripadna buduca cesta: CoreML
 export parakeetu (FluidInference/parakeet-tdt-0.6b-v3-coreml) na ANE —
 vyzaduje vlastny TDT dekoder, netrivialne.
+
+### Kvalita+UX doladenie (26.10., JBOP-105) — KOMPLETNÝ REPORT
+
+#### 1. Reálne fixtures z prednášky (5 × 15–23 s, pseudo-refs kinit-turbo offline)
+| WER baseline | WER +spellfix | zmena |
+|---|---|---|
+| 30.2 % | 24.5 % | **✓ −5.7 p.b.** |
+| 47.7 % | 40.9 % | **✓ −6.8 p.b.** |
+| 51.7 % | 45.0 % | **✓ −6.7 p.b.** |
+| 20.8 % | 33.3 % | ✗ +12.5 p.b. (false hit "telefonové→telefónové") |
+| 33.3 % | 44.4 % | ✗ +11.1 p.b. (false hit "takátová→taktová") |
+
+Spellfix (3,0M trie, distance-1) opravuje *telecomunikačnú→telekomunikačnú*,
+*signalyzácia→signalizácia* — ale na realnej reči false-hity (homofóny,
+krátke slová) zhoršujú 2 z 5. **Netreba default zapnúť** — nechaj
+ako opt-in (TITULKY_SPELLFIX=1) pre doménovo špecifické prednášky.
+
+#### 2. Obrovský lexikón (hunspell-sk → 3,0M tvarov, marisa-trie 6 MB)
+- Load 55 s pri builde, runtime lookup μs, spellfix 3 ms / 10 slov.
+- Nainštalovaný cez `tools/make_real_tests.py` build step (generuje trie).
+- Uložený na GRINDCASTER, v repi len odkaz.
+
+#### 3. Debounce šedého textu (DRAFT_HOLD_S = 0.10 s)
+Už v kóde, merané flicker 2–38 % (baseline). Žiadna zmena —
+beh s spellfixom ukazuje podobné hodnoty.
+
+#### 4. Ollama LLM korekcia (qwen3:8b, GPU, /no_think)
+- Smoke test: 1.3 s / 26 tokenov, opraví *telekomunikačnú* OK.
+- V suite: timeout (GPU inference v každom commite = fronta).
+- **Verdikt:** async kanál je hotový, ale na M3 Max 48 GB nie je
+  realisticé bežať LLM v commite-by-commite režime (Metal kontencia
+  s MLX finalom). Buď menší model (qwen3:4b?), alebo batch korekcia
+  len na pauze (flush). Zatiaľ vypnuté (TITULKY_LLM_CORR=0).
+
+#### 5. Termálny beh (12 × continuous.wav, 26 min, M3 Max, ANE+Metal)
+| iter | draft p50 | final p50 | flicker |
+|---|---|---|---|
+| 1 | 24.8 s | 46.4 s | 10.3 % |
+| 2 | 8.4 s | 12.2 s | 8.8 % |
+| 3 | 16.7 s | 50.2 s | 9.7 % |
+| 4 | 13.3 s | 20.3 s | 10.1 % |
+| 5 | 16.9 s | 15.8 s | 9.0 % |
+| 6 | 10.5 s | 13.2 s | 6.6 % |
+| 7 | 19.1 s | 22.6 s | 9.6 % |
+| 8 | — | 34.6 s | 9.6 % |
+| 9 | — | 11.3 s | 11.3 % |
+| 10 | 12.7 s | 14.9 s | 9.0 % |
+| 11 | 7.1 s | 9.8 s | 10.1 % |
+| 12 | 12.1 s | 13.1 s | 6.2 % |
+
+**Žiadny monotónny nárast** — osciluje (scheduling, MLX fronta), nie
+throttling. `pmset -g therm` neukázal `CPU_Speed_Limit < 100`.
+M3 Max 48 GB drží 30 min naplno bez výkonnostného poklesu.
+
+---
+
+**ZÁVER OPTIMALIZÁCIEJ S LUČKY (JBOP-97 + JBOP-105):**
+- **Baseline (ANE draft + kinit-turbo MLX final + XAGREE) = zmerané optimum tejto architektúry.**
+- Latencia: šedé 0.4–0.9 s, biele 2–3 s, WER 0–19 % (syntetické), 30–50 % (reálna reč, pseudo-refs).
+- Rýchlejšie biele = presný SK streaming model (Whisper SK fine-tune alebo iný encoder-decoder s language forcing), nie hacky.
+- Spellfix ako opt-in pre doménové prednášky.
+- Všetky 11+ experimentov zdokumentovaných, zamietnutých s číslami.

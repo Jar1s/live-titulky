@@ -245,3 +245,35 @@ def test_lexicon_no_false_hits():
     words = ["dnes", "je", "pekný", "deň", "v", "Bratislave."]
     out, edits = lx.apply(words)
     assert out == words and edits == []
+
+
+# ---- spellfix (obrovský SK slovník, distance-1) ----
+
+def _spellfix():
+    import os
+    import pytest
+    from titulky.spellfix import SpellFix, _TRIE_PATH
+    if not os.path.exists(_TRIE_PATH):
+        pytest.skip("sk_words.marisa nie je (GRINDCASTER odpojený)")
+    return SpellFix()
+
+
+def test_spellfix_opravi_realne_chyby():
+    s = _spellfix()
+    out, edits = s.apply(["telecomunikačnú", "signalyzácia"])
+    assert out == ["telekomunikačnú", "signalizácia"]
+    assert len(edits) == 2
+
+
+def test_spellfix_nechava_spravne_a_nejednoznacne():
+    s = _spellfix()
+    words = ["signalizácia", "FXO", "a", "Skonávek", "titulky,"]
+    out, edits = s.apply(words)
+    # správne/krátke/viackandidátové slová bez zmeny
+    assert out == words and edits == []
+
+
+def test_spellfix_zachova_interpunkciu_a_kapitalizaciu():
+    s = _spellfix()
+    out, edits = s.apply(["Telecomunikačnú,"])
+    assert out == ["Telekomunikačnú,"]

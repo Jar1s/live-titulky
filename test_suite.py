@@ -2,6 +2,7 @@
 WER, latencie, flicker + špecifické kontroly (halucinácie na tichu).
 """
 import json
+import os
 import statistics
 import sys
 import threading
@@ -33,6 +34,13 @@ def run(path):
 
 def main():
     refs = json.load(open("tests/refs.json"))
+    # reálne nahrávky (prednáška) s PSEUDO-refs (kinit-turbo offline):
+    # WER na nich = streamingová degradácia voči offline stropu
+    if os.path.exists("tests/refs_real.json"):
+        refs.update(json.load(open("tests/refs_real.json")))
+    only = os.environ.get("TITULKY_SUITE_ONLY")
+    if only:
+        refs = {p: r for p, r in refs.items() if only in p}
     rows = []
     crashes = []
     for path, ref in refs.items():
