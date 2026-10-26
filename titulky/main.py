@@ -32,6 +32,7 @@ HTML = (pathlib.Path(__file__).parent / "overlay.html").read_bytes()
 FLOW = (pathlib.Path(__file__).parent / "flow.html").read_bytes()
 STUDIO = (pathlib.Path(__file__).parent / "studio.html").read_bytes()
 LAB = (pathlib.Path(__file__).parent / "lab.html").read_bytes()
+SETTINGS = (pathlib.Path(__file__).parent / "settings.html").read_bytes()
 
 # modely dostupné v Studio prepínači
 ENGINE_CATALOG = [
@@ -128,6 +129,36 @@ async def handler(ws):
             elif d.get("t") == "state":
                 await ws.send(json.dumps(_engine_state_msg(),
                                          ensure_ascii=False))
+            elif d.get("t") == "get_config":
+                from . import userconfig
+                try:
+                    import sounddevice as sd
+                    devices = sorted({dev["name"] for dev in sd.query_devices()
+                                      if dev["max_input_channels"] > 0})
+                except Exception:
+                    devices = []
+                await ws.send(json.dumps(
+                    {"event": {"t": "config", "config": userconfig.masked(),
+                               "devices": devices,
+                               "fields": userconfig.field_meta()}},
+                    ensure_ascii=False))
+            elif d.get("t") == "set_config":
+                from . import userconfig
+                prev = set(userconfig.load())
+                saved = userconfig.merge_from_ui(d.get("config") or {})
+                # aplikuj do env; z env zmaz LEN kluce, ktore predtym
+                # pochadzali z configu — env-origin hodnoty nechaj tak
+                for k in saved:
+                    os.environ[k] = str(saved[k])
+                for k in prev - set(saved):
+                    os.environ.pop(k, None)
+                broadcast({"event": {"t": "config_saved"}})
+                eng = saved.get("TITULKY_ENGINE") or "local"
+                mdl = saved.get("TITULKY_CLOUD_MODEL") or \
+                    ("gpt-live-transcribe" if eng == "cloud" else None)
+                ENGINE["language"] = saved.get("TITULKY_LANGUAGE", "sk") or "sk"
+                threading.Thread(target=switch_engine, args=(eng, mdl),
+                                 daemon=True).start()
             elif d.get("t") == "transcript" and PIPE is not None:
                 await ws.send(json.dumps(
                     {"event": {"t": "transcript",
@@ -146,6 +177,8 @@ def serve_html(connection, request):
         return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), STUDIO)
     if request.path == "/lab":
         return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), LAB)
+    if request.path == "/settings":
+        return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), SETTINGS)
     if request.path.startswith("/audio/") and AUDIO_DIR:
         # audit WAV segmentov — len basename, žiadne traverzovanie
         name = os.path.basename(request.path[len("/audio/"):])
@@ -214,6 +247,8 @@ async def ws_main(host, port):
 
 
 def main():
+    from . import userconfig
+    userconfig.apply()
     ap = argparse.ArgumentParser()
     ap.add_argument("--file", help="WAV 16 kHz mono namiesto mikrofónu")
     ap.add_argument("--language", default="sk")
