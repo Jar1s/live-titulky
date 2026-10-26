@@ -183,6 +183,11 @@ class CloudPipeline:
         self._audio_sent_s += len(chunk) / SAMPLE_RATE
         if float(np.abs(chunk).max()) > 0.01:
             self._t_last_voice = time.monotonic()
+        now = time.monotonic()
+        if now - getattr(self, "_t_audio_evt", 0) > 0.3:
+            self._t_audio_evt = now
+            rms = float(np.sqrt(np.mean(chunk ** 2)))
+            self.on_event({"t": "audio", "rms": rms, "thr": 0.01})
 
     async def _receive(self, ws):
         async for raw in ws:
@@ -205,6 +210,10 @@ class CloudPipeline:
                 self.draft_text = (self.draft_text + ev.get("delta", "")) \
                     if self.draft_text else ev.get("delta", "")
                 self._t_last_delta = time.monotonic()
+                if time.monotonic() - getattr(self, "_t_draft_evt", 0) > 0.5:
+                    self._t_draft_evt = time.monotonic()
+                    self.on_event({"t": "draft", "text": self.draft_text,
+                                   "dur": 0})
                 # uzavrete vety commitni HNED, ked uz bezi dalsia veta —
                 # deltas su append-only, revizia nehrozi
                 m = None
@@ -213,9 +222,12 @@ class CloudPipeline:
                 if m and len(self.draft_text) > m.end() + 1:
                     head = self.draft_text[:m.end()].strip()
                     self.final_text.extend(head.split())
-                    if self._t_last_voice:
-                        self.final_latencies.append(
-                            time.monotonic() - self._t_last_voice)
+                    lat = (time.monotonic() - self._t_last_voice) \
+                        if self._t_last_voice else None
+                    if lat is not None:
+                        self.final_latencies.append(lat)
+                    self.on_event({"t": "final", "text": head,
+                                   "lat": lat, "dur": 0})
                     self.draft_text = self.draft_text[m.end():].lstrip()
                 if self._t_last_voice:
                     self.draft_latencies.append(
@@ -260,9 +272,12 @@ class CloudPipeline:
                 head = d[:cut].strip()
                 if head:
                     self.final_text.extend(head.split())
-                    if self._t_last_voice:
-                        self.final_latencies.append(
-                            time.monotonic() - self._t_last_voice)
+                    lat = (time.monotonic() - self._t_last_voice) \
+                        if self._t_last_voice else None
+                    if lat is not None:
+                        self.final_latencies.append(lat)
+                    self.on_event({"t": "final", "text": head,
+                                   "lat": lat, "dur": 0})
                 self.draft_text = d[cut:].lstrip()
                 self._emit()
 
