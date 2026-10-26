@@ -6,95 +6,182 @@
 <title>TITULKY.ŽIVO — Lab</title>
 <style>
 :root {
-  --bg:#0b0d10; --panel:#14171c; --panel2:#1a1e24; --line:#262b33;
-  --ink:#f2f4f7; --ink2:#9aa3af; --ink3:#5b6470;
-  --acc:#4f8ef7; --ok:#34c77b; --warn:#f7b64f; --err:#f75f4f;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, "Segoe UI", system-ui, sans-serif;
+  --font-d: -apple-system, BlinkMacSystemFont, "SF Pro Display", Inter, system-ui, sans-serif;
+  --bg: #202227;
+  --card: linear-gradient(180deg, #2b2e34 0%, #24262b 100%);
+  --card-in: #1d1f24;
+  --line: rgba(255,255,255,.065);
+  --hi: rgba(255,255,255,.09);
+  --ink: #f5f5f7; --ink2: #a6adb8; --ink3: #6b7280;
+  --blue: #2f7cf6; --purple: #8b5cf6; --pink: #e9468f;
+  --green: #22a559; --orange: #f2711c; --danger: #d92d3a; --yellow: #e3a008;
+  --r-xl: 30px; --r-lg: 24px; --r-md: 18px; --r-sm: 12px;
+  --shadow: 0 18px 44px rgba(0,0,0,.38), 0 2px 8px rgba(0,0,0,.25);
+  --ease: cubic-bezier(.22,.8,.24,1);
 }
-* { box-sizing:border-box; margin:0; padding:0; }
-body { background:var(--bg); color:var(--ink);
-  font:15px/1.55 -apple-system,"SF Pro Text",Inter,sans-serif; }
-#top { position:sticky; top:0; z-index:5; display:flex; align-items:center;
-  gap:14px; padding:10px 22px; background:var(--panel);
-  border-bottom:1px solid var(--line); }
-#wordmark { font-weight:800; letter-spacing:.14em; font-size:13px; }
-#wordmark span { color:var(--acc); }
-#top a { color:var(--ink2); text-decoration:none; font-size:12.5px;
-  padding:5px 11px; border:1px solid var(--line); border-radius:8px; }
-#top a:hover { border-color:var(--acc); color:var(--ink); }
-main { max-width:1060px; margin:0 auto; padding:34px 24px 80px; }
-h1 { font-size:26px; margin-bottom:6px; }
-.sub { color:var(--ink2); margin-bottom:34px; font-size:14.5px; }
-h2 { font-size:17px; margin:44px 0 6px; display:flex; align-items:center; gap:9px; }
-h2 .n { color:var(--acc); font-variant-numeric:tabular-nums; }
-.lead { color:var(--ink2); font-size:13.5px; margin-bottom:16px; max-width:760px; }
-.card { background:var(--panel); border:1px solid var(--line);
-  border-radius:14px; padding:18px 20px; margin-bottom:14px; }
-.kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
-  gap:12px; margin-bottom:8px; }
-.kpi { background:var(--panel); border:1px solid var(--line); border-radius:14px;
-  padding:14px 16px; }
-.kpi .v { font-size:24px; font-weight:800; font-variant-numeric:tabular-nums; }
-.kpi .v small { font-size:13px; color:var(--ink2); font-weight:500; }
-.kpi .l { font-size:11px; color:var(--ink3); text-transform:uppercase;
-  letter-spacing:.07em; margin-top:2px; }
-table { width:100%; border-collapse:collapse; font-size:13.5px;
-  font-variant-numeric:tabular-nums; }
-th { text-align:left; color:var(--ink3); font-size:11px; letter-spacing:.07em;
-  text-transform:uppercase; padding:7px 10px; border-bottom:1px solid var(--line); }
-td { padding:7px 10px; border-bottom:1px solid #1d2229; }
-tr:last-child td { border-bottom:none; }
-td.g { color:var(--ok); font-weight:600; }
-td.b { color:var(--err); }
-td.m { color:var(--ink2); }
-.bar-row { display:grid; grid-template-columns:230px 1fr 64px; gap:10px;
-  align-items:center; font-size:12.5px; margin:5px 0; }
-.bar-row .lbl { color:var(--ink2); white-space:nowrap; overflow:hidden;
-  text-overflow:ellipsis; }
-.bar-row.win .lbl { color:var(--ink); font-weight:600; }
-.track { background:#10141a; border-radius:5px; height:16px; overflow:hidden; }
-.fill { height:100%; border-radius:5px; background:var(--ink3); }
-.bar-row.win .fill { background:var(--acc); }
-.bar-row .val { text-align:right; color:var(--ink2); }
-.bar-row.win .val { color:var(--acc); font-weight:700; }
-.verdict { display:inline-block; font-size:10.5px; font-weight:700;
-  letter-spacing:.06em; padding:2px 8px; border-radius:20px; }
-.v-dead { background:#f75f4f22; color:var(--err); }
-.v-live { background:#34c77b22; color:var(--ok); }
-.v-opt  { background:#f7b64f22; color:var(--warn); }
-.exp { display:grid; grid-template-columns:150px 1fr 92px; gap:12px;
-  padding:11px 4px; border-bottom:1px solid #1d2229; font-size:13.5px;
-  align-items:baseline; }
-.exp:last-child { border-bottom:none; }
-.exp b { font-weight:650; }
-.exp .why { color:var(--ink2); font-size:12.5px; }
-.note { font-size:12px; color:var(--ink3); margin-top:10px; }
-.flow3 { display:flex; gap:10px; flex-wrap:wrap; margin-top:4px; }
-.stage { flex:1; min-width:180px; background:var(--panel2); border:1px solid
-  var(--line); border-radius:12px; padding:13px 15px; }
-.stage .t { font-size:12px; color:var(--ink3); text-transform:uppercase;
-  letter-spacing:.07em; }
-.stage .big { font-size:21px; font-weight:800; margin:3px 0; }
-.stage .d { font-size:12px; color:var(--ink2); }
-.stage.s1 .big { color:var(--ink2); }
-.stage.s2 .big { color:#c8d0da; }
-.stage.s3 .big { color:#fff; }
-code { background:#10141a; border:1px solid var(--line); border-radius:5px;
-  padding:1px 6px; font-size:12.5px; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--ink);
+  font: 15px/1.55 var(--font); -webkit-font-smoothing: antialiased; }
+
+/* ── glass sidebar ─────────────────────────────────────── */
+#side {
+  position: fixed; top: 14px; left: 14px; bottom: 14px; width: 232px;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--r-xl); box-shadow: var(--shadow),
+    inset 0 1px 0 var(--hi);
+  padding: 20px 14px; display: flex; flex-direction: column; gap: 4px;
+  z-index: 10;
+}
+#brand { display: flex; align-items: center; gap: 10px; padding: 4px 10px 18px; }
+#logo { width: 36px; height: 36px; border-radius: 11px;
+  background: linear-gradient(135deg, #58a0ff, var(--blue));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; box-shadow: 0 6px 16px rgba(47,124,246,.4); }
+#brand b { font-family: var(--font-d); font-size: 17px; letter-spacing: .02em; }
+.nav { display: flex; align-items: center; gap: 11px; padding: 10px 12px;
+  border-radius: 14px; color: var(--ink2); text-decoration: none;
+  font-size: 14px; font-weight: 500; transition: background .2s var(--ease); }
+.nav:hover { background: rgba(255,255,255,.05); color: var(--ink); }
+.nav.on { background: linear-gradient(180deg, #3a3e45, #2e3137);
+  color: var(--ink); box-shadow: inset 0 1px 0 var(--hi),
+  0 4px 12px rgba(0,0,0,.25); }
+.nav .ic { width: 20px; text-align: center; opacity: .85; }
+#side .sep { height: 1px; background: var(--line); margin: 10px 8px; }
+#side .cap { font-size: 10.5px; color: var(--ink3); letter-spacing: .1em;
+  text-transform: uppercase; padding: 8px 12px 4px; }
+.nav.sm { padding: 7px 12px; font-size: 13px; }
+#side .foot { margin-top: auto; padding: 10px 12px; font-size: 11.5px;
+  color: var(--ink3); }
+
+/* ── main ──────────────────────────────────────────────── */
+main { margin-left: 278px; padding: 44px 40px 90px; max-width: 1080px; }
+h1 { font-family: var(--font-d); font-size: clamp(32px, 2vw + 16px, 46px);
+  font-weight: 800; letter-spacing: -.02em; margin-bottom: 8px; }
+.sub { color: var(--ink2); margin-bottom: 30px; font-size: 14.5px; max-width: 700px; }
+code { background: var(--card-in); border: 1px solid var(--line);
+  border-radius: 7px; padding: 1px 7px; font-size: 12.5px; }
+
+h2 { font-family: var(--font-d); font-size: 20px; font-weight: 700;
+  margin: 48px 0 6px; display: flex; align-items: center; gap: 10px;
+  letter-spacing: -.01em; }
+h2 .n { width: 30px; height: 30px; border-radius: 10px; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12.5px; font-weight: 700; color: #fff; }
+.lead { color: var(--ink2); font-size: 13.5px; margin-bottom: 16px; max-width: 760px; }
+
+/* ── kpi chips ─────────────────────────────────────────── */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr));
+  gap: 14px; margin-bottom: 10px; }
+.kpi { background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--r-lg); padding: 16px 18px;
+  box-shadow: var(--shadow), inset 0 1px 0 var(--hi); }
+.kpi .v { font-family: var(--font-d); font-size: 26px; font-weight: 800;
+  font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.kpi .v small { font-size: 13px; color: var(--ink2); font-weight: 500; }
+.kpi .l { font-size: 11px; color: var(--ink3); text-transform: uppercase;
+  letter-spacing: .07em; margin-top: 3px; }
+
+/* ── cards ─────────────────────────────────────────────── */
+.card { background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--r-lg); padding: 20px 22px; margin-bottom: 14px;
+  box-shadow: var(--shadow), inset 0 1px 0 var(--hi); }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px;
+  font-variant-numeric: tabular-nums; }
+th { text-align: left; color: var(--ink3); font-size: 11px; letter-spacing: .07em;
+  text-transform: uppercase; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.04); }
+tr:last-child td { border-bottom: none; }
+td.g { color: #4ade80; font-weight: 600; }
+td.b { color: #f87171; }
+td.m { color: var(--ink2); }
+
+/* ── bar chart ─────────────────────────────────────────── */
+.bar-row { display: grid; grid-template-columns: 250px 1fr 64px; gap: 12px;
+  align-items: center; font-size: 12.5px; margin: 7px 0; }
+.bar-row .lbl { color: var(--ink2); white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; }
+.bar-row.win .lbl { color: var(--ink); font-weight: 600; }
+.track { background: var(--card-in); border-radius: 7px; height: 18px;
+  overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,.3); }
+.fill { height: 100%; border-radius: 7px;
+  background: linear-gradient(90deg, #4b5160, #5b6170); }
+.bar-row.win .fill { background: linear-gradient(90deg, #58a0ff, var(--blue));
+  box-shadow: 0 2px 10px rgba(47,124,246,.45); }
+.bar-row .val { text-align: right; color: var(--ink2); }
+.bar-row.win .val { color: #7ab2ff; font-weight: 700; }
+
+/* ── verdikty / experimenty ────────────────────────────── */
+.verdict { display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .06em;
+  padding: 3px 10px; border-radius: 20px; }
+.verdict::before { content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; }
+.v-dead { background: rgba(217,45,58,.14); color: #f87171; }
+.v-live { background: rgba(34,165,89,.16); color: #4ade80; }
+.v-opt  { background: rgba(227,160,8,.14); color: #facc15; }
+.exp { display: grid; grid-template-columns: 160px 1fr 100px; gap: 12px;
+  padding: 12px 4px; border-bottom: 1px solid rgba(255,255,255,.04);
+  font-size: 13.5px; align-items: center; }
+.exp:last-child { border-bottom: none; }
+.exp b { font-weight: 650; }
+.exp .why { color: var(--ink2); font-size: 12.5px; }
+.exp .verdict { justify-self: end; }
+.note { font-size: 12px; color: var(--ink3); margin-top: 12px; }
+
+/* ── 3-stage flow ──────────────────────────────────────── */
+.flow3 { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 4px; }
+.stage { flex: 1; min-width: 190px; background: var(--card);
+  border: 1px solid var(--line); border-radius: var(--r-lg);
+  padding: 16px 18px; box-shadow: var(--shadow), inset 0 1px 0 var(--hi);
+  position: relative; overflow: hidden; }
+.stage::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; }
+.stage.s1::before { background: linear-gradient(90deg, var(--ink3), transparent); }
+.stage.s2::before { background: linear-gradient(90deg, var(--purple), transparent); }
+.stage.s3::before { background: linear-gradient(90deg, var(--blue), transparent); }
+.stage .t { font-size: 11.5px; color: var(--ink3); text-transform: uppercase;
+  letter-spacing: .08em; }
+.stage .big { font-family: var(--font-d); font-size: 24px; font-weight: 800;
+  margin: 4px 0; }
+.stage .d { font-size: 12.5px; color: var(--ink2); }
+
+@media (max-width: 860px) {
+  #side { display: none; }
+  main { margin-left: 0; padding: 26px 18px 70px; }
+  .exp { grid-template-columns: 1fr; gap: 4px; }
+  .exp .verdict { justify-self: start; }
+  .bar-row { grid-template-columns: 1fr; gap: 4px; }
+  .bar-row .val { text-align: left; }
+}
 </style>
 </head>
 <body>
-<div id="top">
-  <span id="wordmark">TITULKY<span>&hairsp;.ŽIVO</span></span>
-  <span style="color:var(--ink3);font-size:12px">LAB — výsledky a poznatky z vývoja</span>
-  <span style="flex:1"></span>
-  <a href="/">Overlay</a><a href="/studio">Studio</a><a href="/flow">Flow</a>
-</div>
+
+<aside id="side">
+  <div id="brand"><div id="logo">🎙</div><b>TITULKY.ŽIVO</b></div>
+  <a class="nav" href="/"><span class="ic">▣</span>Overlay</a>
+  <a class="nav" href="/studio"><span class="ic">🎛</span>Studio</a>
+  <a class="nav" href="/flow"><span class="ic">⚡</span>Flow</a>
+  <a class="nav on" href="/lab"><span class="ic">◉</span>Lab</a>
+  <div class="sep"></div>
+  <div class="cap">Kapitoly</div>
+  <a class="nav sm" href="#s1"><span class="ic">01</span>Odozva</a>
+  <a class="nav sm" href="#s2"><span class="ic">02</span>Výber modelu</a>
+  <a class="nav sm" href="#s3"><span class="ic">03</span>Draft grid</a>
+  <a class="nav sm" href="#s4"><span class="ic">04</span>Šumový gate</a>
+  <a class="nav sm" href="#s5"><span class="ic">05</span>Cintorín</a>
+  <a class="nav sm" href="#s6"><span class="ic">06</span>Lokál vs cloud</a>
+  <a class="nav sm" href="#s7"><span class="ic">07</span>Stabilita</a>
+  <a class="nav sm" href="#s8"><span class="ic">08</span>Vlastný prínos</a>
+  <div class="foot">docs/BENCHMARK.md<br>v2.0 · všetko namerané</div>
+</aside>
+
 <main>
 
-<h1>Čo sme zmerali, kým vznikol tento systém</h1>
-<p class="sub">Všetky čísla sú reálne namerané (M3 Pro/Max, mlx-whisper, suite 7+ WAV,
-FLEURS SK 120 viet, reálne prednáškové nahrávky). Plný dokument:
-<code>docs/BENCHMARK.md</code>.</p>
+<h1>Lab</h1>
+<p class="sub">Čo sme zmerali, kým vznikol tento systém. Všetky čísla sú reálne namerané
+(M3 Pro/Max, mlx-whisper, suite 7+ WAV, FLEURS SK 120 viet, reálne prednáškové
+nahrávky). Plný dokument: <code>docs/BENCHMARK.md</code>.</p>
 
 <div class="kpis">
   <div class="kpi"><div class="v">5,81<small> %</small></div>
@@ -109,7 +196,7 @@ FLEURS SK 120 viet, reálne prednáškové nahrávky). Plný dokument:
     <div class="l">zamietnutých experimentov</div></div>
 </div>
 
-<h2><span class="n">01</span> Trojstupňová odozva</h2>
+<h2 id="s1"><span class="n" style="background:linear-gradient(135deg,#8b5cf6,#6d4ddb)">01</span> Trojstupňová odozva</h2>
 <p class="lead">Užívateľ potrebuje vidieť reakciu &lt; 300 ms, ale presný text potrebuje
 kontext. Riešenie: tri vrstvy s rôznou zárukou.</p>
 <div class="flow3">
@@ -121,7 +208,7 @@ kontext. Riešenie: tri vrstvy s rôznou zárukou.</p>
     <div class="d">kinit-turbo-sk MLX + cross-model agreement</div></div>
 </div>
 
-<h2><span class="n">02</span> Výber final modelu — fine-tune vyhráva o 45 %</h2>
+<h2 id="s2"><span class="n" style="background:linear-gradient(135deg,#58a0ff,#2f7cf6)">02</span> Výber final modelu — fine-tune vyhráva o 45 %</h2>
 <div class="card">
 <table>
 <tr><th>test</th><th>large-v3-turbo</th><th>kinit-turbo-sk</th></tr>
@@ -133,11 +220,11 @@ kontext. Riešenie: tri vrstvy s rôznou zárukou.</p>
 slovníkovú korekciu. Pri českom hosťovi sa SK fine-tune rozpadá — mimo zadania.</p>
 </div>
 
-<h2><span class="n">03</span> Draft latencia — grid 11+16 konfigurácií</h2>
+<h2 id="s3"><span class="n" style="background:linear-gradient(135deg,#0ea5a4,#0b8584)">03</span> Draft latencia — grid 11+16 konfigurácií</h2>
 <p class="lead">Kľúčový objav: latenciu nedominoval dekód, ale <b>display-hold</b> a čakanie
 na pravý kontext. Metrika bola opravená z „času dekódu" na „čas prvého zobrazenia"
 a celý grid premeraný nanovo.</p>
-<div class="card" id="gridChart">
+<div class="card">
   <div class="bar-row"><span class="lbl">small · 3,0 s · hold 0,8 (pôvodné)</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="val">1,76 s</span></div>
   <div class="bar-row"><span class="lbl">small · 1,5 s · hold 0,8</span><div class="track"><div class="fill" style="width:64%"></div></div><span class="val">1,12 s</span></div>
   <div class="bar-row"><span class="lbl">base · 2,0 s · hold 0,8</span><div class="track"><div class="fill" style="width:60%"></div></div><span class="val">1,05 s</span></div>
@@ -149,7 +236,7 @@ rieši ghost-kurzor, nie rýchlejší dekód. Stitch (dlhé okno na backfill) zd
 pokrytie súvislej reči na draftACC 81–100 %.</p>
 </div>
 
-<h2><span class="n">04</span> Halucinácie z ticha — vývoj gate-u</h2>
+<h2 id="s4"><span class="n" style="background:linear-gradient(135deg,#f2711c,#d95a0a)">04</span> Halucinácie z ticha — vývoj gate-u</h2>
 <div class="card">
 <table>
 <tr><th>verzia</th><th>princíp</th><th>výsledok</th></tr>
@@ -161,7 +248,7 @@ pokrytie súvislej reči na draftACC 81–100 %.</p>
 Regresný test používa fixture skutočného šumu — biely šum má flux 0,55 a prešiel by.</p>
 </div>
 
-<h2><span class="n">05</span> Cintorín experimentov — čo NEfunguje (a prečo)</h2>
+<h2 id="s5"><span class="n" style="background:linear-gradient(135deg,#e9468f,#c22d72)">05</span> Cintorín experimentov — čo NEfunguje (a prečo)</h2>
 <p class="lead">Každý zamietnutý smer má namerané číslo. Toto je polovica hodnoty projektu.</p>
 <div class="card">
   <div class="exp"><b>word_timestamps approx</b><span class="why">dekód −1,1 s, ale WER 3→15 % — agreement sa rozpadá na nepresných časoch</span><span class="verdict v-dead">zamietnuté</span></div>
@@ -181,7 +268,7 @@ Regresný test používa fixture skutočného šumu — biely šum má flux 0,55
 agreement + edge guard, a presne tie držia WER nízko. Rýchlejšie biele = presný SK
 streaming model (fine-tune), nie infra triky.</p>
 
-<h2><span class="n">06</span> Lokál vs cloud — kedy čo</h2>
+<h2 id="s6"><span class="n" style="background:linear-gradient(135deg,#5b5bd6,#4646b8)">06</span> Lokál vs cloud — kedy čo</h2>
 <div class="card">
 <table>
 <tr><th>scenár</th><th>lokál (kinit)</th><th>cloud live</th><th>cloud 4o</th><th>cloud mini</th></tr>
@@ -196,7 +283,7 @@ cloudu („väzenská cela" v telekom prednáške) sú viditeľné aj bez refere
 prepínač v Studiu.</p>
 </div>
 
-<h2><span class="n">07</span> Stabilita — termálny beh 26 min</h2>
+<h2 id="s7"><span class="n" style="background:linear-gradient(135deg,#22a559,#188245)">07</span> Stabilita — termálny beh 26 min</h2>
 <div class="card">
 <p class="lead" style="margin-bottom:8px">12 × continuous.wav za sebou (M3 Max, ANE+Metal
 naplno): latencie oscilujú (MLX fronta, scheduling), ale <b>žiadny monotónny nárast</b>.
@@ -204,7 +291,7 @@ naplno): latencie oscilujú (MLX fronta, scheduling), ale <b>žiadny monotónny 
 <p class="lead" style="margin-bottom:0">Flicker stabilný 6–11 % naprieč behmi; halucinácie 0.</p>
 </div>
 
-<h2><span class="n">08</span> Vlastný prínos (vs prevzaté)</h2>
+<h2 id="s8"><span class="n" style="background:linear-gradient(135deg,#e3a008,#b87f04)">08</span> Vlastný prínos (vs prevzaté)</h2>
 <div class="card">
 <table>
 <tr><th>vlastné</th><th>prevzaté</th></tr>
