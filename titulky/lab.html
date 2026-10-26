@@ -142,6 +142,69 @@ td.m { color: var(--ink2); }
   .exp { grid-template-columns: 1fr; gap: 4px; }
   .exp .verdict { justify-self: start; }
 }
+
+/* ── prezentačný režim ─────────────────────────────────── */
+#presBtn { position: fixed; right: 26px; bottom: 26px; z-index: 50;
+  background: linear-gradient(180deg, #58a0ff, var(--blue)); color: #fff;
+  border: none; border-radius: 999px; padding: 13px 26px;
+  font: 650 14px var(--font); cursor: pointer;
+  box-shadow: 0 10px 26px rgba(47,124,246,.45), inset 0 1px 0 rgba(255,255,255,.25);
+  transition: transform .15s var(--ease); }
+#presBtn:hover { transform: translateY(-2px); }
+#deck { position: fixed; inset: 0; z-index: 100; background: var(--bg);
+  display: none; }
+#deck.open { display: block; }
+.slide { position: absolute; inset: 0; display: none;
+  flex-direction: column; align-items: center; justify-content: center;
+  padding: 60px 9vw 90px; text-align: center; }
+.slide.on { display: flex; animation: slidein .35s var(--ease); }
+@keyframes slidein { from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; } }
+.slide .k { font-size: 12px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--blue2); font-weight: 700; margin-bottom: 18px; }
+.slide h3 { font-family: var(--font-d); font-weight: 800;
+  font-size: clamp(28px, 4.2vw, 52px); letter-spacing: -.02em;
+  line-height: 1.12; max-width: 900px; }
+.slide .p { font-size: clamp(15px, 1.5vw, 19px); color: var(--ink2);
+  max-width: 760px; margin-top: 18px; line-height: 1.6; }
+.slide .p b { color: var(--ink); }
+.slide .viz { width: min(920px, 86vw); margin-top: 34px; }
+.slide .viz .chart { margin: 0; }
+.slide .bignum { font-family: var(--font-d); font-weight: 800;
+  font-size: clamp(54px, 9vw, 120px); letter-spacing: -.03em;
+  background: linear-gradient(135deg, #58a0ff, var(--blue));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  margin: 10px 0 4px; }
+.slide .cards3 { display: flex; gap: 16px; margin-top: 36px; flex-wrap: wrap;
+  justify-content: center; }
+.slide .mini { background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--r-lg); padding: 20px 24px; min-width: 200px;
+  box-shadow: var(--shadow), inset 0 1px 0 var(--hi); text-align: left; }
+.slide .mini .t { font-size: 11px; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--ink3); }
+.slide .mini .v { font-family: var(--font-d); font-size: 30px; font-weight: 800;
+  margin: 4px 0; }
+.slide .mini .d { font-size: 12.5px; color: var(--ink2); }
+#deckNav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 110;
+  display: none; align-items: center; justify-content: center; gap: 18px;
+  padding: 18px; }
+#deck.open ~ #deckNav, #deckNav.open { display: flex; }
+.dkbtn { background: linear-gradient(180deg, #33363d, #2a2d33);
+  color: var(--ink); border: 1px solid var(--line); border-radius: 999px;
+  width: 42px; height: 42px; font-size: 16px; cursor: pointer;
+  box-shadow: inset 0 1px 0 var(--hi); }
+.dkbtn:hover { border-color: var(--blue); }
+#dots { display: flex; gap: 7px; }
+#dots i { width: 7px; height: 7px; border-radius: 50%;
+  background: rgba(255,255,255,.18); cursor: pointer; transition: all .2s; }
+#dots i.on { background: var(--blue2); transform: scale(1.35); }
+#deckClose { position: fixed; top: 20px; right: 24px; z-index: 120;
+  display: none; }
+#deckNav .hint { position: absolute; right: 22px; font-size: 11.5px;
+  color: var(--ink3); }
+/* architektúra diagram */
+.arch { width: min(960px, 88vw); margin-top: 30px; }
+.arch svg { width: 100%; height: auto; }
 </style>
 </head>
 <body>
@@ -412,6 +475,126 @@ projekt, nie patch.</p>
 
 </main>
 
+<button id="presBtn">▶ Prezentácia</button>
+
+<div id="deck">
+<section class="slide"><span class="k">TITULKY.ŽIVO</span>
+  <h3>Živé slovenské titulky,<br>celé na tvojom Macu.</h3>
+  <p class="p">Hovoríš — a text sa objavuje na plátne. Bez internetu, bez
+  predplatného, bez posielania hlasu tretej strane. Toto je príbeh, ako sme to
+  postavili a čo sme sa pri tom namerali.</p></section>
+
+<section class="slide"><span class="k">Problém</span>
+  <h3>Rýchlo, alebo správne?<br>Reč chce oboje naraz.</h3>
+  <p class="p">Divák potrebuje vidieť text <b>do sekundy</b>, inak titulky pôsobia
+  pokazene. Ale rozpoznávač potrebuje <b>počuť celú vetu</b>, aby ju napísal správne.
+  Jeden model nedokáže oboje — to je základné napätie celého projektu.</p></section>
+
+<section class="slide"><span class="k">Riešenie</span>
+  <h3>Dva modely. Jeden našepkáva,<br>druhý potvrdzuje.</h3>
+  <p class="p">Malý rýchly model píše <b style="color:#9aa3af">šedý náčrt</b> za pol
+  sekundy. Veľký presný model ho o ~2 s neskôr prepíše na <b>biele definitívne
+  slová</b>. Divák má okamžitú odozvu aj správny text — rovnaký vzor používa
+  Google Meet, tu beží celý lokálne.</p>
+  <div class="cards3">
+    <div class="mini"><div class="t">kurzor ▊</div><div class="v">&lt; 0,2 s</div>
+      <div class="d">reakcia na hlas — „počujem ťa"</div></div>
+    <div class="mini"><div class="t">šedý náčrt</div><div class="v">~0,5 s</div>
+      <div class="d">rýchly model, môže sa mýliť</div></div>
+    <div class="mini"><div class="t">biely text</div><div class="v">2–3 s</div>
+      <div class="d">presný model, už sa nemení</div></div>
+  </div></section>
+
+<section class="slide"><span class="k">Architektúra</span>
+  <h3>Každý čip robí to, čo vie najlepšie.</h3>
+  <div class="arch" id="archViz"></div>
+  <p class="p" style="margin-top:22px">Rýchly model beží na <b>Neural Engine</b>
+  (čip na AI, inak by zaháľal), presný na <b>grafickom čipe</b>. Nebijú sa o výkon —
+  preto môžu bežať obidva naraz na jednom notebooku.</p></section>
+
+<section class="slide"><span class="k">Výber modelu</span>
+  <h3>Slovenský fine-tune robí<br>o 45 % menej chýb.</h3>
+  <p class="p">Porovnali sme najlepší všeobecný Whisper s verziou dotrénovanou na
+  slovenčine (KInIT). Na 120 vetách od reálnych rečníkov:</p>
+  <div class="viz"><div class="chart" id="pch_model"></div></div>
+  <p class="p">„išel → išiel", „bátislave → v Bratislave", „svetho júra → Svätý Jur".</p></section>
+
+<section class="slide"><span class="k">Meranie rýchlosti</span>
+  <h3>27 konfigurácií. A jeden<br>nepríjemný objav o metrike.</h3>
+  <p class="p">Prvá metrika merala, ako rýchlo model <b>dekóduje</b>. Lenže divák
+  nevidí dekódovanie — vidí <b>zobrazenie</b>. Po oprave metriky sa poradie
+  konfigurácií zmenilo a celý experiment sa meral odznova. Výsledok: šedé slovo
+  z 1,76 s na</p>
+  <div class="bignum">0,47 s</div>
+  <p class="p">Hlbšie to nejde: fyzikálne dno kĺzavého okna je ~0,4 s. Preto pocit
+  okamžitosti rieši kurzor, nie rýchlejší model.</p></section>
+
+<section class="slide"><span class="k">Najzákernejší bug</span>
+  <h3>„Ďakujem za pozornosť."<br>×11, do prázdnej miestnosti.</h3>
+  <p class="p">Keď nikto nehovorí, Whisper si z šumu <b>vymýšľa</b> — najčastejšie
+  frázy z titulkov, na ktorých sa učil. Riešenie: šum má plochú hlasitosť
+  <b>a zároveň</b> nehybné spektrum; reč vždy aspoň jedno poruší. Dve podmienky
+  namiesto jednej —</p>
+  <div class="viz"><div class="chart" id="pch_flux"></div></div>
+  <p class="p"><b>0 halucinácií</b> a súčasne <b>0 % chýb</b> na rýchlej reči.</p></section>
+
+<section class="slide"><span class="k">XAGREE</span>
+  <h3>Keď sa dva rôzne modely zhodnú,<br>netreba čakať na istotu.</h3>
+  <p class="p">Normálne čaká biely text na <b>dve zhodné čítania</b> presného modelu
+  (~2 s navyše). Ale ak rýchly model — úplne iná architektúra — napísal to isté
+  slovo na tom istom mieste, zhoda dvoch svedkov stačí. Biele slová prichádzajú
+  <b>o 1,5–2 s skôr</b> bez straty presnosti.</p>
+  <div class="viz"><div class="chart" id="pch_xagree"></div></div></section>
+
+<section class="slide"><span class="k">Cintorín</span>
+  <h3>16 experimentov zomrelo,<br>aby týchto 5 čísel žilo.</h3>
+  <p class="p">Kvantizácia, menšie modely, approx časy, cudzie modely ako sudcovia,
+  LLM opravy… každý smer má namerané číslo, prečo nie. Vzor: <b>každý trik, ktorý
+  obišiel overovanie zhody, vymenil presnosť za rýchlosť v zlom kurze.</b></p>
+  <div class="cards3">
+    <div class="mini"><div class="t">int4 kvantizácia</div><div class="v">pomalšia</div>
+      <div class="d">2,89 s vs 2,69 s fp16 — a horší text</div></div>
+    <div class="mini"><div class="t">approx časy</div><div class="v">WER 3→15 %</div>
+      <div class="d">zhoda sa rozpadá na nepresných časoch</div></div>
+    <div class="mini"><div class="t">cudzí model ako draft</div><div class="v">8× pomalší</div>
+      <div class="d">dva modely na GPU sa dusia — ANE je kľúč</div></div>
+  </div></section>
+
+<section class="slide"><span class="k">Lokál vs cloud</span>
+  <h3>Cloud je rýchlejší v tichu.<br>Lokál vyhráva v posluchárni.</h3>
+  <p class="p">Na čistom audiu je cloud presný a 4× rýchlejší ($0,18–1/hod). Ale so
+  vzdialeným mikrofónom a šumom posluchárne cloud halucinuje celé vety — lokálny
+  model drží významovo správny text. Preto má Studio prepínač.</p>
+  <div class="viz"><div class="chart" id="pch_cloud"></div></div></section>
+
+<section class="slide"><span class="k">Stabilita</span>
+  <h3>26 minút plného výkonu.<br>Bez prehriatia, bez driftu.</h3>
+  <div class="cards3">
+    <div class="mini"><div class="t">halucinácie</div><div class="v">0</div>
+      <div class="d">naprieč 12 behmi za sebou</div></div>
+    <div class="mini"><div class="t">throttling</div><div class="v">žiadny</div>
+      <div class="d">pmset -g therm = 100 % výkon</div></div>
+    <div class="mini"><div class="t">flicker</div><div class="v">6–11 %</div>
+      <div class="d">stabilný, bez nárastu v čase</div></div>
+  </div></section>
+
+<section class="slide"><span class="k">Zhrnutie</span>
+  <h3>Presnosť sa nedá oklamať.<br>Dá sa len šikovne rozdeliť.</h3>
+  <p class="p">Vlastné: dvojvrstvová architektúra ANE+GPU · dvojitý šumový gate ·
+  poctivá zobrazovacia metrika · XAGREE cross-model commit · evaluačná infra
+  s auditnými nahrávkami. <b>Prevzaté:</b> Whisper, kinit váhy, myšlienka
+  LocalAgreement-2.</p>
+  <p class="p" style="margin-top:26px;color:var(--ink3)">Celý rozbor s grafmi: Esc
+  → stránka Lab · docs/BENCHMARK.md</p></section>
+</div>
+
+<div id="deckNav">
+  <button class="dkbtn" id="dkPrev">←</button>
+  <div id="dots"></div>
+  <button class="dkbtn" id="dkNext">→</button>
+  <span class="hint">← → listovanie · Esc zavrieť</span>
+</div>
+
 <script>
 /* ── mini chart lib (SVG, bez závislostí — offline) ───── */
 const NS = "http://www.w3.org/2000/svg";
@@ -662,6 +845,119 @@ lines("ch_thermal",
    {name: "flicker", color: "#22a559",
     vals: [10.3,8.8,9.7,10.1,9.0,6.6,9.6,9.6,11.3,9.0,10.1,6.2]}],
   {ymax: 55});
+
+/* ── prezentácia ──────────────────────────────────────── */
+const deck = document.getElementById("deck");
+const slides = [...deck.querySelectorAll(".slide")];
+const dotsEl = document.getElementById("dots");
+let cur = 0, deckInit = false;
+
+slides.forEach((_, i) => {
+  const d = document.createElement("i");
+  d.onclick = () => show(i);
+  dotsEl.appendChild(d);
+});
+const dots = [...dotsEl.children];
+
+function show(i) {
+  cur = Math.max(0, Math.min(slides.length - 1, i));
+  slides.forEach((s, j) => s.classList.toggle("on", j === cur));
+  dots.forEach((d, j) => d.classList.toggle("on", j === cur));
+}
+function openDeck() {
+  deck.classList.add("open");
+  document.getElementById("deckNav").classList.add("open");
+  document.getElementById("presBtn").style.display = "none";
+  document.body.style.overflow = "hidden";
+  if (!deckInit) { deckInit = true; renderDeckViz(); }
+  show(0);
+}
+function closeDeck() {
+  deck.classList.remove("open");
+  document.getElementById("deckNav").classList.remove("open");
+  document.getElementById("presBtn").style.display = "";
+  document.body.style.overflow = "";
+}
+document.getElementById("presBtn").onclick = openDeck;
+document.getElementById("dkPrev").onclick = () => show(cur - 1);
+document.getElementById("dkNext").onclick = () => show(cur + 1);
+document.addEventListener("keydown", e => {
+  if (!deck.classList.contains("open")) return;
+  if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); show(cur + 1); }
+  else if (e.key === "ArrowLeft") { e.preventDefault(); show(cur - 1); }
+  else if (e.key === "Escape") closeDeck();
+});
+if (location.hash === "#prezentacia") openDeck();
+
+function renderDeckViz() {
+  /* architektúra — tok dát */
+  (function() {
+    const el = document.getElementById("archViz"); if (!el) return;
+    const svg = svgEl("svg", {viewBox: "0 0 960 290"});
+    function box(x, y, w, h, title, sub, color, titleSize) {
+      svg.appendChild(svgEl("rect", {x, y, width: w, height: h, rx: 16,
+        fill: "#26292f", stroke: color || "rgba(255,255,255,.1)",
+        "stroke-width": 1.5}));
+      svg.appendChild(txt(x + w / 2, y + (sub ? h / 2 - 4 : h / 2 + 5),
+        title, "#f5f5f7", titleSize || 14, "middle", 1));
+      if (sub) svg.appendChild(txt(x + w / 2, y + h / 2 + 16, sub,
+        "#8b93a0", 11, "middle"));
+    }
+    function arrow(x1, y1, x2, y2, color) {
+      svg.appendChild(svgEl("line", {x1, y1, x2, y2,
+        stroke: color || "#5b6170", "stroke-width": 2}));
+      const a = Math.atan2(y2 - y1, x2 - x1);
+      const p = `${x2},${y2} ${x2 - 9 * Math.cos(a - .45)},${y2 - 9 * Math.sin(a - .45)} ${x2 - 9 * Math.cos(a + .45)},${y2 - 9 * Math.sin(a + .45)}`;
+      svg.appendChild(svgEl("polygon", {points: p, fill: color || "#5b6170"}));
+    }
+    box(10, 115, 120, 60, "🎙 Mikrofón", "16 kHz audio");
+    box(185, 115, 140, 60, "Šumový gate", "dynamika ∧ flux", "#e3a008");
+    arrow(130, 145, 183, 145);
+    box(390, 30, 200, 70, "DRAFT — rýchly", "whisper base-sk · Neural Engine", "#8b5cf6");
+    box(390, 190, 200, 70, "FINAL — presný", "kinit-turbo-sk · Metal GPU", "#2f7cf6");
+    arrow(325, 135, 388, 70, "#8b5cf6");
+    arrow(325, 155, 388, 220, "#2f7cf6");
+    box(650, 110, 165, 70, "Agreement", "2× zhoda alebo XAGREE", "#22a559");
+    arrow(590, 65, 648, 128, "#8b5cf6");
+    arrow(590, 225, 648, 162, "#2f7cf6");
+    box(870, 50, 80, 54, "Overlay", "plátno", "#58a0ff", 12.5);
+    box(870, 125, 80, 54, "Studio", "réžia", "#58a0ff", 12.5);
+    box(870, 200, 80, 54, "Flow", "debug", "#58a0ff", 12.5);
+    arrow(815, 132, 868, 80);
+    arrow(815, 145, 868, 150);
+    arrow(815, 158, 868, 222);
+    svg.appendChild(txt(732, 100, "WebSocket", "#5b6170", 10.5, "middle"));
+    svg.appendChild(txt(488, 20, "šedý text ~0,5 s", "#8b93a0", 11, "middle"));
+    svg.appendChild(txt(488, 280, "biely text 2–3 s", "#8b93a0", 11, "middle"));
+    el.appendChild(svg);
+  })();
+
+  hbars("pch_model", [
+    {label: "všeobecný large-v3-turbo", vals: [10.54]},
+    {label: "kinit-turbo-sk (slovenský)", vals: [5.81], hi: 1},
+  ], {series: [{color: "#5b6170", hiColor: "#2f7cf6"}], unit: " % chýb",
+      fmt: v => v.toFixed(1), lblW: 290, max: 12});
+
+  hbars("pch_flux", [
+    {label: "ticho v miestnosti", vals: [0.131]},
+    {label: "— prah —", vals: [0.22], hi: 1},
+    {label: "ľudská reč", vals: [0.31], hi: 1, suffix: "–0,46"},
+  ], {series: [{color: "#5b6170", hiColor: "#eab308"}], unit: "",
+      fmt: v => v.toFixed(2), lblW: 290, max: 0.5});
+
+  hbars("pch_xagree", [
+    {label: "čakanie na 2. čítanie", vals: [6.5]},
+    {label: "XAGREE — draft ako svedok", vals: [4.95], hi: 1},
+  ], {series: [{color: "#5b6170", hiColor: "#22a559"}], unit: " s",
+      fmt: v => v.toFixed(1), lblW: 290, max: 8});
+
+  hbars("pch_cloud", [
+    {label: "poslucháreň: cloud", vals: [57.3]},
+    {label: "poslucháreň: lokál", vals: [37], hi: 1},
+    {label: "čisté audio: obaja", vals: [0.0], suffix: " — remíza"},
+  ], {series: [{color: "#d92d3a", hiColor: "#22a559"}], unit: " % chýb",
+      fmt: v => v.toFixed(0), lblW: 290, max: 65});
+}
 </script>
 </body>
 </html>
