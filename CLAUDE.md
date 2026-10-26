@@ -166,6 +166,8 @@ Detaily: `docs/BENCHMARK.md`.
 3. **RMS AGC** (WebRTC vzor): noisy lepší, slow horšší — zamietnutý
 4. **Denoising** pred ASR: WER +3–17 p. b. — zámerne nie je
 5. **Parakeet-TDT v3**: streaming WER 12.9–29 % SK — zamietnutý
+   - ako final engine: latencia 1.3–2.8 s super, ale jazykový drift (PL/HR/EN, bez language forcingu) na reálnej reči — zamietnutý
+   - ako draft backend: GPU kontencia s MLX finalom (draft 3.8–8.2 s) — zamietnutý
 6. **Nemotron-3.5 streaming**: WER 9.7–62.5 % SK — zamietnutý
 7. **word_timestamps=approx**: −1.1 s dekódu ale WER 3→15 % — zamietnutý
 
