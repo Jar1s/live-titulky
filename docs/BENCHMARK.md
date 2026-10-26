@@ -631,3 +631,15 @@ M3 Max 48 GB drží 30 min naplno bez výkonnostného poklesu.
 - Rýchlejšie biele = presný SK streaming model (Whisper SK fine-tune alebo iný encoder-decoder s language forcing), nie hacky.
 - Spellfix ako opt-in pre doménové prednášky.
 - Všetky 11+ experimentov zdokumentovaných, zamietnutých s číslami.
+
+### XMODEL: cross-model agreement (26.10. popoludni) — ZAMIETNUTY (SK kvalita parakeetu)
+Idea: parakeet (0.4s) potvrdi kinit slova HNED -> biele po JEDNOM kinit
+dekode namiesto dvoch. Text vzdy kinitovy, drift sa len nezhodne.
+Implementovane za flagom TITULKY_XMODEL=1 (+debug TITULKY_XMODEL_DEBUG).
+Merane: na TTS vete promotuje 1-3 slova/cyklus (funguje!), na REALNEJ
+prednaske 0 promotov vsade — commit vyzaduje suvisly prefix a parakeet
+komoli kazde druhe SK slovo (zivurecna, vysavam, zakladni) -> prefix sa
+zlomi hned. Navyse +0.4s rezia/cyklus -> final p50 horsi (9-13s vs 7-8s).
+ZAVER: mechanizmus je spravny a hotovy, blokuje ho SK kvalita parakeetu
+(ta ista korenova pricina ako pri finale/drafte). Odomkne ho az presny
+SK druhy model — potom staci TITULKY_XMODEL=1.

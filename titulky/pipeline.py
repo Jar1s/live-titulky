@@ -32,6 +32,9 @@ FINAL_STEP_S = float(os.environ.get("TITULKY_FINAL_STEP", "1.0"))
 # (iný model, zhodný text aj čas) sa commitne po PRVOM final behu —
 # ušetrí celý druhý cyklus (~1.6-2.6s). Vypnutie: TITULKY_XAGREE=0
 XAGREE = os.environ.get("TITULKY_XAGREE", "1") == "1"
+# cross-model agreement: parakeet potvrdzuje kinit slová okamžite —
+# biele po JEDNOM kinit dekóde namiesto dvoch (experiment 26.10.)
+XMODEL = os.environ.get("TITULKY_XMODEL", "0") == "1"
 # final engine: mlx (DTW presné časy, dekód ~1.6s) | cpp (whisper.cpp Metal,
 # dekód ~0.8-1.3s, časy heuristické=nanič → commity len cez draft kotvy)
 FINAL_ENGINE = os.environ.get("TITULKY_FINAL_ENGINE", "mlx")
@@ -236,6 +239,7 @@ class TwoTierPipeline:
         self._cpp_stall = 0      # cykly bez kotvy (poistka degradácie)
         self._cpp_degraded = False
         self.final_agree = LocalAgreement()
+        self._xmodel_asr = None   # lazy parakeet pre XMODEL (final vlákno)
         self.slevel = SpeechLevel()
         self.final_text: list[str] = []      # potvrdený presný text (celý)
         self.display_from = 0                # index prvého slova aktuálneho bloku
@@ -776,6 +780,49 @@ class TwoTierPipeline:
                         self.final_agree.committed.extend(promoted)
                         new = new + promoted
                         pending = pending[len(promoted):]
+            if (XMODEL and not flush_mode and FINAL_ENGINE == "mlx"
+                    and pending):
+                # cross-model agreement: parakeet (0.4s) potvrdí kinit
+                # slová HNEĎ — netreba čakať na druhý kinit dekód (2.5s→?).
+                # Text je VŽDY kinitový; parakeet drift sa len nezhodne.
+                if self._xmodel_asr is None:
+                    from .asr import ParakeetFinalASR
+                    self._xmodel_asr = ParakeetFinalASR()
+                try:
+                    pk = self._xmodel_asr.transcribe(audio, self.language)
+                    pk_keys = {(self._norm_key(w["text"]),
+                                round(off_s + w["start"]))
+                               for w in pk if w["text"].strip()}
+                    tailw = words[len(words) - len(pending):]
+                    edge_s = off_s + len(audio) / SAMPLE_RATE - 1.2
+                    xprom = []
+                    for txt, w in zip(pending, tailw):
+                        if off_s + w["end"] >= edge_s:
+                            break
+                        sec = round(off_s + w["start"])
+                        norm = self._norm_key(txt)
+                        if any((norm, sec + d) in pk_keys
+                               for d in (-1, 0, 1)):
+                            xprom.append(txt)
+                        else:
+                            break
+                    if xprom:
+                        self.final_agree.committed.extend(xprom)
+                        new = new + xprom
+                        pending = pending[len(xprom):]
+                        self.on_event({"t": "xmodel", "n": len(xprom)})
+                    if os.environ.get("TITULKY_XMODEL_DEBUG"):
+                        pd = [(self._norm_key(t),
+                               round(off_s + w["start"]))
+                              for t, w in zip(pending[:4], tailw[:4])]
+                        print(f"[xmodel] pend={len(pending)+len(xprom)} "
+                              f"prom={len(xprom)} pk={len(pk_keys)}\n"
+                              f"   pend: {pd}\n"
+                              f"   pk:   {sorted(pk_keys, key=lambda k: k[1])[:8]}")
+                except Exception as e:
+                    self.on_event({"t": "xmodel_err", "msg": str(e)[:80]})
+                    if os.environ.get("TITULKY_XMODEL_DEBUG"):
+                        print(f"[xmodel] ERR {e}")
             # anti-loop: nekomituj presne tú istú sekvenciu, aká už je na
             # konci prepisu (Whisper v slučke opakuje „Ďakujem za pozornosť")
             if new and self.final_text[-len(new):] == new:

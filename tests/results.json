@@ -1,12 +1,12 @@
 [
  {
-  "test": "continuous.wav",
-  "wer": 0.06944444444444445,
+  "test": "normal.wav",
+  "wer": 0.0967741935483871,
   "hallucinated_words": null,
-  "draft_p50": 12.04686304201605,
-  "final_p50": 13.09985462553799,
-  "flicker": 0.0625,
-  "draft_acc": 0.14084507042253522,
-  "hyp": "automatické titulkovanie súvislej reči je najťažšia disciplína pretože hovoriaci nerobí žiadne prestávky a systém musí priebežne potvrdzovať slová bez čakania naticho. Kvalita rozpoznávania pritom nesmie klesnúť a text musí plynúť na obrazovku rovnomerne ako popri bežnom čítaní správ. Divák si všimne každé zaváhanie, preto meriame latenciu aj presnosti na dlhom neprerušovanom úseku, ktorý trvá viac než 30 sekúnd a obsahuje bežnú slovnú zásobu aj odborné výrazy ako neurónová sieť alebo akcelerátor."
+  "draft_p50": 2.1812818329920995,
+  "final_p50": 4.934822500053793,
+  "flicker": 0.1,
+  "draft_acc": 0.6071428571428571,
+  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od hluku v okolí, výslovnosti rýchlosti reči meranie dôležité."
  }
 ]
