@@ -11,6 +11,7 @@ import json
 import os
 import pathlib
 import statistics
+import secrets
 import threading
 import time
 
@@ -23,11 +24,13 @@ from . import trace as rt
 from .pipeline import TwoTierPipeline
 
 CLIENTS = set()
+_clients_lock = threading.Lock()
 LOOP = None
 PIPE = None   # beziaca pipeline — pre UI pause toggle
 ENGINE = {"engine": None, "model": None, "switching": False,
           "language": "sk"}
 ENGINE_LOCK = threading.Lock()
+_state_lock = threading.Lock()  # chráni PIPE, SESSION
 AUDIO_DIR = None  # nastaví main() po vytvorení trace adresára
 SESSION = None    # aktuálna session pre históriu (sessions.py)
 HTML = (pathlib.Path(__file__).parent / "overlay.html").read_bytes()
@@ -99,9 +102,10 @@ def switch_engine(engine: str, model: str | None):
             pipe.warmup()
             pipe.start_mic()
             threading.Thread(target=pipe.run, daemon=True).start()
-        PIPE = pipe
+        with _state_lock:
+            PIPE = pipe
+            SESSION = sessions.new(engine, model)
         ENGINE.update(engine=engine, model=model)
-        SESSION = sessions.new(engine, model)
     except Exception as e:
         broadcast({"event": {"t": "cloud_err",
                              "msg": f"switch zlyhal: {e}"[:200]}})
@@ -114,12 +118,15 @@ def broadcast(data: dict):
     if LOOP is None:
         return
     msg = json.dumps(data, ensure_ascii=False)
-    for ws in list(CLIENTS):
+    with _clients_lock:
+        snapshot = list(CLIENTS)
+    for ws in snapshot:
         asyncio.run_coroutine_threadsafe(ws.send(msg), LOOP)
 
 
 async def handler(ws):
-    CLIENTS.add(ws)
+    with _clients_lock:
+        CLIENTS.add(ws)
     try:
         if PIPE is not None and PIPE.paused:
             await ws.send(json.dumps({"event": {"t": "paused", "on": True}}))
@@ -175,7 +182,8 @@ async def handler(ws):
                                "text": " ".join(PIPE.final_text)}},
                     ensure_ascii=False))
     finally:
-        CLIENTS.discard(ws)
+        with _clients_lock:
+            CLIENTS.discard(ws)
 
 
 def serve_html(connection, request):
@@ -198,6 +206,13 @@ def serve_html(connection, request):
         q = parse_qs(urlparse(request.path).query)
         sid = (q.get("id") or [None])[0]
         if (q.get("del") or [None])[0] and sid:
+            token = (q.get("token") or [None])[0] or ""
+            expected = os.environ.get("TITULKY_DELETE_TOKEN", "")
+            if not expected or not secrets.compare_digest(
+                    token.encode(), expected.encode()):
+                return Response(403, "Forbidden",
+                                Headers({"Content-Type": "text/plain"}),
+                                b"forbidden")
             ok = sessions.delete(sid)
             body = json.dumps({"ok": ok}).encode()
         elif sid:

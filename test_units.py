@@ -277,3 +277,48 @@ def test_spellfix_zachova_interpunkciu_a_kapitalizaciu():
     s = _spellfix()
     out, edits = s.apply(["Telecomunikačnú,"])
     assert out == ["Telekomunikačnú,"]
+
+
+# ---- JBOP-126: security fixy (race condition + delete auth) ---------------
+
+def test_clients_lock_exists():
+    """JBOP-126: _clients_lock musi existovat v main module."""
+    import threading
+    import titulky.main as m
+    assert hasattr(m, '_clients_lock')
+    assert isinstance(m._clients_lock, type(threading.Lock()))
+
+
+def test_state_lock_exists():
+    """JBOP-126: _state_lock musi existovat pre PIPE/SESSION."""
+    import threading
+    import titulky.main as m
+    assert hasattr(m, '_state_lock')
+    assert isinstance(m._state_lock, type(threading.Lock()))
+
+
+def test_broadcast_uses_snapshot():
+    """JBOP-126: broadcast() drzi lock len pocas kopirovania, nie pocas send."""
+    import inspect
+    import titulky.main as m
+    src = inspect.getsource(m.broadcast)
+    assert '_clients_lock' in src
+    assert 'snapshot' in src
+
+
+def test_delete_endpoint_requires_token():
+    """JBOP-126: DELETE endpoint ma compare_digest a TITULKY_DELETE_TOKEN."""
+    import inspect
+    import titulky.main as m
+    src = inspect.getsource(m.serve_html)
+    assert 'compare_digest' in src
+    assert 'TITULKY_DELETE_TOKEN' in src
+    assert '403' in src
+
+
+def test_delete_compare_digest_timing_safe():
+    """JBOP-126: porovnanie tokenu cez secrets.compare_digest (timing-safe)."""
+    import inspect
+    import titulky.main as m
+    src = inspect.getsource(m.serve_html)
+    assert 'secrets.compare_digest' in src
