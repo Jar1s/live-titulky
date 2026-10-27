@@ -380,6 +380,7 @@ body.theme-light #subs, body.theme-light #roll { text-shadow: none; }
   </div>
 </div>
 
+<script src="/hotkeys.js"></script>
 <script>
 /* ── Settings ──────────────────────────────────────────────────── */
 const SIZES   = { S:'30px', M:'38px', L:'46px', XL:'58px' };
@@ -486,6 +487,7 @@ document.getElementById('btn-diktovanie').addEventListener('click', () => { cfg.
 document.addEventListener('keydown', e => {
   if (e.key.toLowerCase() === 'm' && !e.target.closest('#settings-panel')) toggleMode();
 });
+if (window.HK) { HK.doc('m', 'Režim titulky / diktovanie'); HK.doc('k', 'Mikrofón pauza'); }
 
 /* ── Caption / idle / scrim stav ───────────────────────────────── */
 let captionHidden = false;

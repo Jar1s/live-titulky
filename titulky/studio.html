@@ -148,7 +148,14 @@ body {
 .stat .v { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .stat .l { font-size: 10.5px; color: var(--ink-3); letter-spacing: .05em;
            text-transform: uppercase; margin-top: 1px; }
-canvas.spark { width: 100%; height: 44px; margin-top: 10px; }
+canvas.spark { width: 100%; height: 56px; margin-top: 10px; }
+.dotl { display: inline-block; width: 8px; height: 8px; border-radius: 3px;
+  vertical-align: 0; margin-right: 4px; }
+#compute { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+#compute span { font-size: 10.5px; font-weight: 700; letter-spacing: .05em;
+  padding: 3px 10px; border-radius: 20px; text-transform: uppercase; }
+#compute .on { background: rgba(34,165,89,.16); color: #4ade80; }
+#compute .off { background: rgba(255,255,255,.05); color: var(--ink-3); }
 .sparklabel { font-size: 10.5px; color: var(--ink-3); margin-top: 8px;
               display: flex; justify-content: space-between; }
 
@@ -173,6 +180,7 @@ select, .row-btns button {
   <a class="nav on" href="/studio"><span class="ic">🎛</span>Studio</a>
   <a class="nav" href="/flow"><span class="ic">⚡</span>Flow</a>
   <a class="nav" href="/lab"><span class="ic">◉</span>Lab</a>
+  <a class="nav" href="/sessions"><span class="ic">▤</span>Záznamy</a>
   <a class="nav" href="/settings"><span class="ic">⚙</span>Nastavenia</a>
   <div class="foot">live réžia<br>prepínanie enginov za behu</div>
 </aside>
@@ -221,8 +229,12 @@ select, .row-btns button {
           <div class="l">biele p50</div></div>
       </div>
       <canvas id="spark" class="spark"></canvas>
-      <div class="sparklabel"><span>latencia bieleho (posledných 60)</span>
+      <div class="sparklabel">
+        <span><i class="dotl" style="background:#8b93a0"></i>šedé
+          <i class="dotl" style="background:#2f7cf6;margin-left:10px"></i>biele
+          · 2 min</span>
         <span id="sparkMax"></span></div>
+      <div id="compute"></div>
       <div id="meter"><div id="meterFill"></div></div>
     </div>
 
@@ -242,13 +254,15 @@ select, .row-btns button {
 </div>
 </div>
 
+<script src="/hotkeys.js"></script>
 <script>
 /* ── stav ──────────────────────────────────────────────── */
 const $ = id => document.getElementById(id);
 let ws, wsOk = false, paused = false;
 let engineState = {engine: null, model: null, switching: false, catalog: []};
 let t0 = Date.now(), cloudSec = 0, lastTick = Date.now();
-let finLat = [];           // posledné latencie bieleho pre sparkline
+let finLat = [];           // [{t,v}] biele latencie (2 min okno)
+let drLat = [];            // [{t,v}] šedé latencie (2 min okno)
 let srt = [];              // [{t0,t1,text}] klientske SRT segmenty
 let lastCommitted = "", lastCommitT = null;
 const CLOUD_RATE = {"gpt-live-transcribe": 0.017,
@@ -262,7 +276,17 @@ function connect() {
   ws.onclose = () => { wsOk = false; setDot(); setTimeout(connect, 1500); };
   ws.onmessage = m => { try { handle(JSON.parse(m.data)); } catch(e){} };
 }
+function renderCompute() {
+  const el = $("compute"); if (!el) return;
+  const local = engineState.engine === "local";
+  const cloud = engineState.engine === "cloud";
+  el.innerHTML =
+    `<span class="${local ? "on" : "off"}">ANE draft</span>` +
+    `<span class="${local ? "on" : "off"}">Metal final</span>` +
+    `<span class="${cloud ? "on" : "off"}">OpenAI Realtime</span>`;
+}
 function setDot() {
+  renderCompute();
   const d = $("dot");
   d.className = engineState.switching ? "sw" : (wsOk ? "on" : "");
   $("statusTxt").textContent = engineState.switching ? "prepínam model…"
@@ -297,8 +321,13 @@ function handle(d) {
     $("stDraft").textContent = d.avg_draft_latency_s.toFixed(2) + "s";
   if (d.avg_final_latency_s != null)
     $("stFinal").textContent = d.avg_final_latency_s.toFixed(2) + "s";
-  if (d.final_latency_s != null) {
-    finLat.push(d.final_latency_s); if (finLat.length > 60) finLat.shift();
+  const nowMs = Date.now();
+  if (d.final_latency_s != null) finLat.push({t: nowMs, v: d.final_latency_s});
+  if (d.draft_latency_s != null) drLat.push({t: nowMs, v: d.draft_latency_s});
+  if (d.final_latency_s != null || d.draft_latency_s != null) {
+    const cut = nowMs - 120000;
+    finLat = finLat.filter(x => x.t > cut);
+    drLat = drLat.filter(x => x.t > cut);
     drawSpark();
   }
   $("meterFill").style.width = d.speaking ? "92%" : "6%";
@@ -398,17 +427,29 @@ function esc(s){const d=document.createElement("div");d.textContent=s;
 /* ── sparkline ─────────────────────────────────────────── */
 function drawSpark() {
   const c = $("spark"), ctx = c.getContext("2d");
-  c.width = c.offsetWidth * 2; c.height = 88;
+  c.width = c.offsetWidth * 2; c.height = 112;
   ctx.clearRect(0, 0, c.width, c.height);
-  if (!finLat.length) return;
-  const max = Math.max(...finLat, 1);
+  const all = [...finLat, ...drLat];
+  if (!all.length) return;
+  const max = Math.max(...all.map(x => x.v), 1);
   $("sparkMax").textContent = "max " + max.toFixed(1) + "s";
-  const w = c.width / Math.max(finLat.length, 10);
-  ctx.fillStyle = "#2f7cf6aa";
-  finLat.forEach((v, i) => {
-    const h = Math.max(3, v / max * (c.height - 6));
-    ctx.fillRect(i * w, c.height - h, Math.max(2, w - 2), h);
-  });
+  const now = Date.now(), SPAN = 120000;
+  const px = t => (1 - (now - t) / SPAN) * c.width;
+  // gridlinky 1s
+  ctx.strokeStyle = "rgba(255,255,255,.05)"; ctx.lineWidth = 1;
+  for (let g = 1; g < max; g++) {
+    const y = c.height - g / max * (c.height - 8);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(c.width, y); ctx.stroke();
+  }
+  function series(xs, color) {
+    ctx.fillStyle = color;
+    xs.forEach(x => {
+      const h = Math.max(3, x.v / max * (c.height - 8));
+      ctx.fillRect(px(x.t) - 2, c.height - h, 4, h);
+    });
+  }
+  series(drLat, "#8b93a0aa");
+  series(finLat, "#2f7cf6cc");
 }
 
 /* ── hodiny + cena ─────────────────────────────────────── */
@@ -422,6 +463,18 @@ setInterval(() => {
   $("stCost").textContent = engineState.engine === "cloud" && rate
     ? "$" + (cloudSec / 60 * rate).toFixed(3) : "0 €";
 }, 1000);
+
+/* ── klávesové skratky ─────────────────────────────────── */
+HK.add(" ", "Pauza / pokračuj", () => ws && ws.send('{"t":"pause"}'));
+HK.add("k", "Kamera zap/vyp", () => $("btnCam").click());
+HK.add("t", "Export TXT", () => $("expTxt").click());
+HK.add("e", "Export SRT", () => $("expSrt").click());
+for (let i = 1; i <= 4; i++)
+  HK.add(String(i), `Engine ${i} (poradie v zozname)`, () => {
+    const c = engineState.catalog[i - 1];
+    if (c && !engineState.switching)
+      ws.send(JSON.stringify({t: "engine", engine: c.engine, model: c.model}));
+  });
 
 connect();
 </script>

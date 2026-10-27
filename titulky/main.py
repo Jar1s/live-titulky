@@ -18,6 +18,7 @@ import websockets
 from websockets.datastructures import Headers
 from websockets.http11 import Response
 
+from . import sessions
 from . import trace as rt
 from .pipeline import TwoTierPipeline
 
@@ -28,11 +29,14 @@ ENGINE = {"engine": None, "model": None, "switching": False,
           "language": "sk"}
 ENGINE_LOCK = threading.Lock()
 AUDIO_DIR = None  # nastaví main() po vytvorení trace adresára
+SESSION = None    # aktuálna session pre históriu (sessions.py)
 HTML = (pathlib.Path(__file__).parent / "overlay.html").read_bytes()
 FLOW = (pathlib.Path(__file__).parent / "flow.html").read_bytes()
 STUDIO = (pathlib.Path(__file__).parent / "studio.html").read_bytes()
 LAB = (pathlib.Path(__file__).parent / "lab.html").read_bytes()
 SETTINGS = (pathlib.Path(__file__).parent / "settings.html").read_bytes()
+SESSIONS_HTML = (pathlib.Path(__file__).parent / "sessions.html").read_bytes()
+HOTKEYS_JS = (pathlib.Path(__file__).parent / "hotkeys.js").read_bytes()
 
 # modely dostupné v Studio prepínači
 ENGINE_CATALOG = [
@@ -67,8 +71,13 @@ def switch_engine(engine: str, model: str | None):
         ENGINE["switching"] = True
     broadcast(_engine_state_msg())
     try:
+        global SESSION
         old = PIPE
         if old is not None:
+            try:
+                sessions.save(old, SESSION)
+            except Exception:
+                pass
             try:
                 old.stop()
             except Exception:
@@ -92,6 +101,7 @@ def switch_engine(engine: str, model: str | None):
             threading.Thread(target=pipe.run, daemon=True).start()
         PIPE = pipe
         ENGINE.update(engine=engine, model=model)
+        SESSION = sessions.new(engine, model)
     except Exception as e:
         broadcast({"event": {"t": "cloud_err",
                              "msg": f"switch zlyhal: {e}"[:200]}})
@@ -179,6 +189,31 @@ def serve_html(connection, request):
         return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), LAB)
     if request.path == "/settings":
         return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), SETTINGS)
+    if request.path == "/sessions":
+        return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), SESSIONS_HTML)
+    if request.path == "/hotkeys.js":
+        return Response(200, "OK", Headers({"Content-Type": "application/javascript"}), HOTKEYS_JS)
+    if request.path.startswith("/api/sessions"):
+        from urllib.parse import parse_qs, urlparse
+        q = parse_qs(urlparse(request.path).query)
+        sid = (q.get("id") or [None])[0]
+        if (q.get("del") or [None])[0] and sid:
+            ok = sessions.delete(sid)
+            body = json.dumps({"ok": ok}).encode()
+        elif sid:
+            # pred detailom aktualnej session ju autosavni
+            if SESSION and sid == SESSION.get("id"):
+                sessions.save(PIPE, SESSION)
+            body = json.dumps(sessions.get(sid) or {},
+                              ensure_ascii=False).encode()
+        else:
+            if SESSION:
+                sessions.save(PIPE, SESSION)   # live session v zozname
+            body = json.dumps(sessions.list_all(),
+                              ensure_ascii=False).encode()
+        return Response(200, "OK",
+                        Headers({"Content-Type": "application/json; charset=utf-8"}),
+                        body)
     if request.path.startswith("/audio/") and AUDIO_DIR:
         # audit WAV segmentov — len basename, žiadne traverzovanie
         name = os.path.basename(request.path[len("/audio/"):])
@@ -238,6 +273,17 @@ def _replay_worker(name):
                                        "dec_s": 0}]}})
 
 
+def _start_autosave():
+    def loop():
+        while True:
+            time.sleep(30)
+            try:
+                sessions.save(PIPE, SESSION)
+            except Exception:
+                pass
+    threading.Thread(target=loop, daemon=True).start()
+
+
 async def ws_main(host, port):
     global LOOP
     LOOP = asyncio.get_running_loop()
@@ -270,6 +316,9 @@ def main():
         PIPE = pipe
         ENGINE.update(engine="cloud", model=CLOUD_MODEL,
                       language=args.language)
+        global SESSION
+        SESSION = sessions.new("cloud", CLOUD_MODEL)
+        _start_autosave()
         print(f"CLOUD režim: {CLOUD_MODEL} (OpenAI Realtime)")
         if args.file:
             pipe.start_file(args.file)
@@ -281,6 +330,7 @@ def main():
         except KeyboardInterrupt:
             pass
         finally:
+            sessions.save(pipe, SESSION)
             pipe.stop()
             print("Prepis:", " ".join(pipe.final_text))
             for name, xs in (("DRAFT", pipe.draft_latencies),
@@ -295,6 +345,8 @@ def main():
                            on_event=lambda e: broadcast({"event": e}))
     PIPE = pipe
     ENGINE.update(engine="local", model=None, language=args.language)
+    globals()["SESSION"] = sessions.new("local", None)
+    _start_autosave()
 
     # run-trace: beh viditeľný v Projektovník BUILD tab Flow
     tr = rt.RunTrace("titulky", spustil="rucne")
@@ -378,6 +430,7 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
+        sessions.save(PIPE, SESSION)
         pipe.stop()
         tr.krok("koniec behu", t0=_t_ses,
                 vystup=rt.vystup("summary",
