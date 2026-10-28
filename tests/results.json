@@ -1,63 +1,69 @@
 [
  {
   "test": "normal.wav",
-  "wer": 0.0,
+  "wer": 0.06451612903225806,
   "hallucinated_words": null,
-  "draft_p50": 1.0295726659381756,
-  "final_p50": 5.638786458005198,
-  "flicker": 0.05555555555555555,
-  "draft_acc": 0.8709677419354839,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. systém musí pracovať rýchlo a presne kvalita rozpoznávania závisí od hluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
+  "draft_p50": 0.6831876669684416,
+  "final_p50": 4.297301708944142,
+  "flicker": 0.15517241379310345,
+  "draft_acc": 0.9333333333333333,
+  "retract": 41,
+  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí odluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
  },
  {
   "test": "fast.wav",
-  "wer": 0.0625,
+  "wer": 0.0,
   "hallucinated_words": null,
-  "draft_p50": 0.7779670420968907,
-  "final_p50": 4.740741792083718,
-  "flicker": 0.06666666666666667,
-  "draft_acc": 0.75,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí vypracovať rýchlo a presne."
+  "draft_p50": 0.7900336660379548,
+  "final_p50": 3.597421875009313,
+  "flicker": 0.03571428571428571,
+  "draft_acc": 0.9285714285714286,
+  "retract": 10,
+  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne."
  },
  {
   "test": "slow.wav",
   "wer": 0.0625,
   "hallucinated_words": null,
-  "draft_p50": 0.586529208058491,
-  "final_p50": 4.351913333041594,
-  "flicker": 0.038461538461538464,
-  "draft_acc": 0.875,
-  "hyp": "Automatické titulky vyprevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne."
+  "draft_p50": 0.4083953124727122,
+  "final_p50": 3.583787291489542,
+  "flicker": 0.08823529411764706,
+  "draft_acc": 0.9411764705882353,
+  "retract": 14,
+  "hyp": "Automatické titulky prevádzajú živú reč na a text v reálnom čase. Systém musí pracovať rýchlo a presne."
  },
  {
   "test": "quiet.wav",
-  "wer": 0.0,
+  "wer": 0.0967741935483871,
   "hallucinated_words": null,
-  "draft_p50": 0.9746227090503092,
-  "final_p50": 4.828685375091154,
-  "flicker": 0.038461538461538464,
-  "draft_acc": 0.9354838709677419,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od hluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
+  "draft_p50": 0.675690458985045,
+  "final_p50": 4.15002795902919,
+  "flicker": 0.32894736842105265,
+  "draft_acc": 0.896551724137931,
+  "retract": 34,
+  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí odluku v okolí, výslovnosti rýchlosti reči. Meranie presnosti je dôležité."
  },
  {
   "test": "noisy.wav",
-  "wer": 0.22580645161290322,
+  "wer": 0.12903225806451613,
   "hallucinated_words": null,
-  "draft_p50": 1.011031666062772,
-  "final_p50": 5.060117124549579,
-  "flicker": 0.11428571428571428,
-  "draft_acc": 0.8064516129032258,
-  "hyp": "automatické titulky vyprevádzajú živý reč na text v reálnom čase. Systém musí pracovať rýchlo a presne valita rozpoznávania závislých od bloku v okolí výslovnosti a rýchlosti reči meranie trestnosti je dôležitá."
+  "draft_p50": 0.5551708749402309,
+  "final_p50": 4.735759791502729,
+  "flicker": 0.09302325581395349,
+  "draft_acc": 0.8387096774193549,
+  "retract": 56,
+  "hyp": "automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne valita rozpoznávania závislých od bloku v okolí výslovnosti a rýchlosti reči Meranie presnosti je dôležitá."
  },
  {
   "test": "pauses.wav",
-  "wer": 0.0,
+  "wer": 0.12903225806451613,
   "hallucinated_words": null,
-  "draft_p50": 1.1907891880045645,
-  "final_p50": 4.857498458519113,
-  "flicker": 0.024390243902439025,
-  "draft_acc": 0.9354838709677419,
-  "hyp": "Automatické titulky prevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. Kvalita rozpoznávania závisí od hluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti je dôležité."
+  "draft_p50": 0.7928503749566147,
+  "final_p50": 3.811451562992298,
+  "flicker": 0.140625,
+  "draft_acc": 0.8275862068965517,
+  "retract": 28,
+  "hyp": "Automatické titulky vyprevádzajú živú reč na text v reálnom čase. Systém musí pracovať rýchlo a presne. kvalita rozpoznávania závisí odluku v okolí, výslovnosti a rýchlosti reči. Meranie presnosti dôležité."
  },
  {
   "test": "silence.wav",
@@ -67,66 +73,73 @@
   "final_p50": null,
   "flicker": 0.0,
   "draft_acc": null,
+  "retract": 0,
   "hyp": ""
  },
  {
   "test": "continuous.wav",
-  "wer": 0.09722222222222222,
+  "wer": 0.08333333333333333,
   "hallucinated_words": null,
-  "draft_p50": 1.2089479579729954,
-  "final_p50": 5.021286666460801,
-  "flicker": 0.1111111111111111,
-  "draft_acc": 0.9014084507042254,
-  "hyp": "Automatické titulkovanie nesúvislej reči je najťažšia disciplína, pretože hovoriaci nerobí žiadne prestávky a systém musí priebežne potvrdzovať slová bez čakania naticho. Kvalita a rozpoznávania pritom nesmie klesnúť a text musí plynúť na obrazovku rovnomerne ako pri bežnom čítaní divák si všimne každé zaváhanie preto meriame latenciu aj nepresnosti na dlhom neprerušovanom úseku, ktorý trvá viac než 30 sekúnd a obsahuje bežnú slovnú zásobu aj odborné výrazy ako neurónová sieť alebo akcelerátor"
+  "draft_p50": 1.2842478749966233,
+  "final_p50": 4.372029834000394,
+  "flicker": 0.15333333333333332,
+  "draft_acc": 0.9166666666666666,
+  "retract": 104,
+  "hyp": "automatické titulkovanie súvislej reči najťažšia disciplína, pretože hovoriaci nerobí žiadne prestávky a systém musí priebežne potvrdzovať slová bez čakania naticho. Kvalita rozpoznávania pritom nesmie je klesnúť a text musí plynúť na obrazovku rovnomerne ako pri bežnom čítaní správ. divák si všimne každé zaváhanie že preto meriame latenciu aj presnosť na dlhom neprerušovanom úseku, ktorý trvá viac než 30 sekúnd a obsahuje bežnú slovnú zásobu aj odborné výrazy ako neurónová sieť alebo akcelerátor"
  },
  {
   "test": "real1.wav",
-  "wer": 0.3018867924528302,
+  "wer": 0.5094339622641509,
   "hallucinated_words": null,
-  "draft_p50": 0.9231635830039124,
-  "final_p50": 10.840947333015503,
-  "flicker": 0.46706586826347307,
-  "draft_acc": 0.2708333333333333,
-  "hyp": "zoznamy som tam urobil taký prehľad toho, tých tzv. tých cítp signalizačných systémov z jednotky až po sedmičku. Áno? Všetko tam je. a ho stačí, takže v rámci nejakého svojho vlastného vzdelávania si to prípadne pozrite, zase platí to, pokiaľ by ste chceli podrobnejšie, veľkým vysloví. dobre? dobre."
+  "draft_p50": 0.8792717090109363,
+  "final_p50": 6.488497896010521,
+  "flicker": 0.26900584795321636,
+  "draft_acc": 0.21428571428571427,
+  "retract": 31,
+  "hyp": "zoznámiť by som tam urobil taký prehľad toho, tých tzv. PC ITP, si znalizačný systém od jednotky až po sedmičky. áno, všetko tam je a to nejaké, že nejaké, že že to nejaké, že že si že že to nejaké, že nejaké, viete zase platiť to, pokiaľ by ste chceli podrobnejšie, som k dispozícii. Dobre? Dobre."
  },
  {
   "test": "real2.wav",
-  "wer": 0.45454545454545453,
+  "wer": 0.4772727272727273,
   "hallucinated_words": null,
-  "draft_p50": 0.7668125420366421,
-  "final_p50": 6.606840875041669,
-  "flicker": 0.3173076923076923,
-  "draft_acc": 0.25,
-  "hyp": "účastnícka signalizácia, a potom je ten druhý signalizácie, k je vlastne . Táto signalizácia je signalizácia na spojovacích vedeniach. To je prepojenie do fabrík tým vidno, ležu, áno, do PSPN, alebo iných slovami povedané do verejnej"
+  "draft_p50": 0.8444192919787028,
+  "final_p50": 5.508606583917512,
+  "flicker": 0.4,
+  "draft_acc": 0.23684210526315788,
+  "retract": 24,
+  "hyp": "účastnícka signalizácia, a potom je ten druhý signalizácie, k je vlastne . Táto signalizácia je signalizácia na spojovacích vedeniach. To je prepojenie do fabrixi, telepom vidím či ležu, áno. Ide do PSPN. Alebo iným slovami povedané do verejnej"
  },
  {
   "test": "real3.wav",
-  "wer": 0.5333333333333333,
+  "wer": 0.45,
   "hallucinated_words": null,
-  "draft_p50": 0.7582300829840829,
-  "final_p50": 8.482343624965289,
-  "flicker": 0.39751552795031053,
-  "draft_acc": 0.24528301886792453,
-  "hyp": "nových účastníka alebo na televízii dobre? Nemusí to byť... nemusí to byť žíhalo prejsť. No ideme ďalej a ukáž ukážme si vlastne, ako sa vlastne zaciaľšími. My tie voľnozy toho systému môžeme mať. A ukážme si vlastne, aké sa vlastne majú zaciaľšími. zaciaľšími. My tie voľnozy tento systém môže mať nejaký časť, ktorá"
+  "draft_p50": 0.7278432290325858,
+  "final_p50": 6.406571791041642,
+  "flicker": 0.25153374233128833,
+  "draft_acc": 0.3018867924528302,
+  "retract": 31,
+  "hyp": "nových účastníka alebo na nových si toto systém. nemusí to byť nemusí to vy no ideme ďalej a ukážme si vlastne ako sa dá signalizácia čín. My tie voľnozvy toho systému môžeme a a ukážme si vlastne, ako sa dá signalizácia čín. My tie voľnozvy truktívneho systému môže dať nejakú tú časť, ktorá"
  },
  {
   "test": "real4.wav",
-  "wer": 0.16666666666666666,
+  "wer": 0.375,
   "hallucinated_words": null,
-  "draft_p50": 0.4937460619979541,
-  "final_p50": 5.910312416022643,
-  "flicker": 0.21666666666666667,
-  "draft_acc": 0.20833333333333334,
-  "hyp": "dická voľba všade na svete, nielen u nás, je spojená tým, že sa prenášajú impulzy, tzv. tá impulzna voľba telefónové čísla, alebo sa prenáša"
+  "draft_p50": 0.6212216250039635,
+  "final_p50": 5.770098625044337,
+  "flicker": 0.2972972972972973,
+  "draft_acc": 0.24,
+  "retract": 14,
+  "hyp": "týchto voľbách. čo na svete nielen 11 je spojená s tým, že sa prenášajú impulzy, tzv. na tá impulzná voľba telefónové čísla, alebo sa prenáša"
  },
  {
   "test": "real5.wav",
-  "wer": 0.4444444444444444,
+  "wer": 0.4166666666666667,
   "hallucinated_words": null,
-  "draft_p50": 0.7905669579538532,
-  "final_p50": 7.791939874975942,
-  "flicker": 0.2268041237113402,
-  "draft_acc": 0.5714285714285714,
-  "hyp": "voľba účastnícka voľby je multifekvenčná, tak existuje bod 2, existuje tzv. signalizácia multifekvenčná porúša SD. Je to sieťová signalizácia, je aj v na novovej digitálnej forme a ona vlastne používa vždy 2 frekvencie z 5"
+  "draft_p50": 0.863794208075852,
+  "final_p50": 5.1299749999865885,
+  "flicker": 0.24193548387096775,
+  "draft_acc": 0.5833333333333334,
+  "retract": 35,
+  "hyp": "voľba účastnícka a multifekvenčná, tak existuje bod 2, existuje tzv. signalizácia multifekvenčná mesta používa R2 .b je to sieťová signalizácia, je aj v analógovej aj digitálnej forme, a ona vlastne používa vždy dve frekvencie z -ti."
  }
 ]

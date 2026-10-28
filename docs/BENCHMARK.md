@@ -690,3 +690,40 @@ KALIBROVANY judge (TypeSafe Jev, kalibrovane pravdepodobnosti su jeho core
 claim) — ak pride early access, vymeni sa len zdroj p, meranie sa zopakuje.
 Jedno meranie na konfiguraciu (limitacia), ale smer konzistentny naprieč
 13 scenarmi x 2 prahy.
+
+## Inspiracia OpenAI Realtime API aplikovana lokalne — oba smery zamietnute (27.10.)
+
+Otazka: co robi ich API, co my nie, a prenesie sa to? Nepreskumane ostali
+dva mechanizmy (noise reduction a context prompt su uz zamietnute skor).
+
+### A) Append-only sedy text (ich delta kontrakt) — TITULKY_DRAFT_STABLE=1
+Sede slovo sa zobrazi az ked prezije 2 po sebe iduce draft dekody.
+Nova metrika retr (spatne zmeny zobrazeneho sedeho textu) v suite.
+
+| | retr | draftACC synth | draftACC real |
+|---|---|---|---|
+| baseline | 10-115/scenar | 68-100 % | 13-54 % |
+| DRAFT_STABLE | **0 vsade** | 32-56 % | 3-18 % |
+
+Kontrakt dosiahnuty, ale sedy text prakticky zmizol: strict prefix sa
+zlomi na prvom time-jitteri a vsetko za nim sa nezobrazi. OpenAI to moze
+robit, lebo ich dekoder je NATIVNE streamovaci (stabilne prefixy); Whisper
+re-dekoduje okno a jitter je vlastnost. Zamietnute ako default; flag ostava
+(pouzitelne pre use-case "radsej menej ale stabilne", napr. projekcia).
+
+### B) Flush eagerness (ich semantic_vad) — TITULKY_SIL_CLEAR=0.45
+Koniec vyroku po 0.45 s ticha namiesto 0.6 s.
+
+| | WER synth avg | WER real avg | final p50 (fast/pauses) |
+|---|---|---|---|
+| baseline 0.6 | 6.6 % | 39.4 % | 5.35 / 4.18 s |
+| eager 0.45 | 8.1 % | 44.5 % | 3.60 / 3.81 s |
+
+Latencia realne klesa (az -1.7 s na fast), ale strihanie vyrokov v nadychu
+zdviha WER vsade (pauses 0->12.9 %). Ich semantic_vad je model-based (vie,
+ze veta nie je dokoncena) — nas energeticky VAD to nevie nahradit kratsim
+prahom. Default 0.6 s ostava. Pouzitelny trade-off pre diktovanie, kde
+rychlost > presnost: TITULKY_SIL_CLEAR=0.45.
+
+Pozn.: single-run variancia suite je citelna (noisy 9.7-19.4 % medzi behmi)
+— trendy su ale konzistentne naprieč scenarmi.

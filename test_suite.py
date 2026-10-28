@@ -63,6 +63,7 @@ def main():
                          if pipe.final_latencies else None,
             "flicker": pipe.final_agree.flicker_rate(),
             "draft_acc": draft_acc(pipe) if ref else None,
+            "retract": pipe.draft_retractions,
             "hyp": hyp,
         })
         r = rows[-1]
@@ -73,13 +74,13 @@ def main():
         print("   HYP:", hyp[:160])
 
     print("\n===== SÚHRN =====")
-    print(f"{'test':14} {'WER':>8} {'draftACC':>9} {'draft p50':>10} {'final p50':>10} {'flicker':>8}")
+    print(f"{'test':14} {'WER':>8} {'draftACC':>9} {'draft p50':>10} {'final p50':>10} {'flicker':>8} {'retr':>5}")
     for r in rows:
         wtxt = f"{r['wer']:.1%}" if r["wer"] is not None else f"halluc={r['hallucinated_words']}sl"
         d = f"{r['draft_p50']:.2f}s" if r["draft_p50"] else "–"
         f_ = f"{r['final_p50']:.2f}s" if r["final_p50"] else "–"
         dw = f"{r['draft_acc']:.1%}" if r.get("draft_acc") is not None else "–"
-        print(f"{r['test']:14} {wtxt:>8} {dw:>9} {d:>10} {f_:>10} {r['flicker']:>7.1%}")
+        print(f"{r['test']:14} {wtxt:>8} {dw:>9} {d:>10} {f_:>10} {r['flicker']:>7.1%} {r.get('retract', 0):>5}")
     json.dump(rows, open("tests/results.json", "w"), ensure_ascii=False, indent=1)
     if crashes:
         print(f"\nZLYHANIE: {len(crashes)} test(ov) s pádom vlákna — exit 1")

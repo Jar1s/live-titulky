@@ -171,6 +171,8 @@ Detaily: `docs/BENCHMARK.md`.
 6. **Nemotron-3.5 streaming**: WER 9.7–62.5 % SK — zamietnutý
 7. **word_timestamps=approx**: −1.1 s dekódu ale WER 3→15 % — zamietnutý
 8. **CONF_COMMIT** (p ≥ prah + SK slovník, commit z 1. čítania): WER +2–4 p. b., latencia +0.4–0.6 s — Whisper p nekalibrované, slovník nechráni pred validnými homofónmi; čaká na kalibrovaný judge (Jev)
+9. **DRAFT_STABLE** (append-only šedý text à la Realtime delty): retr 0, ale draftACC 90→35 % — Whisper okno jitteruje, strict prefix zobrazí polovicu slov; opt-in flag ostáva
+10. **SIL_CLEAR 0.45** (flush eagerness à la semantic_vad): final p50 −1.7 s, ale WER +1.5–5 p. b. (reže výroky v nádychu) — energetický VAD nevie, či veta skončila; default 0.6
 
 ## Overlay (UI)
 

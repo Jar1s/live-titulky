@@ -35,6 +35,10 @@ XAGREE = os.environ.get("TITULKY_XAGREE", "1") == "1"
 # cross-model agreement: parakeet potvrdzuje kinit slová okamžite —
 # biele po JEDNOM kinit dekóde namiesto dvoch (experiment 26.10.)
 XMODEL = os.environ.get("TITULKY_XMODEL", "0") == "1"
+# DRAFT_STABLE (exp 27.10., inspiracia OpenAI Realtime delta kontrakt —
+# ich sedy text sa nikdy nemeni spatne): zobraz sede slovo az ked prezije
+# 2 po sebe iduce draft dekody. Flicker klesa, draft p50 stupa o ~1 dekod.
+DRAFT_STABLE = os.environ.get("TITULKY_DRAFT_STABLE", "0") == "1"
 # CONF_COMMIT (exp 27.10., návrh konzultácie): commit z PRVÉHO čítania keď
 # p(slovo) >= prah A slovo je v SK slovníku (3M tvarov) — istotu kupuje
 # pravdepodobnosť+slovník namiesto druhého dekódu. OOV/nízke p → agreement.
@@ -57,7 +61,9 @@ def _norm_w(t: str) -> str:
     return re.sub(r"[^\wáäčďéíĺľňóôŕšťúýž]", "", t.lower())
 SILENCE_RMS = 0.008       # horná hranica prahu ticha (hlasný mik)
 SILENCE_RMS_MIN = 3e-4    # dolná hranica (tichý MacBook mik: reč ~1e-3)
-SILENCE_CLEAR_S = 0.6     # po toľkých sekundách ticha vyčisti draft
+SILENCE_CLEAR_S = float(os.environ.get("TITULKY_SIL_CLEAR", "0.6"))
+# ^ exp 27.10. (inspiracia OpenAI semantic_vad eagerness): nizsie = flush
+#   vyroku skor -> biele slova skor; prilis nizko reze vyroky v nadychu
 
 class SpeechLevel:
     """Bežiaci odhad úrovne reči (rýchly nábeh, pomalý pokles).
@@ -260,6 +266,8 @@ class TwoTierPipeline:
         self.compute_s = 0.0                 # súčet dekódovacieho času (RTF)
         self.final_latencies: list[float] = []
         self._seen_draft_words: dict[tuple, float] = {}
+        self.draft_retractions = 0   # koľkokrát sa zobrazený šedý text ZMENIL
+                                     # spätne (nie len narástol) — UX metrika
         self.draft_shown: list[str] = []   # sekvencia sivých slov (draft acc metrika)
         self.draft_final_pairs: list[tuple] = []  # (final_commit, sivy_text v momente commitu)
         self.final_word_keys: list[tuple] = []    # (sekunda, norm_slovo) committed slov
@@ -586,6 +594,23 @@ class TwoTierPipeline:
             now = time.monotonic()
             # draft = slová za final hranicou
             tail = [w for w in words if off_s + w["end"] > self.final_upto_s]
+            if DRAFT_STABLE and tail:
+                # append-only kontrakt: pusti len prefix zhodný s minulým
+                # dekódom (norm text + start ±0.5 s); zvyšok počká 1 kolo
+                cur_keys = [(self._norm_key(w["text"]),
+                             off_s + w["start"]) for w in tail]
+                prev = getattr(self, "_draft_prev_keys", [])
+                stable_n = 0
+                for (n1, t1) in cur_keys:
+                    ok = any(n1 == n2 and abs(t1 - t2) < 0.5
+                             for (n2, t2) in prev[max(0, stable_n - 2):
+                                                  stable_n + 3])
+                    if ok:
+                        stable_n += 1
+                    else:
+                        break
+                self._draft_prev_keys = cur_keys
+                tail = tail[:stable_n]
             if long_turn:
                 # dlhý dekód: ulož prefix (slová PRED krátkym oknom) na
                 # stitch s nasledujúcimi krátkymi dekódmi
@@ -605,6 +630,8 @@ class TwoTierPipeline:
             if not hasattr(self, "_last_draft_redraw"):
                 self._last_draft_redraw = 0.0
             if grew or (now - self._last_draft_redraw) >= DRAFT_HOLD_S:
+                if self.draft_text and not grew:
+                    self.draft_retractions += 1
                 self.draft_text = new_text
                 self._last_draft_redraw = now
                 changed = True
