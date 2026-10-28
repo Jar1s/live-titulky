@@ -35,6 +35,11 @@ XAGREE = os.environ.get("TITULKY_XAGREE", "1") == "1"
 # cross-model agreement: parakeet potvrdzuje kinit slová okamžite —
 # biele po JEDNOM kinit dekóde namiesto dvoch (experiment 26.10.)
 XMODEL = os.environ.get("TITULKY_XMODEL", "0") == "1"
+# CONF_COMMIT (exp 27.10., návrh konzultácie): commit z PRVÉHO čítania keď
+# p(slovo) >= prah A slovo je v SK slovníku (3M tvarov) — istotu kupuje
+# pravdepodobnosť+slovník namiesto druhého dekódu. OOV/nízke p → agreement.
+CONF_COMMIT = os.environ.get("TITULKY_CONF", "0") == "1"
+CONF_T = float(os.environ.get("TITULKY_CONF_T", "0.85"))
 # final engine: mlx (DTW presné časy, dekód ~1.6s) | cpp (whisper.cpp Metal,
 # dekód ~0.8-1.3s, časy heuristické=nanič → commity len cez draft kotvy)
 FINAL_ENGINE = os.environ.get("TITULKY_FINAL_ENGINE", "mlx")
@@ -239,6 +244,7 @@ class TwoTierPipeline:
         self._cpp_stall = 0      # cykly bez kotvy (poistka degradácie)
         self._cpp_degraded = False
         self.final_agree = LocalAgreement()
+        self._conf_trie = None   # lazy SpellFix trie pre CONF_COMMIT
         self._xmodel_asr = None   # lazy parakeet pre XMODEL (final vlákno)
         self.slevel = SpeechLevel()
         self.final_text: list[str] = []      # potvrdený presný text (celý)
@@ -780,6 +786,32 @@ class TwoTierPipeline:
                         self.final_agree.committed.extend(promoted)
                         new = new + promoted
                         pending = pending[len(promoted):]
+            if CONF_COMMIT and not flush_mode and pending:
+                # pravdepodobnostný commit: prefix pending slov s istotou
+                # nad prahom, ktoré slovník pozná; edge guard ako XAGREE
+                if self._conf_trie is None:
+                    from .spellfix import SpellFix
+                    self._conf_trie = SpellFix().trie or False
+                tailw = words[len(words) - len(pending):]
+                edge_s = off_s + len(audio) / SAMPLE_RATE - 1.2
+                cprom = []
+                for txt, w in zip(pending, tailw):
+                    if off_s + w["end"] >= edge_s:
+                        break
+                    pr = w.get("p")
+                    low = txt.strip().lower().strip(".,!?…:;\"'")
+                    known = (low.replace(",", ".").replace("%", "")
+                             .replace("€", "").isdigit()
+                             or (self._conf_trie and low in self._conf_trie))
+                    if pr is not None and pr >= CONF_T and known:
+                        cprom.append(txt)
+                    else:
+                        break
+                if cprom:
+                    self.final_agree.committed.extend(cprom)
+                    new = new + cprom
+                    pending = pending[len(cprom):]
+                    self.on_event({"t": "conf", "n": len(cprom)})
             if (XMODEL and not flush_mode and FINAL_ENGINE == "mlx"
                     and pending):
                 # cross-model agreement: parakeet (0.4s) potvrdí kinit

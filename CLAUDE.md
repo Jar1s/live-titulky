@@ -170,6 +170,7 @@ Detaily: `docs/BENCHMARK.md`.
    - ako draft backend: GPU kontencia s MLX finalom (draft 3.8–8.2 s) — zamietnutý
 6. **Nemotron-3.5 streaming**: WER 9.7–62.5 % SK — zamietnutý
 7. **word_timestamps=approx**: −1.1 s dekódu ale WER 3→15 % — zamietnutý
+8. **CONF_COMMIT** (p ≥ prah + SK slovník, commit z 1. čítania): WER +2–4 p. b., latencia +0.4–0.6 s — Whisper p nekalibrované, slovník nechráni pred validnými homofónmi; čaká na kalibrovaný judge (Jev)
 
 ## Overlay (UI)
 

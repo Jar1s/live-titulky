@@ -134,7 +134,8 @@ class ASR:
                         drops.append(("p<0.5∧<0.15s", w["word"].strip()))
                         continue
                     words.append({"text": w["word"].strip(),
-                                  "start": w["start"], "end": w["end"]})
+                                  "start": w["start"], "end": w["end"],
+                                  "p": w.get("probability")})
             else:
                 # aproximácia slovných časov zo segmentu (lineárne podľa
                 # dĺžky slov): DTW word_timestamps stojí 1.1s z 1.8s dekódu
@@ -200,7 +201,8 @@ class CpuDraftASR:
                     drops.append(("p<0.5∧<0.15s", w.word.strip()))
                     continue
                 words.append({"text": w.word.strip(),
-                              "start": w.start, "end": w.end})
+                              "start": w.start, "end": w.end,
+                              "p": w.probability})
         self.last_stats = {"lock_wait_s": 0.0,
                            "decode_s": round(time.monotonic() - t0, 3),
                            "drops": drops}

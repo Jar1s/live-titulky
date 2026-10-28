@@ -662,3 +662,31 @@ prednáške). Cloud vyhráva na čistom/blízkom audiu (diktovanie: 0 % WER
 pri 0.5 s bielom). Použitie: diktovanie/čistý vstup → cloud; poslucháreň
 → lokál. Pseudo-refs sú kinit-biased, ale sémantické chyby cloudu sú
 viditeľné aj bez refov.
+
+## CONF_COMMIT: pravdepodobnostny commit so slovnikom — zamietnuty (27.10.)
+
+Navrh z konzultacie: commitovat slova z PRVEHO citania ked p(slovo) >= prah
+a slovo pozna SK slovnik (marisa-trie 3M tvarov), namiesto cakania na druhe
+citanie/XAGREE. Implementacia: TITULKY_CONF=1, TITULKY_CONF_T (asr.py prenasa
+word probability, pipeline.py conf vetva pred XMODEL, edge guard 1.2 s).
+
+| konfiguracia | WER synth avg | WER real avg | final p50 |
+|---|---|---|---|
+| baseline (agreement+XAGREE) | 4.6 % | 34.3 % | ~4.4 s |
+| CONF t=0.85 | 8.2 % | 38.4 % | ~4.8 s |
+| CONF t=0.70 | 6.4 % | 38.0 % | ~5.0 s |
+
+Zamietnute v oboch prahoch, oba smery (synth aj real):
+1. Whisper confidence NIE JE kalibrovana — vysoke p maju aj nespravne slova
+   (znamy overconfidence problem), slovnik nechrani: homofony a flexivne
+   tvary su validne slova ("išel" nie, ale "čo sa" vs "čo za" ano).
+2. Zly commit je permanentny (committed sa nemeni) A rozbija prefix match
+   dalsich agreement kol -> final p50 paradoxne stupol o 0.4-0.6 s.
+3. Potvrdzuje vzor cintorina: kazdy trik obchadzajuci overenie zhody meni
+   presnost za rychlost v zlom kurze — tu dokonca bez zisku rychlosti.
+
+Kod ostava ako opt-in (TITULKY_CONF=1): rozhodovaci bod je pripraveny pre
+KALIBROVANY judge (TypeSafe Jev, kalibrovane pravdepodobnosti su jeho core
+claim) — ak pride early access, vymeni sa len zdroj p, meranie sa zopakuje.
+Jedno meranie na konfiguraciu (limitacia), ale smer konzistentny naprieč
+13 scenarmi x 2 prahy.
