@@ -322,3 +322,45 @@ def test_delete_compare_digest_timing_safe():
     import titulky.main as m
     src = inspect.getsource(m.serve_html)
     assert 'secrets.compare_digest' in src
+
+
+def test_local_engine_is_default():
+    """JBOP-97: TITULKY_ENGINE=local je default v userconfig (whisper.cpp turbo).
+
+    Cloud bol pôvodný default (637ms median), local cpp turbo dosahuje 250-330ms.
+    Overuje ze config.json obsahuje engine=local a apply() ho aplikuje do env.
+    """
+    import os
+    import titulky.userconfig as uc
+    cfg = uc.load()
+    assert cfg.get("TITULKY_ENGINE") == "local", (
+        f"Ocakavam TITULKY_ENGINE=local v ~/.config/titulky/config.json, got: {cfg.get('TITULKY_ENGINE')!r}"
+    )
+    # overenie apply() — nacita config a nastavi env
+    old = os.environ.pop("TITULKY_ENGINE", None)
+    try:
+        uc.apply()
+        assert os.environ.get("TITULKY_ENGINE") == "local"
+    finally:
+        if old is None:
+            os.environ.pop("TITULKY_ENGINE", None)
+        else:
+            os.environ["TITULKY_ENGINE"] = old
+
+
+def test_local_final_engine_is_cpp():
+    """JBOP-97: TITULKY_FINAL_ENGINE=cpp je default (250-330ms vs mlx 1.6s)."""
+    import titulky.userconfig as uc
+    cfg = uc.load()
+    assert cfg.get("TITULKY_FINAL_ENGINE") == "cpp", (
+        f"Ocakavam TITULKY_FINAL_ENGINE=cpp v config.json, got: {cfg.get('TITULKY_FINAL_ENGINE')!r}"
+    )
+
+
+def test_local_fallback_to_cloud_on_switch_failure():
+    """JBOP-97: switch_engine() pri zlyhaní local broadcastuje engine_fallback."""
+    import inspect
+    import titulky.main as m
+    src = inspect.getsource(m.switch_engine)
+    assert "engine_fallback" in src, "switch_engine musi broadcastovat engine_fallback pri zlyhaní local"
+    assert "fallback" in src.lower() and "cloud" in src, "switch_engine musi mat fallback na cloud"

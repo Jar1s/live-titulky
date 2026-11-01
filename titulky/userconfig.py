@@ -23,6 +23,7 @@ FIELDS = [
     ("TITULKY_SPELLFIX",    "bool",   "Spellfix lexikón (doménové prednášky)"),
     ("TITULKY_NO_AZURE",    "bool",   "Vypnúť Azure korekciu (plný offline)"),
     ("TITULKY_FINAL_REPO",  "text",   "Vlastný final model (HF repo/cesta)"),
+    ("TITULKY_FINAL_ENGINE", "select:mlx,cpp", "Final engine (mlx=MLX Whisper, cpp=whisper.cpp Metal 250-330ms)"),
 ]
 SECRET_KEYS = {k for k, t, _ in FIELDS if t == "secret"}
 KEYS = [k for k, _, _ in FIELDS]

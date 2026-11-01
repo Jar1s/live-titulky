@@ -95,13 +95,28 @@ def switch_engine(engine: str, model: str | None):
                                  on_event=lambda e: broadcast({"event": e}))
             pipe.start_mic(os.environ.get("TITULKY_DEVICE") or None)
         else:
-            pipe = TwoTierPipeline(language=ENGINE["language"],
-                                   on_update=_on_update,
-                                   on_event=lambda e: broadcast(
-                                       {"event": e}))
-            pipe.warmup()
-            pipe.start_mic()
-            threading.Thread(target=pipe.run, daemon=True).start()
+            try:
+                pipe = TwoTierPipeline(language=ENGINE["language"],
+                                       on_update=_on_update,
+                                       on_event=lambda e: broadcast(
+                                           {"event": e}))
+                pipe.warmup()
+                pipe.start_mic()
+                threading.Thread(target=pipe.run, daemon=True).start()
+            except Exception as local_err:
+                # local pipeline zlyhala (model offline, GRINDCASTER odpojený)
+                # — fallback na cloud aby titulky bežali ďalej
+                print(f"[engine] local zlyhala ({local_err}), fallback → cloud")
+                broadcast({"event": {"t": "engine_fallback",
+                                     "reason": str(local_err)[:200]}})
+                from .cloud_engine import CloudPipeline
+                fallback_model = "gpt-4o-mini-transcribe"
+                pipe = CloudPipeline(language=ENGINE["language"],
+                                     on_update=_on_update,
+                                     on_event=lambda e: broadcast({"event": e}))
+                pipe.start_mic(os.environ.get("TITULKY_DEVICE") or None)
+                engine = "cloud"
+                model = fallback_model
         with _state_lock:
             PIPE = pipe
             SESSION = sessions.new(engine, model)
