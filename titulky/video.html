@@ -256,7 +256,7 @@ $("other").onclick = () => { location.reload(); };
 /* video štart až keď pipeline reálne beží (video_started event) —
    inak by obraz utiekol pred zvukom o dĺžku engine reštartu */
 let bufTimer = null, feedT0 = 0, capLog = [], capIdx = 0, drainTimer = null;
-let feedEof = false, holding = false;
+let feedEof = false, maxLag = 0;
 
 /* Titulky grindcast štýlom: committed slová s reálnymi časmi (vwords
    z pipeline) zoskupené na max 2-3 slová, zobrazované podľa času videa.
@@ -292,27 +292,7 @@ function rebuildGroups() {
   }
 }
 
-function bufferGuard() {
-  /* adaptívny buffer: commity meškajú za feedom ~3-6 s. Ak video
-     dobieha hlavu feedu, ďalšie slová ešte NIE SÚ potvrdené — pauzni
-     a pokračuj, keď sa náskok doplní (ako buffering pri streamingu). */
-  if (!running || !feedT0 || feedEof) { 
-    if (holding) { holding = false; $("vid").play(); }
-    return;
-  }
-  const v = $("vid");
-  const gap = (performance.now() - feedT0) / 1000 - v.currentTime;
-  if (!holding && !v.paused && gap < 3.0) {
-    holding = true; v.pause();
-    $("stattxt").textContent = "⏸ dopĺňam titulky…";
-  } else if (holding && gap >= 5.0) {
-    holding = false; v.play();
-    $("stattxt").textContent = "beží — titulky zosynchronizované bufferom";
-  }
-}
-
 function drainCaptions() {
-  bufferGuard();
   const v = $("vid");
   const ct = v.currentTime;
   if (groups.length) {               // grindcast režim (lokálny engine)
@@ -345,32 +325,43 @@ function onEvent(e) {
   } else if (e.t === "video_started") {
     /* audio už tečie do pipeline — video pustíme o BUF neskôr,
        aby titulky (ktoré majú latenciu spracovania) sedeli s obrazom */
-    const BUF = +$("buf").value;
+    const BUF = Math.max(+$("buf").value, 1);
     feedT0 = performance.now();
     capLog = []; capIdx = 0; wordLog = []; groups = [];
-    feedEof = false; holding = false;
+    feedEof = false; maxLag = 0;
     clearInterval(drainTimer);
     drainTimer = setInterval(drainCaptions, 80);
     const v = $("vid"); v.currentTime = 0;
     $("dot").classList.add("live");
-    let left = BUF;
     clearInterval(bufTimer);
-    if (BUF <= 0) { v.controls = false; v.play(); $("stattxt").textContent = "beží"; }
-    else {
-      $("stattxt").textContent = `buffer sa plní… ${left.toFixed(1)} s`;
-      $("vid").controls = false;   // seek/pauza by rozbila sync s feedom
-      bufTimer = setInterval(() => {
-        left -= 0.1;
-        if (left <= 0) {
-          clearInterval(bufTimer); v.play();
-          $("stattxt").textContent = "beží — titulky zosynchronizované bufferom";
-        } else $("stattxt").textContent = `buffer sa plní… ${left.toFixed(1)} s`;
-      }, 100);
-    }
+    $("vid").controls = false;     // seek/pauza by rozbila sync s feedom
+    /* štart až pri ISTOTE: buffer = max(slider, nameraná latencia
+       commitov + 2s rezerva, strop 12s). Video potom hrá bez
+       prerušenia — každé slovo je potvrdené skôr, než ho obraz
+       potrebuje. Pri tichom začiatku (žiadne commity) štart po 10s. */
+    $("stattxt").textContent = `buffer sa plní… (meriam prepis)`;
+    bufTimer = setInterval(() => {
+      const ft = (performance.now() - feedT0) / 1000;
+      const need = feedEof ? 0 : Math.min(12,
+        Math.max(BUF, maxLag + 2, wordLog.length ? 0 : Math.min(10, BUF)));
+      if (ft >= need) {
+        clearInterval(bufTimer); v.play();
+        $("stattxt").textContent =
+          `beží — náskok ${need.toFixed(1)} s (prepis stíha)`;
+      } else {
+        $("stattxt").textContent =
+          `buffer sa plní… ešte ${(need - ft).toFixed(1)} s`;
+      }
+    }, 100);
   } else if (e.t === "video_err") {
     $("stattxt").textContent = "✕ " + (e.msg || "chyba");
     $("go").disabled = false; running = false;
   } else if (e.t === "vwords") {
+    if (feedT0 && e.items && e.items.length) {
+      const ft = (performance.now() - feedT0) / 1000;
+      /* latencia najčerstvejšieho slova = reálne meškanie prepisu */
+      maxLag = Math.max(maxLag, ft - e.items[e.items.length - 1].e);
+    }
     for (const it of e.items || []) wordLog.push(it);
     rebuildGroups();
   } else if (e.t === "video_eof") {
