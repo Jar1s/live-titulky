@@ -951,13 +951,57 @@ class TwoTierPipeline:
                 # video titulky (grindcast štýl): committed slová s časmi
                 try:
                     wt = []
-                    if (FINAL_ENGINE == "cpp" and not flush_mode
-                            and len(getattr(self, "_cpp_times", []))
-                            == len(new)):
-                        wt = list(self._cpp_times)
-                    elif FINAL_ENGINE != "cpp" and len(words) >= len(new):
+                    if FINAL_ENGINE == "cpp":
+                        # časy z draft dekódov: NAJSKORŠIA monotónna
+                        # inštancia slova — prvý dekód s tým slovom má
+                        # najpresnejší čas; anchor difflib občas chytí
+                        # neskorú inštanciu (start +2s na začiatku bloku)
+                        cand = sorted(self._draft_times, key=lambda c: c[1])
+                        used, prev_s = set(), seg_start_s - 0.2
+                        for txt in new:
+                            n = _norm_w(txt)
+                            hit = None
+                            for ci, c in enumerate(cand):
+                                if (ci not in used and c[0] == n
+                                        and c[1] >= prev_s - 0.2):
+                                    hit = (ci, c)
+                                    break
+                            if hit:
+                                used.add(hit[0])
+                                wt.append((hit[1][1], hit[1][2]))
+                                prev_s = hit[1][1]
+                            else:
+                                wt.append(None)   # diera — interpoluj nižšie
+                        # diery: proporcionálne medzi známymi susedmi
+                        known = [i for i, v in enumerate(wt) if v]
+                        if known:
+                            a0 = wt[known[0]][0]
+                            for i in range(len(wt)):
+                                if wt[i] is None:
+                                    lo = max((k for k in known if k < i),
+                                             default=None)
+                                    hi = min((k for k in known if k > i),
+                                             default=None)
+                                    la = wt[lo][1] if lo is not None else \
+                                        max(seg_start_s, a0 - 0.3)
+                                    lb = wt[hi][0] if hi is not None else \
+                                        la + 0.4 * (i - (lo or 0))
+                                    frac_n = (hi if hi is not None
+                                              else len(wt)) - \
+                                        (lo + 1 if lo is not None else 0)
+                                    pos = i - (lo + 1 if lo is not None else 0)
+                                    st = la + (lb - la) * pos / max(frac_n, 1)
+                                    en = la + (lb - la) * (pos + 1) / \
+                                        max(frac_n, 1)
+                                    wt[i] = (st, en)
+                        else:
+                            wt = []
+                    elif len(words) >= len(new):
+                        # agreement commituje PREFIX okna — new[i] ↔ words[i]
+                        # (chvost words[-len(new):] by dal časy neskorších
+                        # slov → titulky posunuté o sekundy)
                         wt = [(off_s + w["start"], off_s + w["end"])
-                              for w in words[-len(new):]]
+                              for w in words[:len(new)]]
                     if not wt:
                         # proporcionálne po znakoch (cpp flush / mismatch)
                         a0, b0 = seg_start_s, max(seg_start_s + 0.3,
