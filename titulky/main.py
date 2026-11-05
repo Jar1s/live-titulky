@@ -244,19 +244,19 @@ async def handler(ws):
 
 def serve_html(connection, request):
     if request.path == "/":
-        return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), HTML)
+        return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store"}), HTML)
     if request.path == "/flow":
-        return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), FLOW)
+        return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store"}), FLOW)
     if request.path == "/studio":
-        return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), STUDIO)
+        return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store"}), STUDIO)
     if request.path == "/lab":
-        return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), LAB)
+        return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store"}), LAB)
     if request.path == "/settings":
-        return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), SETTINGS)
+        return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store"}), SETTINGS)
     if request.path == "/sessions":
-        return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), SESSIONS_HTML)
+        return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store"}), SESSIONS_HTML)
     if request.path == "/video":
-        return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), VIDEO_HTML)
+        return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store"}), VIDEO_HTML)
     if request.path == "/hotkeys.js":
         return Response(200, "OK", Headers({"Content-Type": "application/javascript"}), HOTKEYS_JS)
     if request.path.startswith("/api/sessions"):
@@ -285,7 +285,7 @@ def serve_html(connection, request):
             body = json.dumps(sessions.list_all(),
                               ensure_ascii=False).encode()
         return Response(200, "OK",
-                        Headers({"Content-Type": "application/json; charset=utf-8"}),
+                        Headers({"Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store"}),
                         body)
     if request.path.startswith("/audio/") and AUDIO_DIR:
         # audit WAV segmentov — len basename, žiadne traverzovanie

@@ -262,7 +262,7 @@ function drainCaptions() {
     capIdx = 0;                          // seek dozadu — hľadaj odznova
   while (capIdx < capLog.length && capLog[capIdx].t <= ct) capIdx++;
   const last = capIdx > 0 ? capLog[capIdx - 1] : null;
-  if (!last) { $("cap").innerHTML = ""; return; }
+  if (!last || ct - last.t > 2.5) { $("cap").innerHTML = ""; return; }
   /* IRL štýl (reels/karaoke): len posledné 2–3 slová, nie celé vety */
   const N = 3;
   const cw = (last.com || "").trim().split(/\s+/).filter(Boolean);
