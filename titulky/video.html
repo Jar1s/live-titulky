@@ -257,27 +257,58 @@ $("other").onclick = () => { location.reload(); };
    inak by obraz utiekol pred zvukom o dĺžku engine reštartu */
 let bufTimer = null, feedT0 = 0, capLog = [], capIdx = 0, drainTimer = null;
 
-/* capLog = trvalý záznam titulkov s časmi — živý beh aj replay/seek
-   čítajú to isté: najnovší zápis s t <= currentTime */
+/* Titulky grindcast štýlom: committed slová s reálnymi časmi (vwords
+   z pipeline) zoskupené na max 2-3 slová, zobrazované podľa času videa.
+   Žiadne drafty v obraze = žiadne preblikávanie. capLog ostáva fallback
+   pre cloud engine (neposiela word timestampy). */
+let wordLog = [], groups = [];
+
+function rebuildGroups() {
+  const portrait = $("stage").classList.contains("portrait");
+  const MAXW = portrait ? 2 : 3, MAXC = portrait ? 14 : 20;
+  groups = [];
+  let cur = [];
+  const flush = () => { if (cur.length) groups.push({
+    s: cur[0].s, e: cur[cur.length - 1].e,
+    t: cur.map(x => x.w).join(" ")}); cur = []; };
+  for (const w of wordLog) {
+    const joined = cur.map(x => x.w).concat(w.w).join(" ");
+    if (cur.length && (cur.length >= MAXW || joined.length > MAXC)) flush();
+    cur.push(w);
+  }
+  flush();
+  /* grindcast pravidlá: monotónne časy, medzera <0.25 s zlepená,
+     min 0.3 s na obrazovke */
+  let prev = 0;
+  for (const g of groups) {
+    g.s = Math.max(g.s, prev);
+    g.e = Math.max(g.e, g.s + 0.3);
+    prev = g.s + 0.05;
+  }
+  for (let i = 1; i < groups.length; i++) {
+    const gap = groups[i].s - groups[i - 1].e;
+    if (gap > 0 && gap < 0.25) groups[i - 1].e = groups[i].s;
+  }
+}
+
 function drainCaptions() {
   const v = $("vid");
-  const ct = v.currentTime + 0.05;
-  if (capIdx > 0 && capLog[capIdx - 1] && capLog[capIdx - 1].t > ct)
-    capIdx = 0;                          // seek dozadu — hľadaj odznova
-  while (capIdx < capLog.length && capLog[capIdx].t <= ct) capIdx++;
+  const ct = v.currentTime;
+  if (groups.length) {               // grindcast režim (lokálny engine)
+    const g = groups.find(g => ct >= g.s && ct <= g.e);
+    $("cap").innerHTML = g ? `<span class="w">${esc(g.t)}</span>` : "";
+    return;
+  }
+  /* fallback (cloud engine bez word časov): posledný update, max 3 slová */
+  if (capIdx > 0 && capLog[capIdx - 1] && capLog[capIdx - 1].t > ct + 0.05)
+    capIdx = 0;
+  while (capIdx < capLog.length && capLog[capIdx].t <= ct + 0.05) capIdx++;
   const last = capIdx > 0 ? capLog[capIdx - 1] : null;
   if (!last || ct - last.t > 2.5) { $("cap").innerHTML = ""; return; }
-  /* IRL štýl (reels/karaoke): len posledné 2–3 slová, nie celé vety */
-  const N = 3;
-  const cw = (last.com || "").trim().split(/\s+/).filter(Boolean);
-  const dw = (last.dr || "").trim().split(/\s+/).filter(Boolean);
-  const take = [];
-  for (let i = dw.length - 1; i >= 0 && take.length < N; i--)
-    take.unshift({t: dw[i], g: true});
-  for (let i = cw.length - 1; i >= 0 && take.length < N; i--)
-    take.unshift({t: cw[i], g: false});
-  $("cap").innerHTML = take.map(w =>
-    `<span class="${w.g ? "g" : "w"}">${esc(w.t)}</span>`).join(" ");
+  const ws = ((last.com || "") + " " + (last.dr || ""))
+    .trim().split(/\s+/).filter(Boolean);
+  $("cap").innerHTML = ws.slice(-3).map(w =>
+    `<span class="w">${esc(w)}</span>`).join(" ");
 }
 $("buf").oninput = () => { $("bufv").textContent =
   (+$("buf").value).toFixed(1) + " s"; };
@@ -295,7 +326,7 @@ function onEvent(e) {
        aby titulky (ktoré majú latenciu spracovania) sedeli s obrazom */
     const BUF = +$("buf").value;
     feedT0 = performance.now();
-    capLog = []; capIdx = 0;
+    capLog = []; capIdx = 0; wordLog = []; groups = [];
     clearInterval(drainTimer);
     drainTimer = setInterval(drainCaptions, 80);
     const v = $("vid"); v.currentTime = 0;
@@ -317,6 +348,9 @@ function onEvent(e) {
   } else if (e.t === "video_err") {
     $("stattxt").textContent = "✕ " + (e.msg || "chyba");
     $("go").disabled = false; running = false;
+  } else if (e.t === "vwords") {
+    for (const it of e.items || []) wordLog.push(it);
+    rebuildGroups();
   } else if (e.t === "video_eof") {
     $("vid").controls = true;
     $("dot").classList.remove("live");

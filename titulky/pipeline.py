@@ -383,7 +383,7 @@ class TwoTierPipeline:
                     continue
                 amap[blk.a + k] = blk.b + k
 
-        kept, keys, bound, i = [], [], None, 0
+        kept, keys, times, bound, i = [], [], [], None, 0
         while i < len(seq):
             hit = amap.get(i)
             if hit is None and i + 1 in amap:
@@ -393,6 +393,7 @@ class TwoTierPipeline:
                     break
                 kept.extend([seq[i], seq[i + 1]])
                 keys.extend([(round(s2), norms[i]), (round(s2), norms[i + 1])])
+                times.extend([(max(0.0, s2 - 0.3), s2), (s2, e2)])
                 bound = e2
                 i += 2
                 continue
@@ -403,9 +404,10 @@ class TwoTierPipeline:
                 break
             kept.append(seq[i])
             keys.append((round(s_abs), norms[i]))
+            times.append((s_abs, e_abs))
             bound = e_abs
             i += 1
-        return kept, bound, keys
+        return kept, bound, keys, times
 
     def _apply_corrections(self, start_idx: int, changes: list[dict],
                            src: str = "azure"):
@@ -761,6 +763,7 @@ class TwoTierPipeline:
                     self._cpp_degraded = False
                     self._cpp_keys = [
                         (round(flush_to), _norm_w(t)) for t in new]
+                    self._cpp_times = []   # flush: presné časy nie sú
             else:
                 new, pending = self.final_agree.update(words)
                 if FINAL_ENGINE == "cpp":
@@ -771,7 +774,8 @@ class TwoTierPipeline:
                     base = len(self.final_agree.committed) - len(new)
                     seq = new + pending
                     edge = off_s + len(audio) / SAMPLE_RATE - 1.2
-                    kept, bound, keys = self._anchor_walk(seq, edge_abs=edge)
+                    kept, bound, keys, wtimes = self._anchor_walk(
+                        seq, edge_abs=edge)
                     self._cpp_stall = self._cpp_stall + 1 if (new and not kept) else 0
                     self._cpp_degraded = (
                         self._cpp_stall >= 4
@@ -790,6 +794,7 @@ class TwoTierPipeline:
                             self.final_agree.committed.extend(kept[cur - base:])
                         new, pending = kept, seq[len(kept):]
                         self._cpp_keys = keys
+                        self._cpp_times = wtimes
                         self._cpp_bound = bound
                 elif XAGREE and pending:
                     tailw = words[len(words) - len(pending):]
@@ -943,6 +948,31 @@ class TwoTierPipeline:
                 # do bežiacej novej reči nesmie „dotiecť minulosť"
                 if belongs_to_old_block:
                     self.display_from = len(self.final_text)
+                # video titulky (grindcast štýl): committed slová s časmi
+                try:
+                    wt = []
+                    if (FINAL_ENGINE == "cpp" and not flush_mode
+                            and len(getattr(self, "_cpp_times", []))
+                            == len(new)):
+                        wt = list(self._cpp_times)
+                    elif FINAL_ENGINE != "cpp" and len(words) >= len(new):
+                        wt = [(off_s + w["start"], off_s + w["end"])
+                              for w in words[-len(new):]]
+                    if not wt:
+                        # proporcionálne po znakoch (cpp flush / mismatch)
+                        a0, b0 = seg_start_s, max(seg_start_s + 0.3,
+                                                  self.final_upto_s)
+                        tot = sum(len(t) for t in new) or 1
+                        wt, t = [], a0
+                        for txt in new:
+                            d = (b0 - a0) * len(txt) / tot
+                            wt.append((t, t + d))
+                            t += d
+                    self.on_event({"t": "vwords", "items": [
+                        {"w": txt, "s": round(a, 2), "e": round(b, 2)}
+                        for txt, (a, b) in zip(new, wt)]})
+                except Exception:
+                    pass
                 # hranica sa posunula → ďalší beh začína inde; zarovnaj agreement
                 self.final_agree.reset()
                 self.final_agree.prev_words = pending
