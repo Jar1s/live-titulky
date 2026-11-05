@@ -256,6 +256,7 @@ $("other").onclick = () => { location.reload(); };
 /* video štart až keď pipeline reálne beží (video_started event) —
    inak by obraz utiekol pred zvukom o dĺžku engine reštartu */
 let bufTimer = null, feedT0 = 0, capLog = [], capIdx = 0, drainTimer = null;
+let feedEof = false, holding = false;
 
 /* Titulky grindcast štýlom: committed slová s reálnymi časmi (vwords
    z pipeline) zoskupené na max 2-3 slová, zobrazované podľa času videa.
@@ -291,7 +292,27 @@ function rebuildGroups() {
   }
 }
 
+function bufferGuard() {
+  /* adaptívny buffer: commity meškajú za feedom ~3-6 s. Ak video
+     dobieha hlavu feedu, ďalšie slová ešte NIE SÚ potvrdené — pauzni
+     a pokračuj, keď sa náskok doplní (ako buffering pri streamingu). */
+  if (!running || !feedT0 || feedEof) { 
+    if (holding) { holding = false; $("vid").play(); }
+    return;
+  }
+  const v = $("vid");
+  const gap = (performance.now() - feedT0) / 1000 - v.currentTime;
+  if (!holding && !v.paused && gap < 3.0) {
+    holding = true; v.pause();
+    $("stattxt").textContent = "⏸ dopĺňam titulky…";
+  } else if (holding && gap >= 5.0) {
+    holding = false; v.play();
+    $("stattxt").textContent = "beží — titulky zosynchronizované bufferom";
+  }
+}
+
 function drainCaptions() {
+  bufferGuard();
   const v = $("vid");
   const ct = v.currentTime;
   if (groups.length) {               // grindcast režim (lokálny engine)
@@ -327,6 +348,7 @@ function onEvent(e) {
     const BUF = +$("buf").value;
     feedT0 = performance.now();
     capLog = []; capIdx = 0; wordLog = []; groups = [];
+    feedEof = false; holding = false;
     clearInterval(drainTimer);
     drainTimer = setInterval(drainCaptions, 80);
     const v = $("vid"); v.currentTime = 0;
@@ -352,6 +374,7 @@ function onEvent(e) {
     for (const it of e.items || []) wordLog.push(it);
     rebuildGroups();
   } else if (e.t === "video_eof") {
+    feedEof = true;
     $("vid").controls = true;
     $("dot").classList.remove("live");
     $("stattxt").textContent = "dohraté — titulky môžu ešte pár sekúnd dobiehať";
