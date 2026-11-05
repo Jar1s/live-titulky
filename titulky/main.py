@@ -202,6 +202,23 @@ async def handler(ws):
                 ENGINE["language"] = saved.get("TITULKY_LANGUAGE", "sk") or "sk"
                 threading.Thread(target=switch_engine, args=(eng, mdl),
                                  daemon=True).start()
+            elif d.get("t") == "up_begin":
+                import wave as _wave
+                from .videofeed import UPLOADS
+                UPLOADS.mkdir(parents=True, exist_ok=True)
+                vid = time.strftime("%Y%m%d-%H%M%S")
+                wf = _wave.open(str(UPLOADS / f"{vid}.wav"), "wb")
+                wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(16000)
+                ws._up = (vid, wf)   # per-spojenie stav
+            elif d.get("t") == "up_pcm" and getattr(ws, "_up", None):
+                import base64 as _b64
+                ws._up[1].writeframes(_b64.b64decode(d.get("data") or ""))
+            elif d.get("t") == "up_end" and getattr(ws, "_up", None):
+                vid, wf = ws._up
+                n = wf.getnframes(); wf.close(); ws._up = None
+                await ws.send(json.dumps({"event": {
+                    "t": "up_ready", "id": vid,
+                    "duration_s": round(n / 16000, 1)}}))
             elif d.get("t") == "video":
                 import os.path as _osp
                 from .videofeed import UPLOADS
@@ -359,7 +376,8 @@ async def ws_main(host, port):
     print(f"Video upload server: http://localhost:{videofeed.PORT}")
     global LOOP
     LOOP = asyncio.get_running_loop()
-    async with websockets.serve(handler, host, port, process_request=serve_html):
+    async with websockets.serve(handler, host, port, process_request=serve_html,
+                                max_size=8 * 1024 * 1024):
         print(f"Overlay: http://{host}:{port}")
         await asyncio.Future()
 

@@ -56,7 +56,7 @@ h1 { font-family: var(--font-d); font-size: clamp(30px, 2vw + 14px, 42px);
 #drop .big { font-size: 38px; display: block; margin-bottom: 10px; }
 #drop b { font-family: var(--font-d); font-size: 17px; }
 #drop .d { color: var(--ink3); font-size: 12.5px; margin-top: 6px; }
-#prog { display: none; margin-top: 16px; height: 8px; border-radius: 99px;
+#prog { display: none; margin-top: 16px; margin-bottom: 4px; height: 8px; border-radius: 99px;
   background: var(--card-in); overflow: hidden; }
 #prog i { display: block; height: 100%; width: 0%;
   background: linear-gradient(90deg, #58a0ff, var(--blue)); transition: width .2s; }
@@ -130,8 +130,6 @@ spracovanie dopredu). Titulky vznikajú na aktuálnom engine.</p>
   <span class="big">🎬</span>
   <b>Pretiahni video sem alebo klikni</b>
   <div class="d">MP4 / MOV / WebM / MKV · max 2 GB · audio sa prevedie na 16 kHz mono</div>
-  <div id="prog"><i></i></div>
-  <div id="upmsg"></div>
   <input type="file" id="fi" accept="video/*" hidden>
 </div>
 
@@ -140,6 +138,8 @@ spracovanie dopredu). Titulky vznikajú na aktuálnom engine.</p>
     <video id="vid" playsinline></video>
     <div id="cap"></div>
   </div>
+  <div id="prog"><i></i></div>
+  <div id="upmsg"></div>
   <div id="bar">
     <button class="b" id="go">▶ Spustiť s titulkami</button>
     <button class="ghost" id="again" style="display:none">↺ Odznova</button>
@@ -168,34 +168,49 @@ $("drop").addEventListener("drop", ev => {
   const f = ev.dataTransfer.files[0]; if (f) upload(f); });
 $("fi").onchange = () => { if ($("fi").files[0]) upload($("fi").files[0]); };
 
-function upload(f) {
+/* Žiadny upload videa: prehráva sa priamo z disku (blob URL).
+   Do pipeline ide len AUDIO — dekódované tu cez WebAudio, prevzorkované
+   na 16 kHz mono a poslané po WS v int16 chunkoch. */
+async function upload(f) {
   $("prog").style.display = "block";
-  $("upmsg").textContent = "Nahrávam " + f.name + "…";
-  const xhr = new XMLHttpRequest();
-  xhr.open("POST", "http://localhost:8766/upload");
-  xhr.setRequestHeader("X-Filename", f.name);
-  xhr.upload.onprogress = e => {
-    if (e.lengthComputable)
-      $("prog").firstElementChild.style.width = (e.loaded / e.total * 92) + "%";
-  };
-  xhr.onload = () => {
-    $("prog").firstElementChild.style.width = "100%";
-    let d; try { d = JSON.parse(xhr.responseText); } catch(e) { d = {}; }
-    if (xhr.status !== 200) {
-      $("upmsg").textContent = "✕ " + (d.error || ("chyba " + xhr.status));
-      return;
+  $("upmsg").textContent = "Pripravujem audio z " + f.name + "…";
+  $("drop").style.display = "none";
+  $("player").style.display = "block";
+  $("vid").src = URL.createObjectURL(f);          // video hneď, bez prenosu
+  try {
+    const buf = await f.arrayBuffer();
+    $("prog").firstElementChild.style.width = "20%";
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    const dec = await ac.decodeAudioData(buf);
+    ac.close();
+    $("prog").firstElementChild.style.width = "45%";
+    const oc = new OfflineAudioContext(1, Math.ceil(dec.duration * 16000), 16000);
+    const src = oc.createBufferSource();
+    src.buffer = dec; src.connect(oc.destination); src.start();
+    const mono = (await oc.startRendering()).getChannelData(0);
+    /* int16 + b64 po 256 kB */
+    const i16 = new Int16Array(mono.length);
+    for (let i = 0; i < mono.length; i++) {
+      const v = Math.max(-1, Math.min(1, mono[i]));
+      i16[i] = v < 0 ? v * 32768 : v * 32767;
     }
-    meta = d;
-    $("upmsg").textContent = "";
-    $("drop").style.display = "none";
-    $("player").style.display = "block";
-    $("vid").src = "http://localhost:8766" + d.media;
-    const m = Math.floor(d.duration_s / 60), s = Math.round(d.duration_s % 60);
-    $("stattxt").textContent = `pripravené · ${m}:${String(s).padStart(2,"0")}`;
-  };
-  xhr.onerror = () => { $("upmsg").textContent =
-    "✕ upload server nebeží (port 8766) — reštartni server"; };
-  xhr.send(f);
+    ws.send(JSON.stringify({t: "up_begin", name: f.name}));
+    const bytes = new Uint8Array(i16.buffer);
+    const STEP = 1 << 18;
+    for (let o = 0; o < bytes.length; o += STEP) {
+      let bin = "";
+      const sl = bytes.subarray(o, o + STEP);
+      for (let i = 0; i < sl.length; i += 0x8000)
+        bin += String.fromCharCode.apply(null, sl.subarray(i, i + 0x8000));
+      ws.send(JSON.stringify({t: "up_pcm", data: btoa(bin)}));
+      $("prog").firstElementChild.style.width =
+        (50 + o / bytes.length * 48) + "%";
+      if (o % (STEP * 8) === 0) await new Promise(r => setTimeout(r));
+    }
+    ws.send(JSON.stringify({t: "up_end"}));   // odpoveď príde ako up_ready
+  } catch (e) {
+    $("upmsg").textContent = "✕ audio sa nedá dekódovať (" + e + ")";
+  }
 }
 
 /* ── prehrávanie ── */
@@ -213,7 +228,14 @@ $("other").onclick = () => { location.reload(); };
 /* video štart až keď pipeline reálne beží (video_started event) —
    inak by obraz utiekol pred zvukom o dĺžku engine reštartu */
 function onEvent(e) {
-  if (e.t === "video_started") {
+  if (e.t === "up_ready") {
+    meta = e;
+    $("prog").firstElementChild.style.width = "100%";
+    setTimeout(() => { $("prog").style.display = "none"; }, 400);
+    $("upmsg").textContent = "";
+    const m = Math.floor(e.duration_s / 60), s = Math.round(e.duration_s % 60);
+    $("stattxt").textContent = `pripravené · ${m}:${String(s).padStart(2,"0")}`;
+  } else if (e.t === "video_started") {
     const v = $("vid"); v.currentTime = 0; v.play();
     $("dot").classList.add("live");
     $("stattxt").textContent = "beží — audio tečie do pipeline";
