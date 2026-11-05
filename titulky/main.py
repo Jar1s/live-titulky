@@ -106,7 +106,7 @@ def switch_engine(engine: str, model: str | None, file: str | None = None):
                                            {"event": e}))
                 pipe.warmup()
                 if file:
-                    pipe.play_file(file)
+                    pipe.play_file(file, speed=2.0)
                 else:
                     pipe.start_mic()
                 threading.Thread(target=pipe.run, daemon=True).start()

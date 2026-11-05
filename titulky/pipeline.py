@@ -458,7 +458,9 @@ class TwoTierPipeline:
             blocksize=int(SAMPLE_RATE * 0.1), callback=cb)
         self.stream.start()
 
-    def play_file(self, path, realtime=True):
+    def play_file(self, path, realtime=True, speed=1.0):
+        """speed > 1: súborový feed rýchlejšie než real-time (video mode —
+        prepis má náskok a commity stihnú video). Mikrofónu sa netýka."""
         import wave
         wf = wave.open(path, "rb")
         assert wf.getframerate() == SAMPLE_RATE and wf.getnchannels() == 1
@@ -466,14 +468,23 @@ class TwoTierPipeline:
 
         def pump():
             chunk_frames = int(SAMPLE_RATE * 0.1)
+            fed, last_pos = 0, 0.0
             while True:
                 raw = wf.readframes(chunk_frames)
                 if not raw:
                     break
                 a = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768
                 self.buf.append(a)
+                fed += len(a)
+                pos = fed / SAMPLE_RATE
+                if pos - last_pos >= 0.5:      # pozícia feedu pre klienta
+                    last_pos = pos
+                    try:
+                        self.on_event({"t": "feedpos", "s": round(pos, 2)})
+                    except Exception:
+                        pass
                 if realtime:
-                    time.sleep(0.1)
+                    time.sleep(0.1 / max(speed, 0.1))
             self.buf.eof = True
 
         threading.Thread(target=pump, daemon=True).start()

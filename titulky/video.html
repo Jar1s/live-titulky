@@ -256,7 +256,7 @@ $("other").onclick = () => { location.reload(); };
 /* video štart až keď pipeline reálne beží (video_started event) —
    inak by obraz utiekol pred zvukom o dĺžku engine reštartu */
 let bufTimer = null, feedT0 = 0, capLog = [], capIdx = 0, drainTimer = null;
-let feedEof = false, maxLag = 0;
+let feedEof = false, maxLag = 0, feedPos = 0;
 
 /* Titulky grindcast štýlom: committed slová s reálnymi časmi (vwords
    z pipeline) zoskupené na max 2-3 slová, zobrazované podľa času videa.
@@ -340,27 +340,42 @@ function onEvent(e) {
        prerušenia — každé slovo je potvrdené skôr, než ho obraz
        potrebuje. Pri tichom začiatku (žiadne commity) štart po 10s. */
     $("stattxt").textContent = `buffer sa plní… (meriam prepis)`;
+    const shortClip = meta && meta.duration_s && meta.duration_s <= 45;
     bufTimer = setInterval(() => {
-      const ft = (performance.now() - feedT0) / 1000;
-      const need = feedEof ? 0 : Math.min(12,
-        Math.max(BUF, maxLag + 2, wordLog.length ? 0 : Math.min(10, BUF)));
-      if (ft >= need) {
-        clearInterval(bufTimer); v.play();
-        $("stattxt").textContent =
-          `beží — náskok ${need.toFixed(1)} s (prepis stíha)`;
+      /* feed ide 2x — feedPos sú AUDIO sekundy zo servera.
+         Krátky klip: počkaj na celý prepis (feed EOF + 2.5s flush) =
+         istota, titulky kompletné. Dlhší: náskok maxLag+3s. */
+      let ready, msg;
+      if (shortClip) {
+        ready = feedEof;
+        msg = `pripravujem titulky… ${Math.round(
+          100 * Math.min(1, feedPos / (meta.duration_s || 1)))} %`;
       } else {
-        $("stattxt").textContent =
-          `buffer sa plní… ešte ${(need - ft).toFixed(1)} s`;
+        const need = Math.min(14, Math.max(BUF, maxLag + 3,
+          wordLog.length ? 0 : 10));
+        ready = feedEof || feedPos >= need;
+        msg = `buffer sa plní… ${feedPos.toFixed(0)}/${need.toFixed(0)} s`;
       }
+      if (ready) {
+        clearInterval(bufTimer);
+        const wait = (shortClip && feedEof) ? 2500 : 0;
+        setTimeout(() => {
+          v.play();
+          $("stattxt").textContent = "beží — titulky pripravené";
+        }, wait);
+        if (wait) $("stattxt").textContent = "dokončujem prepis…";
+      } else $("stattxt").textContent = msg;
     }, 100);
   } else if (e.t === "video_err") {
     $("stattxt").textContent = "✕ " + (e.msg || "chyba");
     $("go").disabled = false; running = false;
+  } else if (e.t === "feedpos") {
+    feedPos = e.s;
   } else if (e.t === "vwords") {
-    if (feedT0 && e.items && e.items.length) {
-      const ft = (performance.now() - feedT0) / 1000;
-      /* latencia najčerstvejšieho slova = reálne meškanie prepisu */
-      maxLag = Math.max(maxLag, ft - e.items[e.items.length - 1].e);
+    if (e.items && e.items.length) {
+      /* meškanie prepisu v AUDIO sekundách: pozícia feedu mínus čas
+         najčerstvejšieho potvrdeného slova */
+      maxLag = Math.max(maxLag, feedPos - e.items[e.items.length - 1].e);
     }
     for (const it of e.items || []) wordLog.push(it);
     rebuildGroups();
