@@ -66,11 +66,14 @@ h1 { font-family: var(--font-d); font-size: clamp(30px, 2vw + 14px, 42px);
 #player { display: none; }
 #stage { position: relative; background: #000; border-radius: var(--r-lg);
   overflow: hidden; border: 1px solid var(--line);
-  box-shadow: var(--shadow); }
-#vid { display: block; width: 100%; max-height: 62vh; }
+  box-shadow: var(--shadow); width: fit-content; max-width: 100%;
+  margin: 0 auto; }
+#vid { display: block; max-width: 100%; max-height: 68vh; }
+#stage.portrait #cap { left: 6%; right: 6%; bottom: 7%; }
 #cap { position: absolute; left: 4%; right: 4%; bottom: 4.5%;
   text-align: center; pointer-events: none;
-  font: 600 clamp(17px, 2.1vw, 27px)/1.45 var(--font-d);
+  font-weight: 600; line-height: 1.45; font-family: var(--font-d);
+  font-size: 24px;   /* prepíše JS podľa šírky a orientácie videa */
   text-shadow: 0 2px 10px rgba(0,0,0,.9), 0 0 3px rgba(0,0,0,.9); }
 #cap .w { color: #fff; }
 #cap .g { color: rgba(255,255,255,.55); }
@@ -228,6 +231,19 @@ $("go").onclick = () => {
   ws.send(JSON.stringify({t: "video", id: meta.id}));
   $("stattxt").textContent = "štartujem pipeline…";
 };
+function fitCaption() {
+  const v = $("vid"), st = $("stage");
+  if (!v.videoWidth) return;
+  const portrait = v.videoHeight > v.videoWidth;
+  st.classList.toggle("portrait", portrait);
+  const w = v.clientWidth || st.clientWidth;
+  /* vertikal: väčší podiel šírky (menej znakov na riadok, ako IG/TikTok) */
+  $("cap").style.fontSize =
+    Math.round(Math.max(14, Math.min(34, w * (portrait ? 0.055 : 0.034)))) + "px";
+}
+$("vid").addEventListener("loadedmetadata", fitCaption);
+window.addEventListener("resize", fitCaption);
+
 $("again").onclick = () => { $("again").style.display = "none"; $("go").disabled = false; $("go").click(); };
 $("other").onclick = () => { location.reload(); };
 
@@ -241,7 +257,8 @@ function drainCaptions() {
   while (capQ.length && capQ[0].t <= v.currentTime + 0.05) last = capQ.shift();
   if (last) {
     const com = last.com, dr = last.dr;
-    let tail = com.length > 90 ? "…" + com.slice(-90) : com;
+    const lim = $("stage").classList.contains("portrait") ? 60 : 90;
+    let tail = com.length > lim ? "…" + com.slice(-lim) : com;
     $("cap").innerHTML =
       (tail ? `<span class="w">${esc(tail)}</span> ` : "") +
       (dr ? `<span class="g">${esc(dr)}</span>` : "");
