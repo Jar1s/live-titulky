@@ -70,7 +70,8 @@ h1 { font-family: var(--font-d); font-size: clamp(30px, 2vw + 14px, 42px);
   margin: 0 auto; }
 #vid { display: block; max-width: 100%; max-height: 68vh; }
 #stage.portrait #cap { left: 6%; right: 6%; bottom: 7%; }
-#cap { position: absolute; left: 4%; right: 4%; bottom: 4.5%;
+#cap { position: absolute; left: 4%; right: 4%; bottom: 6%;
+  text-transform: uppercase; letter-spacing: .01em;
   text-align: center; pointer-events: none;
   font-weight: 600; line-height: 1.45; font-family: var(--font-d);
   font-size: 24px;   /* prepíše JS podľa šírky a orientácie videa */
@@ -239,7 +240,7 @@ function fitCaption() {
   const w = v.clientWidth || st.clientWidth;
   /* vertikal: väčší podiel šírky (menej znakov na riadok, ako IG/TikTok) */
   $("cap").style.fontSize =
-    Math.round(Math.max(14, Math.min(34, w * (portrait ? 0.055 : 0.034)))) + "px";
+    Math.round(Math.max(16, Math.min(44, w * (portrait ? 0.075 : 0.045)))) + "px";
 }
 $("vid").addEventListener("loadedmetadata", fitCaption);
 window.addEventListener("resize", fitCaption);
@@ -262,12 +263,17 @@ function drainCaptions() {
   while (capIdx < capLog.length && capLog[capIdx].t <= ct) capIdx++;
   const last = capIdx > 0 ? capLog[capIdx - 1] : null;
   if (!last) { $("cap").innerHTML = ""; return; }
-  const com = last.com, dr = last.dr;
-  const lim = $("stage").classList.contains("portrait") ? 60 : 90;
-  let tail = com.length > lim ? "…" + com.slice(-lim) : com;
-  $("cap").innerHTML =
-    (tail ? `<span class="w">${esc(tail)}</span> ` : "") +
-    (dr ? `<span class="g">${esc(dr)}</span>` : "");
+  /* IRL štýl (reels/karaoke): len posledné 2–3 slová, nie celé vety */
+  const N = 3;
+  const cw = (last.com || "").trim().split(/\s+/).filter(Boolean);
+  const dw = (last.dr || "").trim().split(/\s+/).filter(Boolean);
+  const take = [];
+  for (let i = dw.length - 1; i >= 0 && take.length < N; i--)
+    take.unshift({t: dw[i], g: true});
+  for (let i = cw.length - 1; i >= 0 && take.length < N; i--)
+    take.unshift({t: cw[i], g: false});
+  $("cap").innerHTML = take.map(w =>
+    `<span class="${w.g ? "g" : "w"}">${esc(w.t)}</span>`).join(" ");
 }
 $("buf").oninput = () => { $("bufv").textContent =
   (+$("buf").value).toFixed(1) + " s"; };
