@@ -233,7 +233,20 @@ $("other").onclick = () => { location.reload(); };
 
 /* video štart až keď pipeline reálne beží (video_started event) —
    inak by obraz utiekol pred zvukom o dĺžku engine reštartu */
-let bufTimer = null;
+let bufTimer = null, feedT0 = 0, capQ = [], drainTimer = null;
+
+function drainCaptions() {
+  const v = $("vid");
+  let last = null;
+  while (capQ.length && capQ[0].t <= v.currentTime + 0.05) last = capQ.shift();
+  if (last) {
+    const com = last.com, dr = last.dr;
+    let tail = com.length > 90 ? "…" + com.slice(-90) : com;
+    $("cap").innerHTML =
+      (tail ? `<span class="w">${esc(tail)}</span> ` : "") +
+      (dr ? `<span class="g">${esc(dr)}</span>` : "");
+  }
+}
 $("buf").oninput = () => { $("bufv").textContent =
   (+$("buf").value).toFixed(1) + " s"; };
 
@@ -249,6 +262,10 @@ function onEvent(e) {
     /* audio už tečie do pipeline — video pustíme o BUF neskôr,
        aby titulky (ktoré majú latenciu spracovania) sedeli s obrazom */
     const BUF = +$("buf").value;
+    feedT0 = performance.now();
+    capQ = [];
+    clearInterval(drainTimer);
+    drainTimer = setInterval(drainCaptions, 80);
     const v = $("vid"); v.currentTime = 0;
     $("dot").classList.add("live");
     let left = BUF;
@@ -270,6 +287,8 @@ function onEvent(e) {
     $("go").disabled = false; running = false;
   } else if (e.t === "video_eof") {
     $("vid").controls = true;
+    setTimeout(() => { clearInterval(drainTimer); drainCaptions(); },
+               (+$("buf").value + 2) * 1000);
     $("dot").classList.remove("live");
     $("stattxt").textContent = "dohraté — titulky môžu ešte pár sekúnd dobiehať";
     $("again").style.display = "";
@@ -280,9 +299,10 @@ function onEvent(e) {
 function onUpdate(d) {
   if (!running && !$("trans").childElementCount) return;
   const com = d.committed || "", dr = d.draft || "";
-  /* caption: len committed — draft by pri bufferi predbiehal obraz */
-  const tail = com.length > 110 ? "…" + com.slice(-110) : com;
-  $("cap").innerHTML = tail ? `<span class="w">${esc(tail)}</span>` : "";
+  if (running && feedT0) {
+    /* feed-čas príchodu = pozícia audia, ktorú update popisuje */
+    capQ.push({t: (performance.now() - feedT0) / 1000, com, dr});
+  }
   $("trans").innerHTML =
     `<span class="w">${esc(com)}</span> <span class="g">${esc(dr)}</span>`;
   $("trans").scrollTop = $("trans").scrollHeight;
