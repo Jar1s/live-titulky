@@ -39,6 +39,7 @@ STUDIO = (pathlib.Path(__file__).parent / "studio.html").read_bytes()
 LAB = (pathlib.Path(__file__).parent / "lab.html").read_bytes()
 SETTINGS = (pathlib.Path(__file__).parent / "settings.html").read_bytes()
 SESSIONS_HTML = (pathlib.Path(__file__).parent / "sessions.html").read_bytes()
+VIDEO_HTML = (pathlib.Path(__file__).parent / "video.html").read_bytes()
 HOTKEYS_JS = (pathlib.Path(__file__).parent / "hotkeys.js").read_bytes()
 
 # modely dostupné v Studio prepínači
@@ -65,8 +66,8 @@ def _engine_state_msg():
                       "catalog": ENGINE_CATALOG}}
 
 
-def switch_engine(engine: str, model: str | None):
-    """Zastav bežiacu pipeline a naštartuj novú (mikrofón)."""
+def switch_engine(engine: str, model: str | None, file: str | None = None):
+    """Zastav bežiacu pipeline a naštartuj novú (mikrofón alebo súbor)."""
     global PIPE
     with ENGINE_LOCK:
         if ENGINE["switching"]:
@@ -93,7 +94,10 @@ def switch_engine(engine: str, model: str | None):
             pipe = CloudPipeline(language=ENGINE["language"],
                                  on_update=_on_update,
                                  on_event=lambda e: broadcast({"event": e}))
-            pipe.start_mic(os.environ.get("TITULKY_DEVICE") or None)
+            if file:
+                pipe.start_file(file)
+            else:
+                pipe.start_mic(os.environ.get("TITULKY_DEVICE") or None)
         else:
             try:
                 pipe = TwoTierPipeline(language=ENGINE["language"],
@@ -101,7 +105,10 @@ def switch_engine(engine: str, model: str | None):
                                        on_event=lambda e: broadcast(
                                            {"event": e}))
                 pipe.warmup()
-                pipe.start_mic()
+                if file:
+                    pipe.play_file(file)
+                else:
+                    pipe.start_mic()
                 threading.Thread(target=pipe.run, daemon=True).start()
             except Exception as local_err:
                 # local pipeline zlyhala (model offline, GRINDCASTER odpojený)
@@ -121,6 +128,10 @@ def switch_engine(engine: str, model: str | None):
             PIPE = pipe
             SESSION = sessions.new(engine, model)
         ENGINE.update(engine=engine, model=model)
+        if file:
+            broadcast({"event": {"t": "video_started"}})
+            threading.Thread(target=_watch_video_eof, args=(pipe,),
+                             daemon=True).start()
     except Exception as e:
         broadcast({"event": {"t": "cloud_err",
                              "msg": f"switch zlyhal: {e}"[:200]}})
@@ -191,6 +202,19 @@ async def handler(ws):
                 ENGINE["language"] = saved.get("TITULKY_LANGUAGE", "sk") or "sk"
                 threading.Thread(target=switch_engine, args=(eng, mdl),
                                  daemon=True).start()
+            elif d.get("t") == "video":
+                import os.path as _osp
+                from .videofeed import UPLOADS
+                vid = _osp.basename(str(d.get("id") or ""))
+                wav = UPLOADS / f"{vid}.wav"
+                if not wav.is_file():
+                    await ws.send(json.dumps({"event": {
+                        "t": "video_err", "msg": "audio súboru nenájdené"}}))
+                else:
+                    threading.Thread(
+                        target=switch_engine,
+                        args=(ENGINE["engine"], ENGINE["model"], str(wav)),
+                        daemon=True).start()
             elif d.get("t") == "transcript" and PIPE is not None:
                 await ws.send(json.dumps(
                     {"event": {"t": "transcript",
@@ -214,6 +238,8 @@ def serve_html(connection, request):
         return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), SETTINGS)
     if request.path == "/sessions":
         return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), SESSIONS_HTML)
+    if request.path == "/video":
+        return Response(200, "OK", Headers({"Content-Type": "text/html; charset=utf-8"}), VIDEO_HTML)
     if request.path == "/hotkeys.js":
         return Response(200, "OK", Headers({"Content-Type": "application/javascript"}), HOTKEYS_JS)
     if request.path.startswith("/api/sessions"):
@@ -303,6 +329,19 @@ def _replay_worker(name):
                                        "dec_s": 0}]}})
 
 
+def _watch_video_eof(pipe):
+    """Po dohratí súboru ohlás koniec (klient zastaví indikátor)."""
+    while PIPE is pipe:
+        buf = getattr(pipe, "buf", None)
+        if buf is not None and getattr(buf, "eof", False):
+            time.sleep(3)   # nechaj final dobehnúť posledné okno
+            broadcast({"event": {"t": "video_eof"}})
+            return
+        if not getattr(pipe, "running", True):
+            return
+        time.sleep(0.5)
+
+
 def _start_autosave():
     def loop():
         while True:
@@ -315,6 +354,9 @@ def _start_autosave():
 
 
 async def ws_main(host, port):
+    from . import videofeed
+    videofeed.start()
+    print(f"Video upload server: http://localhost:{videofeed.PORT}")
     global LOOP
     LOOP = asyncio.get_running_loop()
     async with websockets.serve(handler, host, port, process_request=serve_html):

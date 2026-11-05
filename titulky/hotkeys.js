@@ -3,7 +3,7 @@
 (function () {
   const NAV = [
     ["o", "Overlay", "/"], ["s", "Studio", "/studio"],
-    ["f", "Flow", "/flow"], ["l", "Lab", "/lab"],
+    ["v", "Video", "/video"], ["f", "Flow", "/flow"], ["l", "Lab", "/lab"],
     ["z", "Záznamy", "/sessions"], ["n", "Nastavenia", "/settings"],
   ];
   const extra = [];   // [{key, desc, fn}]

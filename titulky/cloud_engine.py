@@ -152,7 +152,9 @@ class CloudPipeline:
                 await self._push(ws, audio[i:i + chunk_n])
             # dohraté — commitni zvyšok buffera a nechaj serveru čas
             await ws.send(json.dumps({"type": "input_audio_buffer.commit"}))
-            await asyncio.sleep(8)
+            await asyncio.sleep(3)
+            self.on_event({"t": "video_eof"})
+            await asyncio.sleep(5)
             self.running = False
         else:
             import sounddevice as sd

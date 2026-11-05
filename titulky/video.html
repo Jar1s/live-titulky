@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TITULKY.ŽIVO — Video</title>
+<style>
+:root {
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, "Segoe UI", system-ui, sans-serif;
+  --font-d: -apple-system, BlinkMacSystemFont, "SF Pro Display", Inter, system-ui, sans-serif;
+  --bg: #202227;
+  --card: linear-gradient(180deg, #2b2e34 0%, #24262b 100%);
+  --card-in: #1d1f24;
+  --line: rgba(255,255,255,.065);
+  --hi: rgba(255,255,255,.09);
+  --ink: #f5f5f7; --ink2: #a6adb8; --ink3: #6b7280;
+  --blue: #2f7cf6; --blue2: #58a0ff; --green: #22a559; --danger: #d92d3a;
+  --r-xl: 30px; --r-lg: 24px;
+  --shadow: 0 18px 44px rgba(0,0,0,.38), 0 2px 8px rgba(0,0,0,.25);
+  --ease: cubic-bezier(.22,.8,.24,1);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--ink);
+  font: 15px/1.55 var(--font); -webkit-font-smoothing: antialiased; }
+
+#side { position: fixed; top: 14px; left: 14px; bottom: 14px; width: 232px;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--r-xl); box-shadow: var(--shadow), inset 0 1px 0 var(--hi);
+  padding: 20px 14px; display: flex; flex-direction: column; gap: 4px; }
+#brand { display: flex; align-items: center; gap: 10px; padding: 4px 10px 18px; }
+#logo { width: 36px; height: 36px; border-radius: 11px;
+  background: linear-gradient(135deg, var(--blue2), var(--blue));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; box-shadow: 0 6px 16px rgba(47,124,246,.4); }
+#brand b { font-family: var(--font-d); font-size: 17px; }
+.nav { display: flex; align-items: center; gap: 11px; padding: 10px 12px;
+  border-radius: 14px; color: var(--ink2); text-decoration: none;
+  font-size: 14px; font-weight: 500; transition: background .2s var(--ease); }
+.nav:hover { background: rgba(255,255,255,.05); color: var(--ink); }
+.nav.on { background: linear-gradient(180deg, #3a3e45, #2e3137);
+  color: var(--ink); box-shadow: inset 0 1px 0 var(--hi), 0 4px 12px rgba(0,0,0,.25); }
+.nav .ic { width: 20px; text-align: center; opacity: .85; }
+#side .foot { margin-top: auto; padding: 10px 12px; font-size: 11.5px; color: var(--ink3); }
+
+main { margin-left: 278px; padding: 44px 40px 90px; max-width: 1060px; }
+h1 { font-family: var(--font-d); font-size: clamp(30px, 2vw + 14px, 42px);
+  font-weight: 800; letter-spacing: -.02em; margin-bottom: 8px; }
+.sub { color: var(--ink2); margin-bottom: 28px; font-size: 14px; max-width: 70ch; }
+
+/* upload zóna */
+#drop { background: var(--card); border: 2px dashed rgba(255,255,255,.14);
+  border-radius: var(--r-lg); padding: 54px 30px; text-align: center;
+  cursor: pointer; transition: border-color .2s, transform .15s var(--ease);
+  box-shadow: var(--shadow), inset 0 1px 0 var(--hi); }
+#drop:hover, #drop.over { border-color: var(--blue); transform: translateY(-1px); }
+#drop .big { font-size: 38px; display: block; margin-bottom: 10px; }
+#drop b { font-family: var(--font-d); font-size: 17px; }
+#drop .d { color: var(--ink3); font-size: 12.5px; margin-top: 6px; }
+#prog { display: none; margin-top: 16px; height: 8px; border-radius: 99px;
+  background: var(--card-in); overflow: hidden; }
+#prog i { display: block; height: 100%; width: 0%;
+  background: linear-gradient(90deg, #58a0ff, var(--blue)); transition: width .2s; }
+#upmsg { margin-top: 12px; font-size: 13px; color: var(--ink2); min-height: 18px; }
+
+/* prehrávač */
+#player { display: none; }
+#stage { position: relative; background: #000; border-radius: var(--r-lg);
+  overflow: hidden; border: 1px solid var(--line);
+  box-shadow: var(--shadow); }
+#vid { display: block; width: 100%; max-height: 62vh; }
+#cap { position: absolute; left: 4%; right: 4%; bottom: 4.5%;
+  text-align: center; pointer-events: none;
+  font: 600 clamp(17px, 2.1vw, 27px)/1.45 var(--font-d);
+  text-shadow: 0 2px 10px rgba(0,0,0,.9), 0 0 3px rgba(0,0,0,.9); }
+#cap .w { color: #fff; }
+#cap .g { color: rgba(255,255,255,.55); }
+#bar { display: flex; align-items: center; gap: 12px; margin-top: 16px;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 18px; padding: 12px 16px;
+  box-shadow: var(--shadow), inset 0 1px 0 var(--hi); flex-wrap: wrap; }
+button.b { background: linear-gradient(180deg, #58a0ff, var(--blue));
+  color: #fff; border: none; border-radius: 999px; padding: 10px 24px;
+  font: 650 14px var(--font); cursor: pointer;
+  box-shadow: 0 6px 16px rgba(47,124,246,.4), inset 0 1px 0 rgba(255,255,255,.25); }
+button.b:disabled { opacity: .45; cursor: default; }
+button.ghost { background: linear-gradient(180deg, #33363d, #2a2d33);
+  color: var(--ink); border: 1px solid var(--line); border-radius: 999px;
+  padding: 9px 18px; font: 500 13px var(--font); cursor: pointer;
+  box-shadow: inset 0 1px 0 var(--hi); }
+button.ghost:hover { border-color: var(--blue); }
+#stat { font-size: 12.5px; color: var(--ink2); font-variant-numeric: tabular-nums; }
+#stat b { color: var(--ink); }
+.dotst { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--ink3); margin-right: 6px; vertical-align: 0; }
+.dotst.live { background: var(--green); box-shadow: 0 0 8px var(--green); }
+
+/* prepis pod videom */
+#transwrap { margin-top: 18px; background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--r-lg); padding: 18px 22px;
+  box-shadow: var(--shadow), inset 0 1px 0 var(--hi); }
+#transwrap .t { font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink3); font-weight: 700; margin-bottom: 10px; }
+#trans { font-size: 14.5px; line-height: 1.75; max-height: 240px; overflow-y: auto; }
+#trans .g { color: var(--ink3); }
+@media (max-width: 860px) { #side { display: none; }
+  main { margin-left: 0; padding: 26px 18px 70px; } }
+</style>
+</head>
+<body>
+
+<aside id="side">
+  <div id="brand"><div id="logo">🎙</div><b>TITULKY.ŽIVO</b></div>
+  <a class="nav" href="/"><span class="ic">▣</span>Overlay</a>
+  <a class="nav" href="/studio"><span class="ic">🎛</span>Studio</a>
+  <a class="nav on" href="/video"><span class="ic">▶</span>Video</a>
+  <a class="nav" href="/flow"><span class="ic">⚡</span>Flow</a>
+  <a class="nav" href="/lab"><span class="ic">◉</span>Lab</a>
+  <a class="nav" href="/sessions"><span class="ic">▤</span>Záznamy</a>
+  <a class="nav" href="/settings"><span class="ic">⚙</span>Nastavenia</a>
+  <div class="foot">video sa prehráva lokálne,<br>audio tečie do pipeline<br>v reálnom čase (buffer)</div>
+</aside>
+
+<main>
+<h1>Video → živé titulky</h1>
+<p class="sub">Nahraj video — audio sa extrahuje a kŕmi do bežiacej pipeline
+rovnakým tempom, ako plynie video (simulácia live vstupu, žiadne offline
+spracovanie dopredu). Titulky vznikajú na aktuálnom engine.</p>
+
+<div id="drop">
+  <span class="big">🎬</span>
+  <b>Pretiahni video sem alebo klikni</b>
+  <div class="d">MP4 / MOV / WebM / MKV · max 2 GB · audio sa prevedie na 16 kHz mono</div>
+  <div id="prog"><i></i></div>
+  <div id="upmsg"></div>
+  <input type="file" id="fi" accept="video/*" hidden>
+</div>
+
+<div id="player">
+  <div id="stage">
+    <video id="vid" playsinline></video>
+    <div id="cap"></div>
+  </div>
+  <div id="bar">
+    <button class="b" id="go">▶ Spustiť s titulkami</button>
+    <button class="ghost" id="again" style="display:none">↺ Odznova</button>
+    <button class="ghost" id="other">Iné video</button>
+    <span id="stat"><span class="dotst" id="dot"></span><span id="stattxt">pripravené</span></span>
+  </div>
+  <div id="transwrap">
+    <div class="t">Prepis</div>
+    <div id="trans"><span class="g">Titulky sa objavia po spustení…</span></div>
+  </div>
+</div>
+</main>
+
+<script src="/hotkeys.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let ws, meta = null, running = false;
+
+/* ── upload ── */
+$("drop").onclick = () => $("fi").click();
+["dragover", "dragenter"].forEach(e => $("drop").addEventListener(e, ev => {
+  ev.preventDefault(); $("drop").classList.add("over"); }));
+["dragleave", "drop"].forEach(e => $("drop").addEventListener(e, ev => {
+  ev.preventDefault(); $("drop").classList.remove("over"); }));
+$("drop").addEventListener("drop", ev => {
+  const f = ev.dataTransfer.files[0]; if (f) upload(f); });
+$("fi").onchange = () => { if ($("fi").files[0]) upload($("fi").files[0]); };
+
+function upload(f) {
+  $("prog").style.display = "block";
+  $("upmsg").textContent = "Nahrávam " + f.name + "…";
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", "http://localhost:8766/upload");
+  xhr.setRequestHeader("X-Filename", f.name);
+  xhr.upload.onprogress = e => {
+    if (e.lengthComputable)
+      $("prog").firstElementChild.style.width = (e.loaded / e.total * 92) + "%";
+  };
+  xhr.onload = () => {
+    $("prog").firstElementChild.style.width = "100%";
+    let d; try { d = JSON.parse(xhr.responseText); } catch(e) { d = {}; }
+    if (xhr.status !== 200) {
+      $("upmsg").textContent = "✕ " + (d.error || ("chyba " + xhr.status));
+      return;
+    }
+    meta = d;
+    $("upmsg").textContent = "";
+    $("drop").style.display = "none";
+    $("player").style.display = "block";
+    $("vid").src = "http://localhost:8766" + d.media;
+    const m = Math.floor(d.duration_s / 60), s = Math.round(d.duration_s % 60);
+    $("stattxt").textContent = `pripravené · ${m}:${String(s).padStart(2,"0")}`;
+  };
+  xhr.onerror = () => { $("upmsg").textContent =
+    "✕ upload server nebeží (port 8766) — reštartni server"; };
+  xhr.send(f);
+}
+
+/* ── prehrávanie ── */
+$("go").onclick = () => {
+  if (!meta || !ws || ws.readyState !== 1) return;
+  running = true;
+  $("go").disabled = true;
+  $("trans").innerHTML = "";
+  ws.send(JSON.stringify({t: "video", id: meta.id}));
+  $("stattxt").textContent = "štartujem pipeline…";
+};
+$("again").onclick = () => { $("again").style.display = "none"; $("go").disabled = false; $("go").click(); };
+$("other").onclick = () => { location.reload(); };
+
+/* video štart až keď pipeline reálne beží (video_started event) —
+   inak by obraz utiekol pred zvukom o dĺžku engine reštartu */
+function onEvent(e) {
+  if (e.t === "video_started") {
+    const v = $("vid"); v.currentTime = 0; v.play();
+    $("dot").classList.add("live");
+    $("stattxt").textContent = "beží — audio tečie do pipeline";
+  } else if (e.t === "video_err") {
+    $("stattxt").textContent = "✕ " + (e.msg || "chyba");
+    $("go").disabled = false; running = false;
+  } else if (e.t === "video_eof") {
+    $("dot").classList.remove("live");
+    $("stattxt").textContent = "dohraté — titulky môžu ešte pár sekúnd dobiehať";
+    $("again").style.display = "";
+    running = false;
+  }
+}
+
+function onUpdate(d) {
+  if (!running && !$("trans").childElementCount) return;
+  const com = d.committed || "", dr = d.draft || "";
+  /* caption: posledných ~90 znakov bieleho + šedý */
+  const tail = com.length > 90 ? "…" + com.slice(-90) : com;
+  $("cap").innerHTML =
+    (tail ? `<span class="w">${esc(tail)}</span> ` : "") +
+    (dr ? `<span class="g">${esc(dr)}</span>` : "");
+  $("trans").innerHTML =
+    `<span class="w">${esc(com)}</span> <span class="g">${esc(dr)}</span>`;
+  $("trans").scrollTop = $("trans").scrollHeight;
+}
+function esc(t) { const d = document.createElement("div");
+  d.textContent = t; return d.innerHTML; }
+
+function connect() {
+  ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onmessage = m => {
+    let d; try { d = JSON.parse(m.data); } catch(e) { return; }
+    if (d.event) onEvent(d.event);
+    else if (d.committed !== undefined || d.draft !== undefined) onUpdate(d);
+  };
+  ws.onclose = () => setTimeout(connect, 1500);
+}
+connect();
+HK.add("u", "Vybrať video", () => $("fi").click());
+</script>
+</body>
+</html>
