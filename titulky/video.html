@@ -226,6 +226,10 @@ async function upload(f) {
 /* ── prehrávanie ── */
 $("go").onclick = () => {
   if (!meta || !ws || ws.readyState !== 1) return;
+  const v = $("vid");            // odomkni prehrávanie v rámci user gesture
+  v.muted = true;
+  v.play().then(() => { v.pause(); v.currentTime = 0; v.muted = false; })
+          .catch(() => { v.muted = false; });
   running = true;
   $("go").disabled = true;
   $("trans").innerHTML = "";
@@ -324,7 +328,7 @@ function onEvent(e) {
 
 function onUpdate(d) {
   if (!running && !$("trans").childElementCount) return;
-  const com = d.committed || "", dr = d.draft || "";
+  const com = d.committed || "", dr = d.draft || d.pending || "";
   if (running && feedT0) {
     /* feed-čas príchodu = pozícia audia, ktorú update popisuje */
     capLog.push({t: (performance.now() - feedT0) / 1000, com, dr});
@@ -341,7 +345,7 @@ function connect() {
   ws.onmessage = m => {
     let d; try { d = JSON.parse(m.data); } catch(e) { return; }
     if (d.event) onEvent(d.event);
-    else if (d.committed !== undefined || d.draft !== undefined) onUpdate(d);
+    else if (d.committed !== undefined || d.draft !== undefined || d.pending !== undefined) onUpdate(d);
   };
   ws.onclose = () => setTimeout(connect, 1500);
 }

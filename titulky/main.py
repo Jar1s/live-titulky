@@ -140,10 +140,27 @@ def switch_engine(engine: str, model: str | None, file: str | None = None):
         broadcast(_engine_state_msg())
 
 
+def _jsafe(o):
+    """JSON fallback: numpy skaláre na čísla, zvyšok na str — event
+    s nečakaným typom nesmie zabiť emitujúce vlákno pipeline."""
+    try:
+        import numpy as _np
+        if isinstance(_np.asarray(o), _np.ndarray) and getattr(o, "size", 2) == 1:
+            return o.item()
+    except Exception:
+        pass
+    return str(o)[:80]
+
+
 def broadcast(data: dict):
     if LOOP is None:
         return
-    msg = json.dumps(data, ensure_ascii=False)
+    ev = data.get("event")
+    if isinstance(ev, dict) and any(k.startswith("_") for k in ev):
+        # interné polia (_audio ndarray pre audit) nejdú do JSON
+        data = {**data, "event": {k: v for k, v in ev.items()
+                                  if not k.startswith("_")}}
+    msg = json.dumps(data, ensure_ascii=False, default=_jsafe)
     with _clients_lock:
         snapshot = list(CLIENTS)
     for ws in snapshot:
