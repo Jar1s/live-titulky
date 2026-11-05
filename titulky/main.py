@@ -364,12 +364,16 @@ def _replay_worker(name):
 
 
 def _watch_video_eof(pipe):
-    """Po dohratí súboru ohlás koniec (klient zastaví indikátor)."""
+    """Po dohratí súboru ohlás koniec (klient zastaví indikátor)
+    a vráť pipeline na mikrofón — Studio/overlay inak ostanú hluché."""
     while PIPE is pipe:
         buf = getattr(pipe, "buf", None)
         if buf is not None and getattr(buf, "eof", False):
             time.sleep(3)   # nechaj final dobehnúť posledné okno
             broadcast({"event": {"t": "video_eof"}})
+            time.sleep(5)   # posledné commity pre video stránku
+            if PIPE is pipe:    # medzitým nikto neprepol → späť mikrofón
+                switch_engine(ENGINE["engine"], ENGINE["model"])
             return
         if not getattr(pipe, "running", True):
             return
@@ -415,15 +419,15 @@ def main():
               f"{d['committed'][-70:]} | {d['pending'][:50]}")
         broadcast(d)
 
-    if os.environ.get("TITULKY_ENGINE") == "cloud":
+    def _run_cloud():
         # cloud režim: OpenAI Realtime STT namiesto lokálnej pipeline
+        global PIPE, SESSION
         from .cloud_engine import CloudPipeline, CLOUD_MODEL
         pipe = CloudPipeline(language=args.language, on_update=on_update,
                              on_event=lambda e: broadcast({"event": e}))
         PIPE = pipe
         ENGINE.update(engine="cloud", model=CLOUD_MODEL,
                       language=args.language)
-        global SESSION
         SESSION = sessions.new("cloud", CLOUD_MODEL)
         _start_autosave()
         print(f"CLOUD režim: {CLOUD_MODEL} (OpenAI Realtime)")
@@ -446,10 +450,18 @@ def main():
                     xs2 = sorted(xs)
                     print(f"{name}: p50={xs2[len(xs2)//2]:.2f}s "
                           f"avg={sum(xs)/len(xs):.2f}s n={len(xs)}")
-        return
 
-    pipe = TwoTierPipeline(language=args.language, on_update=on_update,
-                           on_event=lambda e: broadcast({"event": e}))
+    if os.environ.get("TITULKY_ENGINE") == "cloud":
+        return _run_cloud()
+
+    try:
+        pipe = TwoTierPipeline(language=args.language, on_update=on_update,
+                               on_event=lambda e: broadcast({"event": e}))
+    except Exception as local_err:
+        # GRINDCASTER odpojený / modely nedostupné — server musí žiť:
+        # cloud (GPT) žiadny disk nepotrebuje
+        print(f"[engine] lokálny štart zlyhal ({local_err}) → cloud")
+        return _run_cloud()
     PIPE = pipe
     ENGINE.update(engine="local", model=None, language=args.language)
     globals()["SESSION"] = sessions.new("local", None)
@@ -514,7 +526,11 @@ def main():
     pipe.on_event = trace_event
     print("Warmup modelov (base draft + kinit-turbo-sk final)…")
     _t0 = time.time()
-    pipe.warmup()
+    try:
+        pipe.warmup()
+    except Exception as local_err:
+        print(f"[engine] warmup zlyhal ({local_err}) → cloud")
+        return _run_cloud()
     tr.krok("warmup modelov", t0=_t0,
             vystup=rt.vystup("modely", "base draft + kinit-turbo-sk final"))
     if args.file:
