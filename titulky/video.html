@@ -135,7 +135,7 @@ spracovanie dopredu). Titulky vznikajú na aktuálnom engine.</p>
 
 <div id="player">
   <div id="stage">
-    <video id="vid" playsinline></video>
+    <video id="vid" playsinline controls></video>
     <div id="cap"></div>
   </div>
   <div id="prog"><i></i></div>
@@ -145,6 +145,12 @@ spracovanie dopredu). Titulky vznikajú na aktuálnom engine.</p>
     <button class="ghost" id="again" style="display:none">↺ Odznova</button>
     <button class="ghost" id="other">Iné video</button>
     <span id="stat"><span class="dotst" id="dot"></span><span id="stattxt">pripravené</span></span>
+    <span style="flex:1"></span>
+    <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink2)">
+      buffer <input type="range" id="buf" min="0" max="10" step="0.5" value="5"
+        style="width:110px;accent-color:var(--blue)">
+      <b id="bufv" style="color:var(--ink);font-variant-numeric:tabular-nums">5.0 s</b>
+    </label>
   </div>
   <div id="transwrap">
     <div class="t">Prepis</div>
@@ -227,6 +233,10 @@ $("other").onclick = () => { location.reload(); };
 
 /* video štart až keď pipeline reálne beží (video_started event) —
    inak by obraz utiekol pred zvukom o dĺžku engine reštartu */
+let bufTimer = null;
+$("buf").oninput = () => { $("bufv").textContent =
+  (+$("buf").value).toFixed(1) + " s"; };
+
 function onEvent(e) {
   if (e.t === "up_ready") {
     meta = e;
@@ -236,13 +246,30 @@ function onEvent(e) {
     const m = Math.floor(e.duration_s / 60), s = Math.round(e.duration_s % 60);
     $("stattxt").textContent = `pripravené · ${m}:${String(s).padStart(2,"0")}`;
   } else if (e.t === "video_started") {
-    const v = $("vid"); v.currentTime = 0; v.play();
+    /* audio už tečie do pipeline — video pustíme o BUF neskôr,
+       aby titulky (ktoré majú latenciu spracovania) sedeli s obrazom */
+    const BUF = +$("buf").value;
+    const v = $("vid"); v.currentTime = 0;
     $("dot").classList.add("live");
-    $("stattxt").textContent = "beží — audio tečie do pipeline";
+    let left = BUF;
+    clearInterval(bufTimer);
+    if (BUF <= 0) { v.controls = false; v.play(); $("stattxt").textContent = "beží"; }
+    else {
+      $("stattxt").textContent = `buffer sa plní… ${left.toFixed(1)} s`;
+      $("vid").controls = false;   // seek/pauza by rozbila sync s feedom
+      bufTimer = setInterval(() => {
+        left -= 0.1;
+        if (left <= 0) {
+          clearInterval(bufTimer); v.play();
+          $("stattxt").textContent = "beží — titulky zosynchronizované bufferom";
+        } else $("stattxt").textContent = `buffer sa plní… ${left.toFixed(1)} s`;
+      }, 100);
+    }
   } else if (e.t === "video_err") {
     $("stattxt").textContent = "✕ " + (e.msg || "chyba");
     $("go").disabled = false; running = false;
   } else if (e.t === "video_eof") {
+    $("vid").controls = true;
     $("dot").classList.remove("live");
     $("stattxt").textContent = "dohraté — titulky môžu ešte pár sekúnd dobiehať";
     $("again").style.display = "";
@@ -253,11 +280,9 @@ function onEvent(e) {
 function onUpdate(d) {
   if (!running && !$("trans").childElementCount) return;
   const com = d.committed || "", dr = d.draft || "";
-  /* caption: posledných ~90 znakov bieleho + šedý */
-  const tail = com.length > 90 ? "…" + com.slice(-90) : com;
-  $("cap").innerHTML =
-    (tail ? `<span class="w">${esc(tail)}</span> ` : "") +
-    (dr ? `<span class="g">${esc(dr)}</span>` : "");
+  /* caption: len committed — draft by pri bufferi predbiehal obraz */
+  const tail = com.length > 110 ? "…" + com.slice(-110) : com;
+  $("cap").innerHTML = tail ? `<span class="w">${esc(tail)}</span>` : "";
   $("trans").innerHTML =
     `<span class="w">${esc(com)}</span> <span class="g">${esc(dr)}</span>`;
   $("trans").scrollTop = $("trans").scrollHeight;
