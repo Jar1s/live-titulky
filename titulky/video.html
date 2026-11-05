@@ -244,25 +244,30 @@ function fitCaption() {
 $("vid").addEventListener("loadedmetadata", fitCaption);
 window.addEventListener("resize", fitCaption);
 
-$("again").onclick = () => { $("again").style.display = "none"; $("go").disabled = false; $("go").click(); };
+$("again").onclick = () => {          // replay zo záznamu, bez nového prepisu
+  const v = $("vid"); v.currentTime = 0; capIdx = 0; v.play(); };
 $("other").onclick = () => { location.reload(); };
 
 /* video štart až keď pipeline reálne beží (video_started event) —
    inak by obraz utiekol pred zvukom o dĺžku engine reštartu */
-let bufTimer = null, feedT0 = 0, capQ = [], drainTimer = null;
+let bufTimer = null, feedT0 = 0, capLog = [], capIdx = 0, drainTimer = null;
 
+/* capLog = trvalý záznam titulkov s časmi — živý beh aj replay/seek
+   čítajú to isté: najnovší zápis s t <= currentTime */
 function drainCaptions() {
   const v = $("vid");
-  let last = null;
-  while (capQ.length && capQ[0].t <= v.currentTime + 0.05) last = capQ.shift();
-  if (last) {
-    const com = last.com, dr = last.dr;
-    const lim = $("stage").classList.contains("portrait") ? 60 : 90;
-    let tail = com.length > lim ? "…" + com.slice(-lim) : com;
-    $("cap").innerHTML =
-      (tail ? `<span class="w">${esc(tail)}</span> ` : "") +
-      (dr ? `<span class="g">${esc(dr)}</span>` : "");
-  }
+  const ct = v.currentTime + 0.05;
+  if (capIdx > 0 && capLog[capIdx - 1] && capLog[capIdx - 1].t > ct)
+    capIdx = 0;                          // seek dozadu — hľadaj odznova
+  while (capIdx < capLog.length && capLog[capIdx].t <= ct) capIdx++;
+  const last = capIdx > 0 ? capLog[capIdx - 1] : null;
+  if (!last) { $("cap").innerHTML = ""; return; }
+  const com = last.com, dr = last.dr;
+  const lim = $("stage").classList.contains("portrait") ? 60 : 90;
+  let tail = com.length > lim ? "…" + com.slice(-lim) : com;
+  $("cap").innerHTML =
+    (tail ? `<span class="w">${esc(tail)}</span> ` : "") +
+    (dr ? `<span class="g">${esc(dr)}</span>` : "");
 }
 $("buf").oninput = () => { $("bufv").textContent =
   (+$("buf").value).toFixed(1) + " s"; };
@@ -280,7 +285,7 @@ function onEvent(e) {
        aby titulky (ktoré majú latenciu spracovania) sedeli s obrazom */
     const BUF = +$("buf").value;
     feedT0 = performance.now();
-    capQ = [];
+    capLog = []; capIdx = 0;
     clearInterval(drainTimer);
     drainTimer = setInterval(drainCaptions, 80);
     const v = $("vid"); v.currentTime = 0;
@@ -304,8 +309,6 @@ function onEvent(e) {
     $("go").disabled = false; running = false;
   } else if (e.t === "video_eof") {
     $("vid").controls = true;
-    setTimeout(() => { clearInterval(drainTimer); drainCaptions(); },
-               (+$("buf").value + 2) * 1000);
     $("dot").classList.remove("live");
     $("stattxt").textContent = "dohraté — titulky môžu ešte pár sekúnd dobiehať";
     $("again").style.display = "";
@@ -318,7 +321,7 @@ function onUpdate(d) {
   const com = d.committed || "", dr = d.draft || "";
   if (running && feedT0) {
     /* feed-čas príchodu = pozícia audia, ktorú update popisuje */
-    capQ.push({t: (performance.now() - feedT0) / 1000, com, dr});
+    capLog.push({t: (performance.now() - feedT0) / 1000, com, dr});
   }
   $("trans").innerHTML =
     `<span class="w">${esc(com)}</span> <span class="g">${esc(dr)}</span>`;
