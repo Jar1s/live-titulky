@@ -52,6 +52,8 @@ ENGINE_CATALOG = [
      "engine": "cloud", "model": "gpt-4o-transcribe"},
     {"id": "cloud-mini", "label": "Cloud — gpt-4o-mini-transcribe",
      "engine": "cloud", "model": "gpt-4o-mini-transcribe"},
+    {"id": "eleven", "label": "ElevenLabs — Scribe v2 Realtime",
+     "engine": "eleven", "model": "scribe_v2_realtime"},
 ]
 
 
@@ -86,7 +88,16 @@ def switch_engine(engine: str, model: str | None, file: str | None = None):
                 old.stop()
             except Exception:
                 pass
-        if engine == "cloud":
+        if engine == "eleven":
+            from .eleven_engine import ElevenPipeline
+            pipe = ElevenPipeline(language=ENGINE["language"],
+                                  on_update=_on_update,
+                                  on_event=lambda e: broadcast({"event": e}))
+            if file:
+                pipe.start_file(file)
+            else:
+                pipe.start_mic(os.environ.get("TITULKY_DEVICE") or None)
+        elif engine == "cloud":
             from .cloud_engine import CloudPipeline
             if model:
                 from . import cloud_engine
@@ -376,6 +387,10 @@ def _watch_video_eof(pipe):
                 switch_engine(ENGINE["engine"], ENGINE["model"])
             return
         if not getattr(pipe, "running", True):
+            # cloud/eleven file-mode: pipe skončila sama po EOF → mikrofón
+            time.sleep(2)
+            if PIPE is pipe:
+                switch_engine(ENGINE["engine"], ENGINE["model"])
             return
         time.sleep(0.5)
 
