@@ -252,14 +252,14 @@ class ElevenPipeline:
             "base": self.display_from,
             "pending": self.draft_text,
             "speaking": bool(self.draft_text),
-            "draft_latency_s": self.draft_latencies[-1]
+            "draft_latency_s": float(self.draft_latencies[-1])
             if self.draft_latencies else None,
-            "avg_draft_latency_s": (sum(self.draft_latencies)
+            "avg_draft_latency_s": float(sum(self.draft_latencies)
                                     / len(self.draft_latencies))
             if self.draft_latencies else None,
-            "final_latency_s": self.final_latencies[-1]
+            "final_latency_s": float(self.final_latencies[-1])
             if self.final_latencies else None,
-            "avg_final_latency_s": (sum(self.final_latencies)
+            "avg_final_latency_s": float(sum(self.final_latencies)
                                     / len(self.final_latencies))
             if self.final_latencies else None,
             "flicker_rate": 0.0,
