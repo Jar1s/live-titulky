@@ -14,7 +14,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install deps (bez MLX — unit testy čistej logiky)
-        run: pip install numpy scipy pytest ruff
+        run: pip install numpy scipy pytest ruff websockets
       - name: Lint
         run: ruff check titulky/ test_units.py --ignore E501,SIM115,SIM102
       - name: Unit testy
