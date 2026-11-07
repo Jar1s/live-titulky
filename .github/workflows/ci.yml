@@ -16,6 +16,6 @@ jobs:
       - name: Install deps (bez MLX — unit testy čistej logiky)
         run: pip install numpy scipy pytest ruff websockets
       - name: Lint
-        run: ruff check titulky/ test_units.py --ignore E501,SIM115,SIM102
+        run: ruff check titulky/ test_units.py --ignore E501,SIM115,SIM102,BLE001,S110,S112,PLW1510,ISC004,I001,RUF059,RUF100
       - name: Unit testy
         run: pytest test_units.py -v

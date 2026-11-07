@@ -331,7 +331,10 @@ def test_local_engine_is_default():
     Overuje ze config.json obsahuje engine=local a apply() ho aplikuje do env.
     """
     import os
+    import pytest
     import titulky.userconfig as uc
+    if not uc.PATH.exists():
+        pytest.skip("config.json neexistuje (CI bez GRINDCASTER)")
     cfg = uc.load()
     assert cfg.get("TITULKY_ENGINE") == "local", (
         f"Ocakavam TITULKY_ENGINE=local v ~/.config/titulky/config.json, got: {cfg.get('TITULKY_ENGINE')!r}"
@@ -350,7 +353,10 @@ def test_local_engine_is_default():
 
 def test_local_final_engine_is_cpp():
     """JBOP-97: TITULKY_FINAL_ENGINE=cpp je default (250-330ms vs mlx 1.6s)."""
+    import pytest
     import titulky.userconfig as uc
+    if not uc.PATH.exists():
+        pytest.skip("config.json neexistuje (CI bez GRINDCASTER)")
     cfg = uc.load()
     assert cfg.get("TITULKY_FINAL_ENGINE") == "cpp", (
         f"Ocakavam TITULKY_FINAL_ENGINE=cpp v config.json, got: {cfg.get('TITULKY_FINAL_ENGINE')!r}"
