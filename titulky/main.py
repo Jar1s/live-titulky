@@ -11,13 +11,6 @@ import json
 import os
 import pathlib
 import statistics
-
-# HF cache: ~/.cache/huggingface je symlink na externý GRINDCASTER — keď
-# disk nie je pripojený, lokálne modely by nenabehli. Lokálna kópia na
-# internom SSD (~1.8 GB) robí demo nezávislým od externého disku.
-_local_hf = pathlib.Path.home() / ".cache" / "hf-titulky"
-if "HF_HOME" not in os.environ and _local_hf.exists():
-    os.environ["HF_HOME"] = str(_local_hf)
 import secrets
 import threading
 import time
