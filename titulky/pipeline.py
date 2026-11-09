@@ -224,7 +224,14 @@ class TwoTierPipeline:
         backend = os.environ.get("TITULKY_DRAFT_BACKEND", "ane")
         if backend == "ane":
             from .asr import AneDraftASR
-            self.draft_asr = AneDraftASR()
+            if not os.path.exists(AneDraftASR.MODEL):
+                # GRINDCASTER odpojený — pywhispercpp by spadol natívne;
+                # MLX draft (base z lokálnej HF cache) je bezpečný fallback
+                print(f"[draft] ANE model nedostupný ({AneDraftASR.MODEL})"
+                      " → MLX draft")
+                self.draft_asr = ASR(draft_repo)
+            else:
+                self.draft_asr = AneDraftASR()
         elif backend == "parakeet":
             # experiment: parakeet ako draft (šedé je dočasné, drift
             # opraví biele); POZOR: zdieľa Metal s MLX finalom
