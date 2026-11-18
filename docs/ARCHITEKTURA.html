@@ -61,6 +61,10 @@
   <text x="380" y="548" fill="#fbbf24" font-size="10">nevyčistené audio, 100 ms chunky</text>
   <text x="380" y="564" fill="#fbbf24" font-size="10">konverzia: float32 → PCM16 16 kHz → base64 → JSON cez WSS</text>
   <text x="380" y="580" fill="#fbbf24" font-size="10">(formát vyžadovaný API; čistenie a VAD si robí provider na serveri)</text>
+  <polyline points="1360,164 1390,164 1390,246" fill="none" stroke="#34d399" stroke-width="2"/>
+  <polyline points="1360,296 1390,296 1390,246" fill="none" stroke="#34d399" stroke-width="2"/>
+  <line x1="1390" y1="246" x2="1420" y2="246" stroke="#34d399" stroke-width="2"/>
+  <text x="900" y="384" fill="#64748b" font-size="9">výstup = biely committed (FINAL) + sivý draft chvost za hranicou · dedup slov na hranici</text>
   <line x1="1422" y1="246" x2="1476" y2="320" stroke="#34d399" stroke-width="2" marker-end="url(#arrG)"/>
   <rect x="1428" y="222" width="132" height="18" rx="4" fill="#020617"/>
   <text x="1434" y="235" fill="#34d399" font-size="10">slová + časy (JSON)</text>
@@ -118,13 +122,13 @@
   <!-- ===== 5a · LOKÁL: DRAFT a FINAL paralelne pod sebou ===== -->
   <rect x="840" y="70" width="580" height="290" rx="12" fill="none" stroke="#34d399" stroke-width="1.5" stroke-dasharray="8,4"/>
   <text x="856" y="94" fill="#34d399" font-size="11" font-weight="700">5a · PREPIS NA MACU — audio neopúšťa počítač</text>
-  <rect x="860" y="112" width="540" height="104" rx="6" fill="#0f172a"/><rect x="860" y="112" width="540" height="104" rx="6" fill="rgba(76,29,149,.4)" stroke="#a78bfa" stroke-width="1.5"/>
+  <rect x="860" y="112" width="500" height="104" rx="6" fill="#0f172a"/><rect x="860" y="112" width="500" height="104" rx="6" fill="rgba(76,29,149,.4)" stroke="#a78bfa" stroke-width="1.5"/>
   <text x="876" y="140" fill="#e2e8f0" font-size="12" font-weight="700">DRAFT · rýchly nábeh</text>
   <text x="876" y="160" fill="#94a3b8" font-size="9">whisper base · Apple Neural Engine · ~0.4 s · beží každých ~0.15 s</text>
   <text x="876" y="178" fill="#64748b" font-size="8">takto ho vidíš (sivý, mení sa):</text>
   <text x="876" y="200" fill="#94a3b8" font-size="12" font-style="italic">ahoj ako sa mas…</text>
-  <text x="1130" y="235" fill="#a78bfa" font-size="10" font-weight="700" text-anchor="middle">bežia PARALELNE nad tým istým oknom</text>
-  <rect x="860" y="244" width="540" height="104" rx="6" fill="#0f172a"/><rect x="860" y="244" width="540" height="104" rx="6" fill="rgba(76,29,149,.4)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="1110" y="235" fill="#a78bfa" font-size="10" font-weight="700" text-anchor="middle">bežia PARALELNE nad tým istým oknom</text>
+  <rect x="860" y="244" width="500" height="104" rx="6" fill="#0f172a"/><rect x="860" y="244" width="500" height="104" rx="6" fill="rgba(76,29,149,.4)" stroke="#a78bfa" stroke-width="1.5"/>
   <text x="876" y="270" fill="#e2e8f0" font-size="12" font-weight="700">FINAL · potvrdený text</text>
   <text x="876" y="288" fill="#94a3b8" font-size="9">kinit-turbo-sk (SK) · MLX GPU · LocalAgreement-2: 2 zhodné behy po sebe</text>
   <text x="876" y="302" fill="#94a3b8" font-size="9">noise gate: slová bez reči von · potvrdzuje (commituje) slová draftu</text>
