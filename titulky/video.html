@@ -330,14 +330,13 @@ function applyCapPrefs() {
   fitCaption();
   localStorage.setItem("capPrefs", JSON.stringify({
     style: $("capstyle").value, pos, size: +$("capsize").value,
-    shift: capShift, col: $("capcol").value, bg}));
+    col: $("capcol").value, bg}));
 }
 try {
   const p = JSON.parse(localStorage.getItem("capPrefs") || "{}");
   if (p.style !== undefined) $("capstyle").value = p.style;
   if (p.pos) $("cappos").value = p.pos;
   if (p.size) $("capsize").value = p.size;
-  if (p.shift !== undefined) $("capshift").value = p.shift;
   if (p.col) $("capcol").value = p.col;
   if (p.bg) $("capbg").value = p.bg;
 } catch(e) {}
