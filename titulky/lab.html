@@ -1151,5 +1151,13 @@ archView("am_corr",  "830 228 600 180");
 archView("am_cloud", "690 360 760 305");
 archView("am_out",   "1400 200 600 300");
 </script>
+<script>
+// pod file:// presmeruj absolutne odkazy (/flow, /studio...) na bezaci server
+if (location.protocol === "file:") {
+  document.querySelectorAll('a[href^="/"]').forEach(a => {
+    a.href = "http://localhost:8765" + a.getAttribute("href");
+  });
+}
+</script>
 </body>
 </html>
