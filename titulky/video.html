@@ -366,6 +366,11 @@ function onEvent(e) {
         if (wait) $("stattxt").textContent = "dokončujem prepis…";
       } else $("stattxt").textContent = msg;
     }, 100);
+  } else if (e.t === "cloud_err") {
+    // engine (eleven/cloud) hlási chybu — bez slov by titulky mlčky
+    // nabehli na núdzové časovanie; povedz to nahlas
+    $("stattxt").textContent = "✕ engine: " + (e.msg || "chyba") +
+      " — prepni na Lokálny engine";
   } else if (e.t === "video_err") {
     $("stattxt").textContent = "✕ " + (e.msg || "chyba");
     $("go").disabled = false; running = false;
