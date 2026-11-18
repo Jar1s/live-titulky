@@ -148,6 +148,9 @@ spracovanie dopredu). Titulky vznikajú na aktuálnom engine.</p>
     <button class="b" id="go">▶ Spustiť s titulkami</button>
     <button class="ghost" id="again" style="display:none">↺ Odznova</button>
     <button class="ghost" id="other">Iné video</button>
+    <select id="eng" title="Engine pre prepis"
+      style="background:var(--bg2,#1a1d24);color:var(--ink);border:1px solid var(--line,#333);
+             border-radius:8px;padding:6px 8px;font-size:12.5px"></select>
     <span id="stat"><span class="dotst" id="dot"></span><span id="stattxt">pripravené</span></span>
     <span style="flex:1"></span>
     <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink2)">
@@ -252,6 +255,10 @@ window.addEventListener("resize", fitCaption);
 $("again").onclick = () => {          // replay zo záznamu, bez nového prepisu
   const v = $("vid"); v.currentTime = 0; capIdx = 0; v.play(); };
 $("other").onclick = () => { location.reload(); };
+$("eng").onchange = () => {
+  const v = JSON.parse($("eng").value);
+  ws.send(JSON.stringify({t: "engine", engine: v.engine, model: v.model}));
+};
 
 /* video štart až keď pipeline reálne beží (video_started event) —
    inak by obraz utiekol pred zvukom o dĺžku engine reštartu */
@@ -366,6 +373,19 @@ function onEvent(e) {
         if (wait) $("stattxt").textContent = "dokončujem prepis…";
       } else $("stattxt").textContent = msg;
     }, 100);
+  } else if (e.t === "engine_state") {
+    // prepínač enginu priamo v UI (rovnaký katalóg ako Studio)
+    const sel = $("eng"); sel.innerHTML = "";
+    for (const c of (e.catalog || [])) {
+      const o = document.createElement("option");
+      o.value = JSON.stringify({engine: c.engine, model: c.model || null});
+      o.textContent = c.label;
+      if (e.engine === c.engine && (e.model || null) === (c.model || null))
+        o.selected = true;
+      sel.appendChild(o);
+    }
+    sel.disabled = !!e.switching;
+    if (e.switching) $("stattxt").textContent = "prepínam engine…";
   } else if (e.t === "cloud_err") {
     // engine (eleven/cloud) hlási chybu — bez slov by titulky mlčky
     // nabehli na núdzové časovanie; povedz to nahlas
@@ -410,6 +430,7 @@ function esc(t) { const d = document.createElement("div");
 
 function connect() {
   ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onopen = () => ws.send(JSON.stringify({t: "state"}));  // engine_state pre prepínač
   ws.onmessage = m => {
     let d; try { d = JSON.parse(m.data); } catch(e) { return; }
     if (d.event) onEvent(d.event);
