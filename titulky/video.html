@@ -237,43 +237,40 @@ $("fi").onchange = () => { if ($("fi").files[0]) upload($("fi").files[0]); };
    na 16 kHz mono a poslané po WS v int16 chunkoch. */
 async function upload(f) {
   $("prog").style.display = "block";
-  $("upmsg").textContent = "Pripravujem audio z " + f.name + "…";
+  $("upmsg").textContent = "Nahrávam " + f.name + " na server…";
   $("drop").style.display = "none";
   $("player").style.display = "block";
   $("vid").src = URL.createObjectURL(f);          // video hneď, bez prenosu
+  /* audio extrahuje server cez ffmpeg (:8766) — funguje aj pre hodinový
+     longform; browser nič nedekóduje, takže žiadne pamäťové limity */
   try {
-    const buf = await f.arrayBuffer();
-    $("prog").firstElementChild.style.width = "20%";
-    const ac = new (window.AudioContext || window.webkitAudioContext)();
-    const dec = await ac.decodeAudioData(buf);
-    ac.close();
-    $("prog").firstElementChild.style.width = "45%";
-    const oc = new OfflineAudioContext(1, Math.ceil(dec.duration * 16000), 16000);
-    const src = oc.createBufferSource();
-    src.buffer = dec; src.connect(oc.destination); src.start();
-    const mono = (await oc.startRendering()).getChannelData(0);
-    /* int16 + b64 po 256 kB */
-    const i16 = new Int16Array(mono.length);
-    for (let i = 0; i < mono.length; i++) {
-      const v = Math.max(-1, Math.min(1, mono[i]));
-      i16[i] = v < 0 ? v * 32768 : v * 32767;
-    }
-    ws.send(JSON.stringify({t: "up_begin", name: f.name}));
-    const bytes = new Uint8Array(i16.buffer);
-    const STEP = 1 << 18;
-    for (let o = 0; o < bytes.length; o += STEP) {
-      let bin = "";
-      const sl = bytes.subarray(o, o + STEP);
-      for (let i = 0; i < sl.length; i += 0x8000)
-        bin += String.fromCharCode.apply(null, sl.subarray(i, i + 0x8000));
-      ws.send(JSON.stringify({t: "up_pcm", data: btoa(bin)}));
-      $("prog").firstElementChild.style.width =
-        (50 + o / bytes.length * 48) + "%";
-      if (o % (STEP * 8) === 0) await new Promise(r => setTimeout(r));
-    }
-    ws.send(JSON.stringify({t: "up_end"}));   // odpoveď príde ako up_ready
+    const res = await new Promise((ok, err) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `http://${location.hostname}:8766/upload`);
+      xhr.setRequestHeader("X-Filename", f.name);
+      xhr.upload.onprogress = ev => {
+        if (ev.lengthComputable)
+          $("prog").firstElementChild.style.width =
+            (ev.loaded / ev.total * 80) + "%";
+      };
+      xhr.onload = () => {
+        try { ok({code: xhr.status, body: JSON.parse(xhr.responseText)}); }
+        catch (e) { err(e); }
+      };
+      xhr.onerror = () => err(new Error("upload server nebeží (:8766)"));
+      xhr.send(f);
+    });
+    if (res.code !== 200) throw new Error(res.body.error || ("HTTP " + res.code));
+    $("prog").firstElementChild.style.width = "100%";
+    meta = {id: res.body.id, dur: res.body.duration_s};
+    $("go").disabled = false;
+    $("prog").style.display = "none";
+    $("upmsg").textContent = "";
+    $("stattxt").textContent = "pripravené · " +
+      Math.floor(meta.dur / 60) + ":" +
+      String(Math.round(meta.dur % 60)).padStart(2, "0");
   } catch (e) {
-    $("upmsg").textContent = "✕ audio sa nedá dekódovať (" + e + ")";
+    $("upmsg").textContent = "✕ " + (e.message || e);
   }
 }
 
