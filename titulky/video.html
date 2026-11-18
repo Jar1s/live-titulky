@@ -442,9 +442,18 @@ function drainCaptions() {
   /* fallback (cloud engine bez word časov): interpolované committed slová —
      okno 2,4 s, max 4 slová; capShift = ručné doladenie (+ = skôr) */
   if (cwLog.length) {
-    const win = cwLog.filter(x => x.s <= c2 && x.s > c2 - 2.4).slice(-4);
-    $("cap").innerHTML = win.length
-      ? `<span class="w">${esc(win.map(x => x.w).join(" "))}</span>` : "";
+    /* stabilné skupiny po 4 slovách (ako lokál) — kĺzavé okno sa menilo
+       každým slovom a nedalo sa čítať */
+    let gi = -1;
+    for (let i = 0; i < cwLog.length; i += 4) {
+      if (cwLog[i].s <= c2) gi = i; else break;
+    }
+    if (gi < 0) { $("cap").innerHTML = ""; return; }
+    const grp = cwLog.slice(gi, gi + 4);
+    const nxt = cwLog[gi + 4];
+    const live = nxt ? true : (c2 - grp[grp.length - 1].s < 2.5);
+    $("cap").innerHTML = live
+      ? `<span class="w">${esc(grp.map(x => x.w).join(" "))}</span>` : "";
     return;
   }
   /* núdza: žiadne committed slová — posledný update, max 3 slová */
