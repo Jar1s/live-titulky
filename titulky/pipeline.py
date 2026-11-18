@@ -1105,8 +1105,13 @@ class TwoTierPipeline:
 
     # ---- riadenie -----------------------------------------------------
     def warmup(self):
+        # raz za proces: modely aj Metal kernely ostávajú v pamäti,
+        # opakovaný warmup pri prepnutí enginu bol len mŕtvy čas
+        if getattr(TwoTierPipeline, "_warmed", False):
+            return
         self.draft_asr.warmup()
         self.final_asr.warmup()
+        TwoTierPipeline._warmed = True
 
     def run(self):
         self.running = True

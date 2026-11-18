@@ -159,6 +159,25 @@ class ASR:
         return words
 
 
+_CPP_CACHE = {}
+_CPP_CACHE_LOCK = threading.Lock()
+
+
+def _cpp_model(path, threads, context_params=None):
+    """pywhispercpp Model cache — load ggml+CoreML raz za proces, nie pri
+    každom prepnutí enginu (CoreML init trvá aj desiatky sekúnd)."""
+    from pywhispercpp.model import Model
+    key = (path, threads, bool(context_params))
+    with _CPP_CACHE_LOCK:
+        m = _CPP_CACHE.get(key)
+        if m is None:
+            kw = {"context_params": context_params} if context_params else {}
+            m = Model(path, n_threads=threads, print_progress=False,
+                      print_realtime=False, **kw)
+            _CPP_CACHE[key] = m
+        return m
+
+
 class CpuDraftASR:
     """Draft na CPU (faster-whisper/ctranslate2, tiny int8) — NEzdieľa GPU
     s final vrstvou, takže draft nehladuje počas final dekódov.
@@ -227,13 +246,11 @@ class AneDraftASR:
     # (small-sk: rovnaký text ale 0.2-0.26s; stock base: rýchly ale bľaboly)
 
     def __init__(self, model=None, threads=4):
-        from pywhispercpp.model import Model
         # use_gpu=False: draft NESMIE na Metal — final (cpp engine) by ho
         # vytlačil z GPU fronty (merané 24.10.: draft p50 1.5-3.2s namiesto
         # 0.4-0.8s). CoreML encoder (ANE) + CPU decoder ako doteraz.
-        self.model = Model(model or self.MODEL, n_threads=threads,
-                           print_progress=False, print_realtime=False,
-                           context_params={"use_gpu": False})
+        self.model = _cpp_model(model or self.MODEL, threads,
+                                context_params={"use_gpu": False})
         self.last_stats = {}
 
     def warmup(self):
@@ -279,9 +296,7 @@ class FinalCppASR:
         "kinit-whisper-large-v3-turbo-sk/ggml-model.bin")
 
     def __init__(self, model=None, threads=4):
-        from pywhispercpp.model import Model
-        self.model = Model(model or self.MODEL, n_threads=threads,
-                           print_progress=False, print_realtime=False)
+        self.model = _cpp_model(model or self.MODEL, threads)
         self.last_stats = {}
 
     def warmup(self):
