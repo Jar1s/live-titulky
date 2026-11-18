@@ -386,7 +386,7 @@ let wordLog = [], groups = [];
 
 function rebuildGroups() {
   const portrait = $("stage").classList.contains("portrait");
-  const MAXW = portrait ? 2 : 3, MAXC = portrait ? 14 : 20;
+  const MAXW = portrait ? 4 : 5, MAXC = portrait ? 24 : 32;
   groups = [];
   let cur = [];
   const flush = () => { if (cur.length) groups.push({
@@ -403,7 +403,7 @@ function rebuildGroups() {
   let prev = 0;
   for (const g of groups) {
     g.s = Math.max(g.s, prev);
-    g.e = Math.max(g.e, g.s + 0.3);
+    g.e = Math.max(g.e, g.s + 0.6);
     prev = g.s + 0.05;
   }
   for (let i = 1; i < groups.length; i++) {
