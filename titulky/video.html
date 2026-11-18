@@ -417,14 +417,14 @@ function drainCaptions() {
     stalled = false; if (v.paused && !v.ended) v.play();
     $("stattxt").textContent = "beží — titulky pripravené";
   }
+  const c2 = ct + capShift;      // posun platí pre všetky engine
   if (groups.length) {               // grindcast režim (lokálny engine)
-    const g = groups.find(g => ct >= g.s && ct <= g.e);
+    const g = groups.find(g => c2 >= g.s && c2 <= g.e);
     $("cap").innerHTML = g ? `<span class="w">${esc(g.t)}</span>` : "";
     return;
   }
   /* fallback (cloud engine bez word časov): posledný update, max 3 slová;
      capShift = ručné doladenie synchronizácie (+ = titulky skôr) */
-  const c2 = ct + capShift;
   if (capIdx > 0 && capLog[capIdx - 1] && capLog[capIdx - 1].t > c2 + 0.05)
     capIdx = 0;
   while (capIdx < capLog.length && capLog[capIdx].t <= c2 + 0.05) capIdx++;
