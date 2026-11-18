@@ -481,8 +481,8 @@ projekt, nie patch.</p>
 
 <style>
 .archmap { width: min(1800px, 96vw); margin-top: 18px; }
-.archmap svg { display: block; width: 100%; height: auto; max-height: 38vh; }
-.archmap.big svg { max-height: 68vh; } .archmap.tall { width: auto; } .archmap.tall svg { height: 46vh; width: auto; max-width: 90vw; margin: 0 auto; }
+.archmap svg { display: block; max-width: 100%; max-height: 38vh; width: auto; height: auto; margin: 0 auto; }
+.archmap.big svg { max-height: 68vh; max-width: 96vw; } .archmap.tall svg { max-height: 46vh; }
 </style>
 <div id="deck">
 <section class="slide"><span class="k">TITULKY.ŽIVO</span>
@@ -1216,7 +1216,8 @@ const ARCH_INNER = `
 function archView(id, vb) {
   const el = document.getElementById(id); if (!el) return;
   const inner = ARCH_INNER.replace(/<rect width="2020" height="720" fill="url\(#grid\)"\/>/, '');
-  el.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + vb +
+  const p = vb.split(' ');
+  el.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="' + p[2] + '" height="' + p[3] + '" viewBox="' + vb +
     '" font-family="JetBrains Mono, monospace">' + inner + '</svg>';
 }
 archView("am_full",  "0 0 2020 720");
