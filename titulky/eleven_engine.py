@@ -228,14 +228,16 @@ class ElevenPipeline:
                     items.append({"w": txt, "s": round(s, 2),
                                   "e": round(e, 2)})
                 if items:
-                    # heuristika: časy relatívne k segmentu → posuň na
-                    # absolútne (ak prvé slovo začína pred koncom
-                    # predošlého commitu)
-                    if items[0]["s"] + 0.3 < self._vw_prev_end:
+                    # Scribe v2 posiela časy na kumulatívnom audio clocku
+                    # (absolútne od začiatku session — elevenlabs-python #849).
+                    # Korekcia LEN pri jasnom znaku segment-relatívnych časov:
+                    # prvé slovo ~0, hoci session je už ďaleko.
+                    if items[0]["s"] < 0.5 and self._vw_prev_end > 2.0:
                         off = self._vw_prev_end
                         for it in items:
                             it["s"] = round(it["s"] + off, 2)
                             it["e"] = round(it["e"] + off, 2)
+                        print(f"[eleven] segment-relativne casy, posuvam o {off:.2f}s")
                     self._vw_prev_end = items[-1]["e"]
                     self.on_event({"t": "vwords", "items": items})
             elif mt in ("input_error", "error", "transcriber_error",
