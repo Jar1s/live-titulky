@@ -471,7 +471,12 @@ function onEvent(e) {
        doprepíše počas prehrávania. */
     const covSamples = [];
     const coverNow = () => {
+      /* kým neprišlo PRVÉ slovo, feedu never — pipeline sa ešte len
+         rozbieha (warmup) a feedPos by tváril pokrytie tam, kde ešte
+         žiadne commity nie sú → video by štartlo bez titulkov.
+         Výnimka: dlhé ticho na začiatku (feed > 25 s audia bez slov). */
       const lastE = wordLog.length ? wordLog[wordLog.length - 1].e : 0;
+      if (!wordLog.length && !capLog.length && feedPos < 25) return 0;
       return Math.max(lastE, feedPos - (maxLag + 4), 0);
     };
     bufTimer = setInterval(() => {
