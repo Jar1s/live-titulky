@@ -354,7 +354,7 @@ $("again").onclick = () => {          // replay zo záznamu, bez nového prepisu
 $("other").onclick = () => { location.reload(); };
 $("eng").onchange = () => {
   const v = JSON.parse($("eng").value);
-  ws.send(JSON.stringify({t: "engine", engine: v.engine, model: v.model}));
+  ws.send(JSON.stringify({t: "engine", engine: v.engine, model: v.model, idle: true}));
 };
 
 /* video štart až keď pipeline reálne beží (video_started event) —

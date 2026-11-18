@@ -68,8 +68,10 @@ def _engine_state_msg():
                       "catalog": ENGINE_CATALOG}}
 
 
-def switch_engine(engine: str, model: str | None, file: str | None = None):
-    """Zastav bežiacu pipeline a naštartuj novú (mikrofón alebo súbor)."""
+def switch_engine(engine: str, model: str | None, file: str | None = None,
+                  idle: bool = False):
+    """Zastav bežiacu pipeline a naštartuj novú (mikrofón alebo súbor).
+    idle=True: engine sa len pripraví (video stránka) — mikrofón sa NEspúšťa."""
     global PIPE
     with ENGINE_LOCK:
         if ENGINE["switching"]:
@@ -95,7 +97,7 @@ def switch_engine(engine: str, model: str | None, file: str | None = None):
                                   on_event=lambda e: broadcast({"event": e}))
             if file:
                 pipe.start_file(file)
-            else:
+            elif not idle:
                 pipe.start_mic(os.environ.get("TITULKY_DEVICE") or None)
         elif engine == "cloud":
             from .cloud_engine import CloudPipeline
@@ -107,7 +109,7 @@ def switch_engine(engine: str, model: str | None, file: str | None = None):
                                  on_event=lambda e: broadcast({"event": e}))
             if file:
                 pipe.start_file(file)
-            else:
+            elif not idle:
                 pipe.start_mic(os.environ.get("TITULKY_DEVICE") or None)
         else:
             try:
@@ -118,7 +120,7 @@ def switch_engine(engine: str, model: str | None, file: str | None = None):
                 pipe.warmup()
                 if file:
                     pipe.play_file(file, speed=2.0)
-                else:
+                elif not idle:
                     pipe.start_mic()
                 threading.Thread(target=pipe.run, daemon=True).start()
             except Exception as local_err:
@@ -132,7 +134,8 @@ def switch_engine(engine: str, model: str | None, file: str | None = None):
                 pipe = CloudPipeline(language=ENGINE["language"],
                                      on_update=_on_update,
                                      on_event=lambda e: broadcast({"event": e}))
-                pipe.start_mic(os.environ.get("TITULKY_DEVICE") or None)
+                if not idle:
+                    pipe.start_mic(os.environ.get("TITULKY_DEVICE") or None)
                 engine = "cloud"
                 model = fallback_model
         with _state_lock:
@@ -196,6 +199,7 @@ async def handler(ws):
                 threading.Thread(target=switch_engine,
                                  args=(d.get("engine", "local"),
                                        d.get("model")),
+                                 kwargs={"idle": bool(d.get("idle"))},
                                  daemon=True).start()
             elif d.get("t") == "state":
                 await ws.send(json.dumps(_engine_state_msg(),
