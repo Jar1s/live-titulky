@@ -366,20 +366,35 @@ function onEvent(e) {
        potrebuje. Pri tichom začiatku (žiadne commity) štart po 10s. */
     $("stattxt").textContent = `buffer sa plní… (meriam prepis)`;
     const shortClip = meta && meta.duration_s && meta.duration_s <= 45;
+    /* SAFE buffer: meriam rýchlosť prepisu r (audio-sekundy pokrytia
+       za sekundu času). Video hrá 1x, takže ak r ≥ 1, náskok už nikdy
+       neklesne; ak r < 1, treba štartový náskok D·(1−r), kde D je
+       dĺžka videa. Štart až keď je náskok istý — bez pauz v strede. */
+    const covSamples = [];
+    const coverNow = () => {
+      const lastE = wordLog.length ? wordLog[wordLog.length - 1].e : 0;
+      return Math.max(lastE, feedPos - (maxLag + 4), 0);
+    };
     bufTimer = setInterval(() => {
-      /* feed ide 2x — feedPos sú AUDIO sekundy zo servera.
-         Krátky klip: počkaj na celý prepis (feed EOF + 2.5s flush) =
-         istota, titulky kompletné. Dlhší: náskok maxLag+3s. */
       let ready, msg;
+      const cover = coverNow();
+      covSamples.push({t: performance.now(), c: cover});
+      while (covSamples.length > 80) covSamples.shift();   // ~8 s okno
       if (shortClip) {
         ready = feedEof;
         msg = `pripravujem titulky… ${Math.round(
           100 * Math.min(1, feedPos / (meta.duration_s || 1)))} %`;
       } else {
-        const need = Math.min(14, Math.max(BUF, maxLag + 3,
-          wordLog.length ? 0 : 10));
-        ready = feedEof || feedPos >= need;
-        msg = `buffer sa plní… ${feedPos.toFixed(0)}/${need.toFixed(0)} s`;
+        const D = meta && meta.duration_s ? meta.duration_s : 600;
+        const a = covSamples[0], b = covSamples[covSamples.length - 1];
+        const dt = (b.t - a.t) / 1000;
+        const r = dt >= 3 ? (b.c - a.c) / dt : 0;   // kým nemeriame, r=0
+        const needed = r >= 1.05
+          ? Math.max(BUF, maxLag + 3)
+          : Math.min(D, D * (1 - Math.max(r, 0)) + 2);
+        ready = feedEof || cover >= needed;
+        msg = `buffer sa plní… ${cover.toFixed(0)}/${needed.toFixed(0)} s` +
+          (dt >= 3 ? ` (prepis ${r.toFixed(1)}×)` : "");
       }
       if (ready) {
         clearInterval(bufTimer);
