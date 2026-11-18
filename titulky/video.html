@@ -464,11 +464,11 @@ function onEvent(e) {
        prerušenia — každé slovo je potvrdené skôr, než ho obraz
        potrebuje. Pri tichom začiatku (žiadne commity) štart po 10s. */
     $("stattxt").textContent = `buffer sa plní… (meriam prepis)`;
-    const shortClip = meta && meta.duration_s && meta.duration_s <= 45;
-    /* SAFE buffer: meriam rýchlosť prepisu r (audio-sekundy pokrytia
-       za sekundu času). Video hrá 1x, takže ak r ≥ 1, náskok už nikdy
-       neklesne; ak r < 1, treba štartový náskok D·(1−r), kde D je
-       dĺžka videa. Štart až keď je náskok istý — bez pauz v strede. */
+    /* SAFE buffer pre KAŽDÚ dĺžku: meriam rýchlosť prepisu r
+       (audio-sekundy pokrytia za sekundu času). Video hrá 1x — ak
+       r ≥ 1, náskok už nikdy neklesne; ak r < 1, treba štartový
+       náskok D·(1−r). Štart hneď, keď je to bezpečné; zvyšok sa
+       doprepíše počas prehrávania. */
     const covSamples = [];
     const coverNow = () => {
       const lastE = wordLog.length ? wordLog[wordLog.length - 1].e : 0;
@@ -479,11 +479,7 @@ function onEvent(e) {
       const cover = coverNow();
       covSamples.push({t: performance.now(), c: cover});
       while (covSamples.length > 80) covSamples.shift();   // ~8 s okno
-      if (shortClip) {
-        ready = feedEof;
-        msg = `pripravujem titulky… ${Math.round(
-          100 * Math.min(1, feedPos / (meta.duration_s || 1)))} %`;
-      } else {
+      {
         const D = meta && meta.duration_s ? meta.duration_s : 600;
         const a = covSamples[0], b = covSamples[covSamples.length - 1];
         const dt = (b.t - a.t) / 1000;
@@ -497,7 +493,7 @@ function onEvent(e) {
       }
       if (ready) {
         clearInterval(bufTimer);
-        const wait = (shortClip && feedEof) ? 2500 : 0;
+        const wait = feedEof ? 2000 : 0;   // flush posledných commitov
         setTimeout(() => {
           v.play();
           $("stattxt").textContent = "beží — titulky pripravené";
