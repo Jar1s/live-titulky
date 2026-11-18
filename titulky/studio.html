@@ -337,6 +337,13 @@ function handle(d) {
 
 function handleEvent(e) {
   if (e.t === "engine_state") {
+    if (e.switching && !window._swPoll)
+      window._swPoll = setInterval(() => {
+        if (ws && ws.readyState === 1) ws.send(JSON.stringify({t: "state"}));
+      }, 3000);
+    if (!e.switching && window._swPoll) {
+      clearInterval(window._swPoll); window._swPoll = null;
+    }
     engineState = e; renderEngines(); setDot();
     $("engineNote").style.display = e.switching ? "block" : "none";
   } else if (e.t === "paused") {
