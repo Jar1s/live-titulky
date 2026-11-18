@@ -45,24 +45,23 @@
   <!-- ŠÍPKY — vetvy zrkadlovo rovnaké -->
   <line x1="190" y1="269" x2="246" y2="330" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
   <line x1="190" y1="409" x2="246" y2="380" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
-  <text x="196" y="300" fill="#94a3b8" font-size="8">surové audio</text>
-  <text x="196" y="406" fill="#94a3b8" font-size="8">surové audio</text>
+  <text x="130" y="330" fill="#cbd5e1" font-size="10">surové audio</text>
   <line x1="430" y1="355" x2="466" y2="355" stroke="#34d399" stroke-width="2" marker-end="url(#arrG)"/>
-  <text x="400" y="344" fill="#34d399" font-size="8">čisté audio</text>
+  <text x="372" y="342" fill="#34d399" font-size="10">čisté audio</text>
   <line x1="650" y1="320" x2="712" y2="230" stroke="#34d399" stroke-width="2" marker-end="url(#arrG)"/>
-  <line x1="650" y1="390" x2="712" y2="480" stroke="#fbbf24" stroke-width="2" marker-end="url(#arrC)"/>
-  <text x="648" y="272" fill="#34d399" font-size="8">audio okno</text>
-  <text x="648" y="284" fill="#34d399" font-size="8">(PCM v RAM)</text>
-  <text x="640" y="444" fill="#fbbf24" font-size="8">audio chunky</text>
-  <text x="640" y="456" fill="#fbbf24" font-size="8">(PCM16 base64, WSS)</text>
+  <text x="620" y="282" fill="#34d399" font-size="10">audio okno (RAM)</text>
+  <!-- cloud vetva: surové audio ide PRIAMO von, čistenie si robí provider -->
+  <path d="M 115 444 C 115 540, 400 536, 710 536" fill="none" stroke="#fbbf24" stroke-width="2" marker-end="url(#arrC)"/>
+  <text x="150" y="566" fill="#fbbf24" font-size="10">surové audio chunky (PCM16 base64, WSS)</text>
+  <text x="150" y="582" fill="#fbbf24" font-size="10">čistenie a VAD si robí provider na serveri</text>
   <line x1="900" y1="226" x2="900" y2="256" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arr)"/>
-  <text x="912" y="246" fill="#a78bfa" font-size="8">spresnenie + commit</text>
+  <text x="912" y="246" fill="#a78bfa" font-size="10">spresnenie + commit</text>
   <line x1="1100" y1="230" x2="1168" y2="320" stroke="#34d399" stroke-width="2" marker-end="url(#arrG)"/>
   <line x1="1100" y1="480" x2="1168" y2="390" stroke="#fbbf24" stroke-width="2" marker-end="url(#arrC)"/>
-  <text x="1086" y="262" fill="#34d399" font-size="8">slová + časy (JSON)</text>
-  <text x="1092" y="444" fill="#fbbf24" font-size="8">text (JSON, WSS)</text>
+  <text x="1070" y="258" fill="#34d399" font-size="10">slová + časy (JSON)</text>
+  <text x="1080" y="452" fill="#fbbf24" font-size="10">text (JSON, WSS)</text>
   <line x1="1412" y1="355" x2="1448" y2="355" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr)"/>
-  <text x="1374" y="340" fill="#94a3b8" font-size="8">titulky (JSON, WS)</text>
+  <text x="1356" y="340" fill="#cbd5e1" font-size="10">titulky (JSON, WS)</text>
 
   <!-- 1 · VSTUP -->
   <text x="40" y="220" fill="#22d3ee" font-size="11" font-weight="700">1 · VSTUP</text>
@@ -74,7 +73,7 @@
   <text x="115" y="420" fill="#94a3b8" font-size="9" text-anchor="middle">ffmpeg → 16 kHz mono</text>
 
   <!-- 2 · ČISTENIE -->
-  <text x="250" y="286" fill="#34d399" font-size="11" font-weight="700">2 · ČISTENIE</text>
+  <text x="250" y="286" fill="#34d399" font-size="11" font-weight="700">2 · ČISTENIE — len lokálna vetva</text>
   <rect x="250" y="300" width="180" height="110" rx="6" fill="#0f172a"/><rect x="250" y="300" width="180" height="110" rx="6" fill="rgba(6,78,59,.4)" stroke="#34d399" stroke-width="1.5"/>
   <text x="340" y="326" fill="#e2e8f0" font-size="12" text-anchor="middle">Predspracovanie</text>
   <text x="340" y="348" fill="#94a3b8" font-size="9" text-anchor="middle">highpass 80 Hz (hluk)</text>
