@@ -180,7 +180,8 @@
     <ul><li>• DRAFT: malý whisper na ANE — text do 0.4 s, ale nepresný → sivý</li>
     <li>• FINAL: veľký slovenský model na GPU — presný, ale ~2 s → biely</li>
     <li>• LocalAgreement-2: slovo sa potvrdí, až keď sa 2 behy zhodnú</li>
-    <li>• noise gate pri commite: slová bez energie reči (halucinácie) von</li></ul></div>
+    <li>• noise gate pri commite: slová bez energie reči (halucinácie) von</li>
+    <li>• async korekcia po commite: 2. engine + hunspell gate opraví OOV slová</li></ul></div>
   <div class="card"><div class="ch"><div class="cd cyan"></div><h3>Lokál vs cloud</h3></div>
     <ul><li>• audio ide vždy len do JEDNÉHO enginu (výber v UI, za behu)</li>
     <li>• lokál: súkromie + časy slov → presné titulky</li>
