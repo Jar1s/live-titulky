@@ -262,7 +262,8 @@ async function upload(f) {
     });
     if (res.code !== 200) throw new Error(res.body.error || ("HTTP " + res.code));
     $("prog").firstElementChild.style.width = "100%";
-    meta = {id: res.body.id, dur: res.body.duration_s};
+    meta = {id: res.body.id, dur: res.body.duration_s,
+            duration_s: res.body.duration_s};
     $("go").disabled = false;
     $("prog").style.display = "none";
     $("upmsg").textContent = "";
