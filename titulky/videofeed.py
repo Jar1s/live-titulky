@@ -69,7 +69,8 @@ class Handler(BaseHTTPRequestHandler):
         n = int(self.headers.get("Content-Length") or 0)
         if not 0 < n <= MAX_BYTES:
             return self._json(413, {"error": f"veľkosť {n} mimo limitu 2 GB"})
-        name = self.headers.get("X-Filename", "video.mp4")
+        from urllib.parse import unquote
+        name = unquote(self.headers.get("X-Filename", "video.mp4"))
         ext = pathlib.Path(name).suffix.lower() or ".mp4"
         if ext not in _CT:
             return self._json(415, {"error": f"nepodporovaný formát {ext}"})

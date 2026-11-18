@@ -247,7 +247,7 @@ async function upload(f) {
     const res = await new Promise((ok, err) => {
       const xhr = new XMLHttpRequest();
       xhr.open("POST", `http://${location.hostname}:8766/upload`);
-      xhr.setRequestHeader("X-Filename", f.name);
+      xhr.setRequestHeader("X-Filename", encodeURIComponent(f.name));
       xhr.upload.onprogress = ev => {
         if (ev.lengthComputable)
           $("prog").firstElementChild.style.width =
