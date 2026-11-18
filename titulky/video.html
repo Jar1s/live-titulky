@@ -78,6 +78,16 @@ h1 { font-family: var(--font-d); font-size: clamp(30px, 2vw + 14px, 42px);
   text-shadow: 0 2px 10px rgba(0,0,0,.9), 0 0 3px rgba(0,0,0,.9); }
 #cap .w { color: #fff; }
 #cap .g { color: rgba(255,255,255,.55); }
+/* ── štýly titulkov (preset) ── */
+#cap.st-grind { font-weight: 800; letter-spacing: .02em;
+  text-shadow: 0 3px 14px rgba(0,0,0,.95), 0 0 4px rgba(0,0,0,.95); }
+#cap.st-tv { text-shadow: none; }
+#cap.st-tv .w { background: rgba(0,0,0,.75); padding: .08em .34em;
+  border-radius: .22em; box-decoration-break: clone;
+  -webkit-box-decoration-break: clone; }
+#cap.st-out { text-shadow: none; font-weight: 800;
+  -webkit-text-stroke: 1.3px #000; paint-order: stroke fill; }
+#cap.st-mini { font-weight: 500; text-transform: none; }
 #bar { display: flex; align-items: center; gap: 12px; margin-top: 16px;
   background: var(--card); border: 1px solid var(--line);
   border-radius: 18px; padding: 12px 16px;
@@ -157,6 +167,31 @@ spracovanie dopredu). Titulky vznikajú na aktuálnom engine.</p>
       buffer <input type="range" id="buf" min="0" max="10" step="0.5" value="5"
         style="width:110px;accent-color:var(--blue)">
       <b id="bufv" style="color:var(--ink);font-variant-numeric:tabular-nums">5.0 s</b>
+    </label>
+  </div>
+  <div id="capbar" style="display:flex;align-items:center;gap:14px;margin-top:10px;
+       padding:10px 16px;background:var(--card);border:1px solid var(--line);
+       border-radius:14px;flex-wrap:wrap;font-size:12.5px;color:var(--ink2)">
+    <b style="color:var(--ink);font-size:12px;letter-spacing:.06em">TITULKY</b>
+    <label style="display:flex;align-items:center;gap:6px">štýl
+      <select id="capstyle" style="background:var(--bg2,#1a1d24);color:var(--ink);
+        border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:12.5px">
+        <option value="">Čistý</option>
+        <option value="st-grind">Grindcast (bold)</option>
+        <option value="st-tv">TV pás</option>
+        <option value="st-out">Obrys</option>
+        <option value="st-mini">Jemný</option>
+      </select>
+    </label>
+    <label style="display:flex;align-items:center;gap:6px">pozícia
+      <input type="range" id="cappos" min="2" max="78" step="1" value="6"
+        style="width:110px;accent-color:var(--blue)">
+      <b id="capposv" style="color:var(--ink)">6 %</b>
+    </label>
+    <label style="display:flex;align-items:center;gap:6px">veľkosť
+      <input type="range" id="capsize" min="60" max="170" step="5" value="100"
+        style="width:110px;accent-color:var(--blue)">
+      <b id="capsizev" style="color:var(--ink)">100 %</b>
     </label>
   </div>
   <div id="transwrap">
@@ -246,11 +281,37 @@ function fitCaption() {
   st.classList.toggle("portrait", portrait);
   const w = v.clientWidth || st.clientWidth;
   /* vertikal: väčší podiel šírky (menej znakov na riadok, ako IG/TikTok) */
-  $("cap").style.fontSize =
-    Math.round(Math.max(16, Math.min(44, w * (portrait ? 0.075 : 0.045)))) + "px";
+  $("cap").style.fontSize = Math.round(
+    Math.max(12, Math.min(70,
+      w * (portrait ? 0.075 : 0.045) * capScale))) + "px";
 }
 $("vid").addEventListener("loadedmetadata", fitCaption);
 window.addEventListener("resize", fitCaption);
+
+/* ── nastavenia titulkov: štýl / pozícia / veľkosť (localStorage) ── */
+let capScale = 1;
+function applyCapPrefs() {
+  const cap = $("cap");
+  cap.className = $("capstyle").value;          // preset trieda (alebo nič)
+  const pos = +$("cappos").value;
+  cap.style.bottom = pos + "%";
+  $("capposv").textContent = pos + " %";
+  capScale = +$("capsize").value / 100;
+  $("capsizev").textContent = $("capsize").value + " %";
+  fitCaption();
+  localStorage.setItem("capPrefs", JSON.stringify({
+    style: $("capstyle").value, pos, size: +$("capsize").value}));
+}
+try {
+  const p = JSON.parse(localStorage.getItem("capPrefs") || "{}");
+  if (p.style !== undefined) $("capstyle").value = p.style;
+  if (p.pos) $("cappos").value = p.pos;
+  if (p.size) $("capsize").value = p.size;
+} catch(e) {}
+$("capstyle").onchange = applyCapPrefs;
+$("cappos").oninput = applyCapPrefs;
+$("capsize").oninput = applyCapPrefs;
+applyCapPrefs();
 
 $("again").onclick = () => {          // replay zo záznamu, bez nového prepisu
   const v = $("vid"); v.currentTime = 0; capIdx = 0; v.play(); };
