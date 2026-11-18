@@ -263,7 +263,7 @@ $("eng").onchange = () => {
 /* video štart až keď pipeline reálne beží (video_started event) —
    inak by obraz utiekol pred zvukom o dĺžku engine reštartu */
 let bufTimer = null, feedT0 = 0, capLog = [], capIdx = 0, drainTimer = null;
-let feedEof = false, maxLag = 0, feedPos = 0;
+let feedEof = false, maxLag = 0, feedPos = 0, stalled = false;
 
 /* Titulky grindcast štýlom: committed slová s reálnymi časmi (vwords
    z pipeline) zoskupené na max 2-3 slová, zobrazované podľa času videa.
@@ -302,6 +302,24 @@ function rebuildGroups() {
 function drainCaptions() {
   const v = $("vid");
   const ct = v.currentTime;
+  /* mid-play poistka: keď prepis zaostane za obrazom, video sa
+     pozastaví a dobehne (ako buffering na YouTube) — inak by slová
+     v strede videa vypadávali. Pokrytie = koniec posledného
+     potvrdeného slova; pri tichu aspoň feed mínus meškanie. */
+  if (running && !feedEof && !v.ended) {
+    const lastE = wordLog.length ? wordLog[wordLog.length - 1].e : 0;
+    const cover = Math.max(lastE, feedPos - (maxLag + 4));
+    if (!stalled && !v.paused && ct > cover - 0.4) {
+      v.pause(); stalled = true;
+      $("stattxt").textContent = "dopĺňam titulky…";
+    } else if (stalled && (cover > ct + 2)) {
+      stalled = false; v.play();
+      $("stattxt").textContent = "beží — titulky pripravené";
+    }
+  } else if (stalled) {          // feed skončil — už nie je na čo čakať
+    stalled = false; if (v.paused && !v.ended) v.play();
+    $("stattxt").textContent = "beží — titulky pripravené";
+  }
   if (groups.length) {               // grindcast režim (lokálny engine)
     const g = groups.find(g => ct >= g.s && ct <= g.e);
     $("cap").innerHTML = g ? `<span class="w">${esc(g.t)}</span>` : "";
@@ -335,7 +353,7 @@ function onEvent(e) {
     const BUF = Math.max(+$("buf").value, 1);
     feedT0 = performance.now();
     capLog = []; capIdx = 0; wordLog = []; groups = [];
-    feedEof = false; maxLag = 0;
+    feedEof = false; maxLag = 0; stalled = false;
     clearInterval(drainTimer);
     drainTimer = setInterval(drainCaptions, 80);
     const v = $("vid"); v.currentTime = 0;
