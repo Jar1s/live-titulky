@@ -482,7 +482,9 @@ projekt, nie patch.</p>
 <style>
 .archmap { width: min(1800px, 96vw); margin-top: 18px; }
 .archmap svg { display: block; max-width: 100%; max-height: 38vh; width: auto; height: auto; margin: 0 auto; }
-.archmap.big svg { max-height: 68vh; max-width: 96vw; } .archmap.tall svg { max-height: 46vh; }
+.archmap.big svg { max-height: 68vh; max-width: 96vw; }
+.archmap.dense svg { max-height: 23vh; }
+.slide .cards3.tight { margin-top: 18px; } .slide .viz { margin-top: 18px; } .archmap.tall svg { max-height: 46vh; }
 </style>
 <div id="deck">
 <section class="slide"><span class="k">TITULKY.ŽIVO</span>
@@ -524,7 +526,7 @@ projekt, nie patch.</p>
 
 <section class="slide"><span class="k">Blok 5a · Lokálny prepis</span>
   <h3>DRAFT a FINAL bežia naraz<br>nad tým istým oknom.</h3>
-  <div class="archmap" id="am_loc"></div>
+  <div class="archmap dense" id="am_loc"></div>
   <div class="cards3">
     <div class="mini"><div class="t">šedé slovo</div><div class="v">0,47–0,55 s</div>
       <div class="d">whisper base na ANE · draftACC 81–100 %</div></div>
@@ -532,23 +534,29 @@ projekt, nie patch.</p>
       <div class="d">kinit · okno 8 s · krok 1,5 s · WER 2,2 % · flicker 4 %</div></div>
     <div class="mini"><div class="t">kinit vs whisper</div><div class="v">−45 %</div>
       <div class="d">chýb: WER 10,54 → 5,81 % na FLEURS SK (120 viet)</div></div>
-  </div></section>
+  </div>
+  <div class="viz"><div class="chart" id="pch_model"></div></div>
+  <p class="p" style="font-size:13px">„išel → išiel" · „bátislave → v Bratislave" · „svetho júra → Svätý Jur".
+  Metrika pôvodne merala dekódovanie, nie zobrazenie — po oprave šedé slovo z 1,76 s na <b>0,47 s</b> (dno okna ~0,4 s).</p></section>
 
 <section class="slide"><span class="k">Blok 5a · Po commite</span>
   <h3>Slovník hneď. Azure dodatočne.<br>Titulky nečakajú na nikoho.</h3>
-  <div class="archmap" id="am_corr"></div>
+  <div class="archmap dense" id="am_corr"></div>
   <div class="cards3">
     <div class="mini"><div class="t">SpellFix</div><div class="v">1–3 ms</div>
-      <div class="d">3,0M SK tvarov (marisa-trie) · opraví práve 1 kandidáta ≤ 1 znak</div></div>
+      <div class="d">3,0M SK tvarov · 1 kandidát ≤ 1 znak</div></div>
     <div class="mini"><div class="t">Azure gaty</div><div class="v">4</div>
-      <div class="d">OOV → slovníkové · Levenshtein ≤ 2 · žiadne propriá/čísla</div></div>
+      <div class="d">OOV → slovník · Lev ≤ 2 · bez proprií</div></div>
     <div class="mini"><div class="t">latencia titulku</div><div class="v">+0 s</div>
       <div class="d">výstup ide von hneď po SpellFixe, Azure opravuje spätne</div></div>
-  </div></section>
+  </div>
+  <div class="viz"><div class="chart" id="pch_flux"></div></div>
+  <p class="p" style="font-size:13px">Noise gate: v tichu si Whisper vymýšľa („Ďakujem za pozornosť." ×11) —
+  plochá hlasitosť ∧ nehybné spektrum → <b>0 halucinácií · 0 % chýb</b>.</p></section>
 
 <section class="slide"><span class="k">Blok 5b · Cloud</span>
   <h3>Alternatíva: zvuk von,<br>text späť.</h3>
-  <div class="archmap" id="am_cloud"></div>
+  <div class="archmap dense" id="am_cloud"></div>
   <div class="cards3">
     <div class="mini"><div class="t">ElevenLabs</div><div class="v">s časmi</div>
       <div class="d">slová aj s časmi → presné titulky · PCM16 base64 WSS</div></div>
@@ -556,11 +564,14 @@ projekt, nie patch.</p>
       <div class="d">len text → približné · korekcia −1,8 s + posun v UI</div></div>
     <div class="mini"><div class="t">cena / limit</div><div class="v">$0,18–1/h</div>
       <div class="d">v tichu 4× rýchlejší než lokál · v šume halucinuje</div></div>
-  </div></section>
+  </div>
+  <div class="viz"><div class="chart" id="pch_cloud"></div></div>
+  <p class="p" style="font-size:13px">So vzdialeným mikrofónom a šumom posluchárne cloud halucinuje celé vety —
+  lokál drží významovo správny text. Preto má Studio prepínač.</p></section>
 
 <section class="slide"><span class="k">Blok 6–7 · Server a titulky</span>
   <h3>Jeden server, tri plátna.</h3>
-  <div class="archmap" id="am_out"></div>
+  <div class="archmap dense" id="am_out"></div>
   <div class="cards3">
     <div class="mini"><div class="t">WebSocket</div><div class="v">:8765</div>
       <div class="d">committed + draft + vwords všetkým oknám naraz</div></div>
@@ -568,98 +579,12 @@ projekt, nie patch.</p>
       <div class="d">/overlay (OBS) · /studio (réžia) · /video (import)</div></div>
     <div class="mini"><div class="t">SAFE buffer</div><div class="v">auto</div>
       <div class="d">video odštartuje, až keď prepis stíha do konca (rýchlosť r)</div></div>
-  </div></section>
-
-<section class="slide"><span class="k">Problém</span>
-  <h3>Rýchlo, alebo správne?<br>Reč chce oboje naraz.</h3>
-  <p class="p">Divák potrebuje vidieť text <b>do sekundy</b>, inak titulky pôsobia
-  pokazene. Ale rozpoznávač potrebuje <b>počuť celú vetu</b>, aby ju napísal správne.
-  Jeden model nedokáže oboje — to je základné napätie celého projektu.</p></section>
-
-<section class="slide"><span class="k">Riešenie</span>
-  <h3>Dva modely. Jeden našepkáva,<br>druhý potvrdzuje.</h3>
-  <p class="p">Malý rýchly model píše <b style="color:#9aa3af">šedý náčrt</b> za pol
-  sekundy. Veľký presný model ho o ~2 s neskôr prepíše na <b>biele definitívne
-  slová</b>. Divák má okamžitú odozvu aj správny text — rovnaký vzor používa
-  Google Meet, tu beží celý lokálne.</p>
-  <div class="cards3">
-    <div class="mini"><div class="t">kurzor ▊</div><div class="v">&lt; 0,2 s</div>
-      <div class="d">reakcia na hlas — „počujem ťa"</div></div>
-    <div class="mini"><div class="t">šedý náčrt</div><div class="v">~0,5 s</div>
-      <div class="d">rýchly model, môže sa mýliť</div></div>
-    <div class="mini"><div class="t">biely text</div><div class="v">2–3 s</div>
-      <div class="d">presný model, už sa nemení</div></div>
-  </div></section>
-
-<section class="slide"><span class="k">Architektúra</span>
-  <h3>Každý čip robí to, čo vie najlepšie.</h3>
-  <div class="archmap" id="am_chips"></div>
-  <p class="p" style="margin-top:22px">Rýchly model beží na <b>Neural Engine</b>
-  (čip na AI, inak by zaháľal), presný na <b>grafickom čipe</b>. Nebijú sa o výkon —
-  preto môžu bežať obidva naraz na jednom notebooku.</p></section>
-
-<section class="slide"><span class="k">Výber modelu</span>
-  <h3>Slovenský fine-tune robí<br>o 45 % menej chýb.</h3>
-  <p class="p">Porovnali sme najlepší všeobecný Whisper s verziou dotrénovanou na
-  slovenčine (KInIT). Na 120 vetách od reálnych rečníkov:</p>
-  <div class="viz"><div class="chart" id="pch_model"></div></div>
-  <p class="p">„išel → išiel", „bátislave → v Bratislave", „svetho júra → Svätý Jur".</p></section>
-
-<section class="slide"><span class="k">Meranie rýchlosti</span>
-  <h3>27 konfigurácií. A jeden<br>nepríjemný objav o metrike.</h3>
-  <p class="p">Prvá metrika merala, ako rýchlo model <b>dekóduje</b>. Lenže divák
-  nevidí dekódovanie — vidí <b>zobrazenie</b>. Po oprave metriky sa poradie
-  konfigurácií zmenilo a celý experiment sa meral odznova. Výsledok: šedé slovo
-  z 1,76 s na</p>
-  <div class="bignum">0,47 s</div>
-  <p class="p">Hlbšie to nejde: fyzikálne dno kĺzavého okna je ~0,4 s. Preto pocit
-  okamžitosti rieši kurzor, nie rýchlejší model.</p></section>
-
-<section class="slide"><span class="k">Najzákernejší bug</span>
-  <h3>„Ďakujem za pozornosť."<br>×11, do prázdnej miestnosti.</h3>
-  <p class="p">Keď nikto nehovorí, Whisper si z šumu <b>vymýšľa</b> — najčastejšie
-  frázy z titulkov, na ktorých sa učil. Riešenie: šum má plochú hlasitosť
-  <b>a zároveň</b> nehybné spektrum; reč vždy aspoň jedno poruší. Dve podmienky
-  namiesto jednej —</p>
-  <div class="viz"><div class="chart" id="pch_flux"></div></div>
-  <p class="p"><b>0 halucinácií</b> a súčasne <b>0 % chýb</b> na rýchlej reči.</p></section>
-
-<section class="slide"><span class="k">XAGREE</span>
-  <h3>Keď sa dva rôzne modely zhodnú,<br>netreba čakať na istotu.</h3>
-  <p class="p">Normálne čaká biely text na <b>dve zhodné čítania</b> presného modelu
-  (~2 s navyše). Ale ak rýchly model — úplne iná architektúra — napísal to isté
-  slovo na tom istom mieste, zhoda dvoch svedkov stačí. Biele slová prichádzajú
-  <b>o 1,5–2 s skôr</b> bez straty presnosti.</p>
-  <div class="viz"><div class="chart" id="pch_xagree"></div></div></section>
-
-<section class="slide"><span class="k">Cintorín</span>
-  <h3>16 experimentov zomrelo,<br>aby týchto 5 čísel žilo.</h3>
-  <p class="p">Kvantizácia, menšie modely, approx časy, cudzie modely ako sudcovia,
-  LLM opravy… každý smer má namerané číslo, prečo nie. Vzor: <b>každý trik, ktorý
-  obišiel overovanie zhody, vymenil presnosť za rýchlosť v zlom kurze.</b></p>
-  <div class="cards3">
-    <div class="mini"><div class="t">int4 kvantizácia</div><div class="v">pomalšia</div>
-      <div class="d">2,89 s vs 2,69 s fp16 — a horší text</div></div>
-    <div class="mini"><div class="t">approx časy</div><div class="v">WER 3→15 %</div>
-      <div class="d">zhoda sa rozpadá na nepresných časoch</div></div>
-    <div class="mini"><div class="t">cudzí model ako draft</div><div class="v">8× pomalší</div>
-      <div class="d">dva modely na GPU sa dusia — ANE je kľúč</div></div>
-  </div></section>
-
-<section class="slide"><span class="k">Lokál vs cloud</span>
-  <h3>Cloud je rýchlejší v tichu.<br>Lokál vyhráva v posluchárni.</h3>
-  <p class="p">Na čistom audiu je cloud presný a 4× rýchlejší ($0,18–1/hod). Ale so
-  vzdialeným mikrofónom a šumom posluchárne cloud halucinuje celé vety — lokálny
-  model drží významovo správny text. Preto má Studio prepínač.</p>
-  <div class="viz"><div class="chart" id="pch_cloud"></div></div></section>
-
-<section class="slide"><span class="k">Stabilita</span>
-  <h3>26 minút plného výkonu.<br>Bez prehriatia, bez driftu.</h3>
-  <div class="cards3">
+  </div>
+  <div class="cards3 tight">
+    <div class="mini"><div class="t">stabilita</div><div class="v">26 min</div>
+      <div class="d">plný výkon · pmset -g therm = žiadny throttling</div></div>
     <div class="mini"><div class="t">halucinácie</div><div class="v">0</div>
       <div class="d">naprieč 12 behmi za sebou</div></div>
-    <div class="mini"><div class="t">throttling</div><div class="v">žiadny</div>
-      <div class="d">pmset -g therm = 100 % výkon</div></div>
     <div class="mini"><div class="t">flicker</div><div class="v">6–11 %</div>
       <div class="d">stabilný, bez nárastu v čase</div></div>
   </div></section>
@@ -1224,9 +1149,8 @@ archView("am_full",  "0 0 2020 720");
 archView("am_in",    "20 50 420 620");
 archView("am_buf",   "440 50 420 290");
 archView("am_loc",   "810 40 640 360");
-archView("am_corr",  "830 150 600 250");
-archView("am_cloud", "300 380 1140 290");
-archView("am_chips", "450 55 990 325");
+archView("am_corr",  "830 228 600 180");
+archView("am_cloud", "690 360 760 305");
 archView("am_out",   "1400 200 600 300");
 </script>
 </body>
