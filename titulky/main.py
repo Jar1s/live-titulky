@@ -201,6 +201,12 @@ async def handler(ws):
                                        d.get("model")),
                                  kwargs={"idle": bool(d.get("idle"))},
                                  daemon=True).start()
+            elif d.get("t") == "video_stop":
+                # stop prepisu videa: pipeline do idle, mikrofón sa nespúšťa
+                threading.Thread(target=switch_engine,
+                                 args=(ENGINE["engine"], ENGINE["model"]),
+                                 kwargs={"idle": True},
+                                 daemon=True).start()
             elif d.get("t") == "state":
                 await ws.send(json.dumps(_engine_state_msg(),
                                          ensure_ascii=False))

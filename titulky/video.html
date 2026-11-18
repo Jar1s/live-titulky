@@ -156,6 +156,7 @@ spracovanie dopredu). Titulky vznikajú na aktuálnom engine.</p>
   <div id="upmsg"></div>
   <div id="bar">
     <button class="b" id="go">▶ Spustiť s titulkami</button>
+    <button class="ghost" id="stopb" style="display:none">■ Stop</button>
     <button class="ghost" id="again" style="display:none">↺ Odznova</button>
     <button class="ghost" id="other">Iné video</button>
     <select id="eng" title="Engine pre prepis"
@@ -293,7 +294,19 @@ $("go").onclick = () => {
   $("trans").innerHTML = "";
   cwLog = []; cwPrevCom = ""; cwPrevAt = 0;
   ws.send(JSON.stringify({t: "video", id: meta.id}));
+  $("stopb").style.display = "";
   $("stattxt").textContent = "štartujem pipeline…";
+};
+$("stopb").onclick = () => {
+  ws.send(JSON.stringify({t: "video_stop"}));
+  const v = $("vid"); v.pause(); v.controls = true;
+  if (bufTimer) { clearInterval(bufTimer); bufTimer = null; }
+  feedEof = true; running = false;
+  $("stopb").style.display = "none";
+  $("go").disabled = false;
+  $("go").textContent = "▶ Prehrať znova";
+  $("dot").classList.remove("live");
+  $("stattxt").textContent = "zastavené — doterajšie titulky ostávajú";
 };
 function fitCaption() {
   const v = $("vid"), st = $("stage");
@@ -587,6 +600,7 @@ function onEvent(e) {
     for (const it of e.items || []) wordLog.push(it);
     rebuildGroups();
   } else if (e.t === "video_eof") {
+    $("stopb").style.display = "none";
     feedEof = true;
     $("vid").controls = true;
     $("dot").classList.remove("live");
