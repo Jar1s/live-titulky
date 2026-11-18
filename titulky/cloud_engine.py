@@ -141,11 +141,15 @@ class CloudPipeline:
                                   int(len(audio) * SAMPLE_RATE / sr))
                 audio = audio[idx.astype(int)]
             t0 = time.monotonic()
+            last_fp = 0.0
             for i in range(0, len(audio), chunk_n):
                 if not self.running:
                     return
                 # reálny čas — simulácia live vstupu
                 target = i / SAMPLE_RATE
+                if target - last_fp >= 0.5:   # pozícia feedu pre buffer v UI
+                    last_fp = target
+                    self.on_event({"t": "feedpos", "s": round(target, 2)})
                 wait = t0 + target - time.monotonic()
                 if wait > 0:
                     await asyncio.sleep(wait)
