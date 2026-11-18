@@ -507,6 +507,13 @@ function onEvent(e) {
       } else $("stattxt").textContent = msg;
     }, 100);
   } else if (e.t === "engine_state") {
+    // video stránka: mikrofón tu nemá čo robiť — pri prvom stave prepni
+    // bežiaci (mikrofónový) engine do idle, zvuk pôjde až zo súboru
+    if (!window._idled && !e.switching) {
+      window._idled = true;
+      ws.send(JSON.stringify({t: "engine", engine: e.engine,
+                              model: e.model || null, idle: true}));
+    }
     // prepínač enginu priamo v UI (rovnaký katalóg ako Studio)
     const sel = $("eng"); sel.innerHTML = "";
     for (const c of (e.catalog || [])) {
