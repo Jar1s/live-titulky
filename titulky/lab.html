@@ -480,10 +480,9 @@ projekt, nie patch.</p>
 <button id="presBtn">▶ Prezentácia</button>
 
 <style>
-.archmap { width: min(1560px, 92vw); margin-top: 26px; border: 1px solid var(--line); border-radius: 14px;
-  background: #0b1220; padding: 10px; }
+.archmap { width: min(1800px, 96vw); margin-top: 18px; }
 .archmap svg { display: block; width: 100%; height: auto; max-height: 38vh; }
-.archmap.tall { width: auto; } .archmap.tall svg { height: 46vh; width: auto; max-width: 90vw; margin: 0 auto; }
+.archmap.big svg { max-height: 68vh; } .archmap.tall { width: auto; } .archmap.tall svg { height: 46vh; width: auto; max-width: 90vw; margin: 0 auto; }
 </style>
 <div id="deck">
 <section class="slide"><span class="k">TITULKY.ŽIVO</span>
@@ -494,7 +493,7 @@ projekt, nie patch.</p>
 
 <section class="slide"><span class="k">Architektúra</span>
   <h3>Celá mapa: zo zvuku na plátno.</h3>
-  <div class="archmap" id="am_full"></div>
+  <div class="archmap big" id="am_full"></div>
   <p class="p" style="margin-top:18px">Jeden tok zľava doprava: vstup → chunkovanie →
   buffer → čistenie okna → prepis (<b>lokál ALEBO cloud</b>) → server → titulky.
   Teraz si ju prejdeme po blokoch — s nameranými číslami.</p></section>
@@ -1216,8 +1215,9 @@ const ARCH_INNER = `
 `;
 function archView(id, vb) {
   const el = document.getElementById(id); if (!el) return;
+  const inner = ARCH_INNER.replace(/<rect width="2020" height="720" fill="url\(#grid\)"\/>/, '');
   el.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + vb +
-    '" font-family="JetBrains Mono, monospace">' + ARCH_INNER + '</svg>';
+    '" font-family="JetBrains Mono, monospace">' + inner + '</svg>';
 }
 archView("am_full",  "0 0 2020 720");
 archView("am_in",    "20 50 420 620");
