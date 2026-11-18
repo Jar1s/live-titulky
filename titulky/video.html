@@ -291,6 +291,7 @@ $("go").onclick = () => {
   running = true;
   $("go").disabled = true;
   $("trans").innerHTML = "";
+  cwLog = []; cwPrevCom = ""; cwPrevAt = 0;
   ws.send(JSON.stringify({t: "video", id: meta.id}));
   $("stattxt").textContent = "štartujem pipeline…";
 };
@@ -373,6 +374,8 @@ $("eng").onchange = () => {
 /* video štart až keď pipeline reálne beží (video_started event) —
    inak by obraz utiekol pred zvukom o dĺžku engine reštartu */
 let bufTimer = null, feedT0 = 0, capLog = [], capIdx = 0, drainTimer = null;
+/* GPT (bez časov slov): nové committed slová interpolujeme medzi updatmi */
+let cwLog = [], cwPrevCom = "", cwPrevAt = 0;
 let feedEof = false, maxLag = 0, feedPos = 0, stalled = false;
 
 /* Titulky grindcast štýlom: committed slová s reálnymi časmi (vwords
@@ -436,8 +439,15 @@ function drainCaptions() {
     $("cap").innerHTML = g ? `<span class="w">${esc(g.t)}</span>` : "";
     return;
   }
-  /* fallback (cloud engine bez word časov): posledný update, max 3 slová;
-     capShift = ručné doladenie synchronizácie (+ = titulky skôr) */
+  /* fallback (cloud engine bez word časov): interpolované committed slová —
+     okno 2,4 s, max 4 slová; capShift = ručné doladenie (+ = skôr) */
+  if (cwLog.length) {
+    const win = cwLog.filter(x => x.s <= c2 && x.s > c2 - 2.4).slice(-4);
+    $("cap").innerHTML = win.length
+      ? `<span class="w">${esc(win.map(x => x.w).join(" "))}</span>` : "";
+    return;
+  }
+  /* núdza: žiadne committed slová — posledný update, max 3 slová */
   if (capIdx > 0 && capLog[capIdx - 1] && capLog[capIdx - 1].t > c2 + 0.05)
     capIdx = 0;
   while (capIdx < capLog.length && capLog[capIdx].t <= c2 + 0.05) capIdx++;
@@ -581,6 +591,19 @@ function onUpdate(d) {
        vyslovení, bez korekcie by titulky išli pozadu za obrazom */
     const at = feedPos > 0 ? feedPos : (performance.now() - feedT0) / 1000;
     capLog.push({t: Math.max(0, at - 1.8), com, dr});
+    /* nové committed slová: rozlož ich rovnomerne medzi predošlý a tento
+       update — GPT ich posiela v dávkach a chvost dávky by inak visel */
+    const comW = com.trim() ? com.trim().split(/\s+/) : [];
+    const prevN = cwPrevCom.trim() ? cwPrevCom.trim().split(/\s+/).length : 0;
+    if (comW.length > prevN) {
+      const t1 = Math.max(0, at - 1.8);
+      const t0c = Math.min(t1, cwPrevAt);
+      const n = comW.length - prevN;
+      for (let i = prevN; i < comW.length; i++)
+        cwLog.push({w: comW[i], s: t0c + (t1 - t0c) * ((i - prevN + 1) / n)});
+      cwPrevAt = t1;
+    }
+    cwPrevCom = com;
   }
   $("trans").innerHTML =
     `<span class="w">${esc(com)}</span> <span class="g">${esc(dr)}</span>`;
