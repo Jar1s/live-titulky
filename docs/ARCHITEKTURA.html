@@ -25,10 +25,10 @@
 </head>
 <body>
 <div class="hdr"><div class="dot"></div><h1>LIVE TITULKY — ako to funguje</h1></div>
-<div class="sub">jeden tok zľava doprava: VSTUP → ČISTENIE + BUFFER → PREPIS (lokál ALEBO cloud) → SERVER → TITULKY</div>
+<div class="sub">jeden tok zľava doprava: VSTUP → ČISTENIE → BUFFER → PREPIS (lokál ALEBO cloud) → SERVER → TITULKY</div>
 
 <div class="frame">
-<svg viewBox="0 0 1500 720" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace">
+<svg viewBox="0 0 1690 720" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace">
   <defs>
     <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
       <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
@@ -40,101 +40,102 @@
     <marker id="arrG" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
       <path d="M0,0 L8,4 L0,8 z" fill="#34d399"/></marker>
   </defs>
-  <rect width="1500" height="720" fill="url(#grid)"/>
+  <rect width="1690" height="720" fill="url(#grid)"/>
 
-  <!-- ŠÍPKY — lokálna a cloudová vetva sú zrkadlovo ROVNAKÉ -->
-  <line x1="190" y1="185" x2="244" y2="192" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
-  <line x1="190" y1="285" x2="244" y2="218" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
-  <line x1="340" y1="250" x2="340" y2="276" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrG)"/>
-  <line x1="430" y1="320" x2="492" y2="230" stroke="#34d399" stroke-width="2" marker-end="url(#arrG)"/>
-  <line x1="430" y1="390" x2="492" y2="480" stroke="#fbbf24" stroke-width="2" marker-end="url(#arrC)"/>
-  <text x="436" y="262" fill="#34d399" font-size="9">lokál</text>
-  <text x="436" y="458" fill="#fbbf24" font-size="9">cloud</text>
-  <line x1="680" y1="226" x2="680" y2="256" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arr)"/>
-  <text x="692" y="246" fill="#a78bfa" font-size="8">spresnenie + commit</text>
-  <line x1="880" y1="230" x2="948" y2="320" stroke="#34d399" stroke-width="2" marker-end="url(#arrG)"/>
-  <line x1="880" y1="480" x2="948" y2="390" stroke="#fbbf24" stroke-width="2" marker-end="url(#arrC)"/>
-  <text x="872" y="262" fill="#34d399" font-size="8">text + časy slov</text>
-  <text x="884" y="452" fill="#fbbf24" font-size="8">text späť</text>
-  <line x1="1216" y1="355" x2="1254" y2="355" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr)"/>
-  <text x="1194" y="340" fill="#94a3b8" font-size="8">WebSocket</text>
+  <!-- ŠÍPKY — vetvy zrkadlovo rovnaké -->
+  <line x1="190" y1="269" x2="246" y2="330" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="190" y1="409" x2="246" y2="380" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="430" y1="355" x2="466" y2="355" stroke="#34d399" stroke-width="2" marker-end="url(#arrG)"/>
+  <line x1="650" y1="320" x2="712" y2="230" stroke="#34d399" stroke-width="2" marker-end="url(#arrG)"/>
+  <line x1="650" y1="390" x2="712" y2="480" stroke="#fbbf24" stroke-width="2" marker-end="url(#arrC)"/>
+  <text x="656" y="262" fill="#34d399" font-size="9">lokál</text>
+  <text x="656" y="458" fill="#fbbf24" font-size="9">cloud</text>
+  <line x1="900" y1="226" x2="900" y2="256" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="912" y="246" fill="#a78bfa" font-size="8">spresnenie + commit</text>
+  <line x1="1100" y1="230" x2="1168" y2="320" stroke="#34d399" stroke-width="2" marker-end="url(#arrG)"/>
+  <line x1="1100" y1="480" x2="1168" y2="390" stroke="#fbbf24" stroke-width="2" marker-end="url(#arrC)"/>
+  <text x="1092" y="262" fill="#34d399" font-size="8">text + časy slov</text>
+  <text x="1104" y="452" fill="#fbbf24" font-size="8">text späť</text>
+  <line x1="1412" y1="355" x2="1448" y2="355" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="1396" y="340" fill="#94a3b8" font-size="8">WebSocket</text>
 
   <!-- 1 · VSTUP -->
-  <text x="40" y="136" fill="#22d3ee" font-size="11" font-weight="700">1 · VSTUP</text>
-  <rect x="40" y="150" width="150" height="70" rx="6" fill="#0f172a"/><rect x="40" y="150" width="150" height="70" rx="6" fill="rgba(8,51,68,.4)" stroke="#22d3ee" stroke-width="1.5"/>
-  <text x="115" y="178" fill="#e2e8f0" font-size="12" text-anchor="middle">Mikrofón</text>
-  <text x="115" y="196" fill="#94a3b8" font-size="9" text-anchor="middle">live, 16 kHz PCM</text>
-  <rect x="40" y="250" width="150" height="70" rx="6" fill="#0f172a"/><rect x="40" y="250" width="150" height="70" rx="6" fill="rgba(8,51,68,.4)" stroke="#22d3ee" stroke-width="1.5"/>
-  <text x="115" y="278" fill="#e2e8f0" font-size="12" text-anchor="middle">Video súbor</text>
-  <text x="115" y="296" fill="#94a3b8" font-size="9" text-anchor="middle">ffmpeg → 16 kHz mono</text>
+  <text x="40" y="220" fill="#22d3ee" font-size="11" font-weight="700">1 · VSTUP</text>
+  <rect x="40" y="234" width="150" height="70" rx="6" fill="#0f172a"/><rect x="40" y="234" width="150" height="70" rx="6" fill="rgba(8,51,68,.4)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="115" y="262" fill="#e2e8f0" font-size="12" text-anchor="middle">Mikrofón</text>
+  <text x="115" y="280" fill="#94a3b8" font-size="9" text-anchor="middle">live, 16 kHz PCM</text>
+  <rect x="40" y="374" width="150" height="70" rx="6" fill="#0f172a"/><rect x="40" y="374" width="150" height="70" rx="6" fill="rgba(8,51,68,.4)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="115" y="402" fill="#e2e8f0" font-size="12" text-anchor="middle">Video súbor</text>
+  <text x="115" y="420" fill="#94a3b8" font-size="9" text-anchor="middle">ffmpeg → 16 kHz mono</text>
 
-  <!-- 2 · ČISTENIE (samostatný blok) -->
-  <text x="250" y="136" fill="#34d399" font-size="11" font-weight="700">2 · ČISTENIE</text>
-  <rect x="250" y="150" width="180" height="100" rx="6" fill="#0f172a"/><rect x="250" y="150" width="180" height="100" rx="6" fill="rgba(6,78,59,.4)" stroke="#34d399" stroke-width="1.5"/>
-  <text x="340" y="176" fill="#e2e8f0" font-size="12" text-anchor="middle">Predspracovanie</text>
-  <text x="340" y="198" fill="#94a3b8" font-size="9" text-anchor="middle">highpass 80 Hz (hluk)</text>
-  <text x="340" y="214" fill="#94a3b8" font-size="9" text-anchor="middle">RMS normalizácia (AGC)</text>
-  <text x="340" y="230" fill="#94a3b8" font-size="9" text-anchor="middle">VAD — detekcia reči</text>
+  <!-- 2 · ČISTENIE -->
+  <text x="250" y="286" fill="#34d399" font-size="11" font-weight="700">2 · ČISTENIE</text>
+  <rect x="250" y="300" width="180" height="110" rx="6" fill="#0f172a"/><rect x="250" y="300" width="180" height="110" rx="6" fill="rgba(6,78,59,.4)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="340" y="326" fill="#e2e8f0" font-size="12" text-anchor="middle">Predspracovanie</text>
+  <text x="340" y="348" fill="#94a3b8" font-size="9" text-anchor="middle">highpass 80 Hz (hluk)</text>
+  <text x="340" y="364" fill="#94a3b8" font-size="9" text-anchor="middle">RMS normalizácia (AGC)</text>
+  <text x="340" y="380" fill="#94a3b8" font-size="9" text-anchor="middle">VAD — detekcia reči</text>
 
-  <!-- 2b · BUFFER (samostatný blok) -->
-  <rect x="250" y="280" width="180" height="150" rx="6" fill="#0f172a"/><rect x="250" y="280" width="180" height="150" rx="6" fill="rgba(6,78,59,.4)" stroke="#34d399" stroke-width="1.5"/>
-  <text x="340" y="306" fill="#e2e8f0" font-size="12" text-anchor="middle">Ring buffer</text>
-  <text x="340" y="328" fill="#94a3b8" font-size="9" text-anchor="middle">kruhová pamäť ~30 s:</text>
-  <text x="340" y="344" fill="#94a3b8" font-size="9" text-anchor="middle">nové audio prepisuje</text>
-  <text x="340" y="360" fill="#94a3b8" font-size="9" text-anchor="middle">najstaršie; modely čítajú</text>
-  <text x="340" y="376" fill="#94a3b8" font-size="9" text-anchor="middle">posuvné okno</text>
-  <text x="340" y="400" fill="#64748b" font-size="8" text-anchor="middle">audio ide do JEDNÉHO enginu</text>
-  <text x="340" y="414" fill="#64748b" font-size="8" text-anchor="middle">— výber v UI, prepnutie za behu</text>
+  <!-- 3 · BUFFER -->
+  <text x="470" y="266" fill="#34d399" font-size="11" font-weight="700">3 · BUFFER</text>
+  <rect x="470" y="280" width="180" height="150" rx="6" fill="#0f172a"/><rect x="470" y="280" width="180" height="150" rx="6" fill="rgba(6,78,59,.4)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="560" y="306" fill="#e2e8f0" font-size="12" text-anchor="middle">Ring buffer</text>
+  <text x="560" y="328" fill="#94a3b8" font-size="9" text-anchor="middle">kruhová pamäť ~30 s:</text>
+  <text x="560" y="344" fill="#94a3b8" font-size="9" text-anchor="middle">nové audio prepisuje</text>
+  <text x="560" y="360" fill="#94a3b8" font-size="9" text-anchor="middle">najstaršie; modely</text>
+  <text x="560" y="376" fill="#94a3b8" font-size="9" text-anchor="middle">čítajú posuvné okno</text>
+  <text x="560" y="400" fill="#64748b" font-size="8" text-anchor="middle">audio ide do JEDNÉHO enginu</text>
+  <text x="560" y="414" fill="#64748b" font-size="8" text-anchor="middle">— výber v UI, za behu</text>
 
-  <!-- 3a · LOKÁL -->
-  <rect x="500" y="70" width="390" height="290" rx="12" fill="none" stroke="#34d399" stroke-width="1.5" stroke-dasharray="8,4"/>
-  <text x="516" y="94" fill="#34d399" font-size="11" font-weight="700">3a · PREPIS NA MACU — audio neopúšťa počítač</text>
-  <rect x="520" y="110" width="350" height="106" rx="6" fill="#0f172a"/><rect x="520" y="110" width="350" height="106" rx="6" fill="rgba(76,29,149,.4)" stroke="#a78bfa" stroke-width="1.5"/>
-  <text x="536" y="134" fill="#e2e8f0" font-size="12" font-weight="700">DRAFT · rýchly nábeh</text>
-  <text x="536" y="152" fill="#94a3b8" font-size="9">whisper base · Apple Neural Engine · ~0.4 s</text>
-  <text x="536" y="176" fill="#64748b" font-size="8">takto ho vidíš (sivý, ešte sa môže zmeniť):</text>
-  <text x="536" y="196" fill="#94a3b8" font-size="12" font-style="italic">ahoj ako sa mas…</text>
-  <rect x="520" y="262" width="350" height="88" rx="6" fill="#0f172a"/><rect x="520" y="262" width="350" height="88" rx="6" fill="rgba(76,29,149,.4)" stroke="#a78bfa" stroke-width="1.5"/>
-  <text x="536" y="286" fill="#e2e8f0" font-size="12" font-weight="700">FINAL · potvrdený text</text>
-  <text x="536" y="302" fill="#94a3b8" font-size="9">kinit-turbo-sk (SK) · MLX GPU · LocalAgreement-2</text>
-  <text x="536" y="316" fill="#94a3b8" font-size="9">noise gate: slová bez energie reči sa zahodia</text>
-  <text x="536" y="338" fill="#ffffff" font-size="12" font-weight="700">Ahoj, ako sa máš?</text>
+  <!-- 4a · LOKÁL -->
+  <rect x="720" y="70" width="390" height="290" rx="12" fill="none" stroke="#34d399" stroke-width="1.5" stroke-dasharray="8,4"/>
+  <text x="736" y="94" fill="#34d399" font-size="11" font-weight="700">4a · PREPIS NA MACU — audio neopúšťa počítač</text>
+  <rect x="740" y="110" width="350" height="106" rx="6" fill="#0f172a"/><rect x="740" y="110" width="350" height="106" rx="6" fill="rgba(76,29,149,.4)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="756" y="134" fill="#e2e8f0" font-size="12" font-weight="700">DRAFT · rýchly nábeh</text>
+  <text x="756" y="152" fill="#94a3b8" font-size="9">whisper base · Apple Neural Engine · ~0.4 s</text>
+  <text x="756" y="176" fill="#64748b" font-size="8">takto ho vidíš (sivý, ešte sa môže zmeniť):</text>
+  <text x="756" y="196" fill="#94a3b8" font-size="12" font-style="italic">ahoj ako sa mas…</text>
+  <rect x="740" y="262" width="350" height="88" rx="6" fill="#0f172a"/><rect x="740" y="262" width="350" height="88" rx="6" fill="rgba(76,29,149,.4)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="756" y="286" fill="#e2e8f0" font-size="12" font-weight="700">FINAL · potvrdený text</text>
+  <text x="756" y="302" fill="#94a3b8" font-size="9">kinit-turbo-sk (SK) · MLX GPU · LocalAgreement-2</text>
+  <text x="756" y="316" fill="#94a3b8" font-size="9">noise gate: slová bez energie reči sa zahodia</text>
+  <text x="756" y="338" fill="#ffffff" font-size="12" font-weight="700">Ahoj, ako sa máš?</text>
 
-  <!-- 3b · CLOUD -->
-  <rect x="500" y="400" width="390" height="250" rx="12" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="8,4"/>
-  <text x="516" y="424" fill="#fbbf24" font-size="11" font-weight="700">3b · PREPIS V CLOUDE — von LEN audio, späť text</text>
-  <rect x="520" y="440" width="350" height="88" rx="6" fill="#0f172a"/><rect x="520" y="440" width="350" height="88" rx="6" fill="rgba(120,53,15,.3)" stroke="#fbbf24" stroke-width="1.5"/>
-  <text x="536" y="464" fill="#e2e8f0" font-size="12" font-weight="700">OpenAI Realtime</text>
-  <text x="536" y="482" fill="#94a3b8" font-size="9">gpt-4o-mini-transcribe / gpt-live-transcribe</text>
-  <text x="536" y="498" fill="#94a3b8" font-size="9">text BEZ časov slov → titulky približné</text>
-  <text x="536" y="512" fill="#64748b" font-size="8">korekcia −1.8 s + ručný posun v UI</text>
-  <rect x="520" y="544" width="350" height="88" rx="6" fill="#0f172a"/><rect x="520" y="544" width="350" height="88" rx="6" fill="rgba(120,53,15,.3)" stroke="#fbbf24" stroke-width="1.5"/>
-  <text x="536" y="568" fill="#e2e8f0" font-size="12" font-weight="700">ElevenLabs Scribe v2 Realtime</text>
-  <text x="536" y="586" fill="#94a3b8" font-size="9">slová AJ S ČASMI → titulky presné</text>
-  <text x="536" y="602" fill="#64748b" font-size="8">posiela sa: PCM16 16 kHz base64 chunky</text>
-  <text x="536" y="616" fill="#64748b" font-size="8">žiadne súbory, žiadne metadáta</text>
+  <!-- 4b · CLOUD -->
+  <rect x="720" y="400" width="390" height="250" rx="12" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="8,4"/>
+  <text x="736" y="424" fill="#fbbf24" font-size="11" font-weight="700">4b · PREPIS V CLOUDE — von LEN audio, späť text</text>
+  <rect x="740" y="440" width="350" height="88" rx="6" fill="#0f172a"/><rect x="740" y="440" width="350" height="88" rx="6" fill="rgba(120,53,15,.3)" stroke="#fbbf24" stroke-width="1.5"/>
+  <text x="756" y="464" fill="#e2e8f0" font-size="12" font-weight="700">OpenAI Realtime</text>
+  <text x="756" y="482" fill="#94a3b8" font-size="9">gpt-4o-mini-transcribe / gpt-live-transcribe</text>
+  <text x="756" y="498" fill="#94a3b8" font-size="9">text BEZ časov slov → titulky približné</text>
+  <text x="756" y="512" fill="#64748b" font-size="8">korekcia −1.8 s + ručný posun v UI</text>
+  <rect x="740" y="544" width="350" height="88" rx="6" fill="#0f172a"/><rect x="740" y="544" width="350" height="88" rx="6" fill="rgba(120,53,15,.3)" stroke="#fbbf24" stroke-width="1.5"/>
+  <text x="756" y="568" fill="#e2e8f0" font-size="12" font-weight="700">ElevenLabs Scribe v2 Realtime</text>
+  <text x="756" y="586" fill="#94a3b8" font-size="9">slová AJ S ČASMI → titulky presné</text>
+  <text x="756" y="602" fill="#64748b" font-size="8">posiela sa: PCM16 16 kHz base64 chunky</text>
+  <text x="756" y="616" fill="#64748b" font-size="8">žiadne súbory, žiadne metadáta</text>
 
-  <!-- 4 · SERVER -->
-  <text x="950" y="286" fill="#34d399" font-size="11" font-weight="700">4 · SERVER</text>
-  <rect x="950" y="300" width="266" height="112" rx="6" fill="#0f172a"/><rect x="950" y="300" width="266" height="112" rx="6" fill="rgba(6,78,59,.4)" stroke="#34d399" stroke-width="1.5"/>
-  <text x="1083" y="324" fill="#e2e8f0" font-size="12" text-anchor="middle">WebSocket server :8765</text>
-  <text x="1083" y="346" fill="#94a3b8" font-size="9" text-anchor="middle">zbiera text z aktívneho enginu</text>
-  <text x="1083" y="362" fill="#94a3b8" font-size="9" text-anchor="middle">committed (biele) + draft (sivé)</text>
-  <text x="1083" y="378" fill="#94a3b8" font-size="9" text-anchor="middle">vwords: slovo + čas zač./konca</text>
-  <text x="1083" y="394" fill="#94a3b8" font-size="9" text-anchor="middle">posiela všetkým oknám naraz</text>
+  <!-- 5 · SERVER -->
+  <text x="1170" y="286" fill="#34d399" font-size="11" font-weight="700">5 · SERVER</text>
+  <rect x="1170" y="300" width="240" height="112" rx="6" fill="#0f172a"/><rect x="1170" y="300" width="240" height="112" rx="6" fill="rgba(6,78,59,.4)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="1290" y="324" fill="#e2e8f0" font-size="12" text-anchor="middle">WebSocket server :8765</text>
+  <text x="1290" y="346" fill="#94a3b8" font-size="9" text-anchor="middle">text z aktívneho enginu</text>
+  <text x="1290" y="362" fill="#94a3b8" font-size="9" text-anchor="middle">committed (biele) + draft (sivé)</text>
+  <text x="1290" y="378" fill="#94a3b8" font-size="9" text-anchor="middle">vwords: slovo + čas zač./konca</text>
+  <text x="1290" y="394" fill="#94a3b8" font-size="9" text-anchor="middle">posiela všetkým oknám naraz</text>
 
-  <!-- 5 · TITULKY (vpravo od servera) -->
-  <text x="1258" y="286" fill="#22d3ee" font-size="11" font-weight="700">5 · TITULKY</text>
-  <rect x="1258" y="300" width="212" height="176" rx="6" fill="#0f172a"/><rect x="1258" y="300" width="212" height="176" rx="6" fill="rgba(8,51,68,.4)" stroke="#22d3ee" stroke-width="1.5"/>
-  <text x="1364" y="324" fill="#e2e8f0" font-size="12" text-anchor="middle">Prehliadač</text>
-  <text x="1364" y="346" fill="#94a3b8" font-size="9" text-anchor="middle">/overlay — OBS/stream</text>
-  <text x="1364" y="362" fill="#94a3b8" font-size="9" text-anchor="middle">/studio — réžia, prepis</text>
-  <text x="1364" y="378" fill="#94a3b8" font-size="9" text-anchor="middle">/video — import videa</text>
-  <text x="1364" y="400" fill="#64748b" font-size="8" text-anchor="middle">štýl · farby · pozícia</text>
-  <text x="1364" y="414" fill="#64748b" font-size="8" text-anchor="middle">veľkosť · posun</text>
-  <text x="1364" y="436" fill="#64748b" font-size="8" text-anchor="middle">SAFE buffer: štart až keď</text>
-  <text x="1364" y="450" fill="#64748b" font-size="8" text-anchor="middle">prepis stíha do konca videa</text>
-  <text x="1364" y="464" fill="#64748b" font-size="8" text-anchor="middle">(meraná rýchlosť r)</text>
+  <!-- 6 · TITULKY -->
+  <text x="1452" y="266" fill="#22d3ee" font-size="11" font-weight="700">6 · TITULKY</text>
+  <rect x="1452" y="280" width="200" height="176" rx="6" fill="#0f172a"/><rect x="1452" y="280" width="200" height="176" rx="6" fill="rgba(8,51,68,.4)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="1552" y="304" fill="#e2e8f0" font-size="12" text-anchor="middle">Prehliadač</text>
+  <text x="1552" y="326" fill="#94a3b8" font-size="9" text-anchor="middle">/overlay — OBS/stream</text>
+  <text x="1552" y="342" fill="#94a3b8" font-size="9" text-anchor="middle">/studio — réžia, prepis</text>
+  <text x="1552" y="358" fill="#94a3b8" font-size="9" text-anchor="middle">/video — import videa</text>
+  <text x="1552" y="380" fill="#64748b" font-size="8" text-anchor="middle">štýl · farby · pozícia</text>
+  <text x="1552" y="394" fill="#64748b" font-size="8" text-anchor="middle">veľkosť · posun</text>
+  <text x="1552" y="416" fill="#64748b" font-size="8" text-anchor="middle">SAFE buffer: štart až keď</text>
+  <text x="1552" y="430" fill="#64748b" font-size="8" text-anchor="middle">prepis stíha do konca</text>
+  <text x="1552" y="444" fill="#64748b" font-size="8" text-anchor="middle">videa (meraná rýchlosť r)</text>
 
   <!-- LEGENDA -->
   <g transform="translate(40, 690)">
