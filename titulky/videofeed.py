@@ -16,7 +16,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 UPLOADS = pathlib.Path.home() / ".config" / "titulky" / "uploads"
 PORT = int(os.environ.get("TITULKY_VIDEO_PORT", "8766"))
-MAX_BYTES = 2 * 1024 ** 3   # 2 GB strop
+MAX_BYTES = 8 * 1024 ** 3   # 8 GB strop (hodinový longform v 4K)
 
 _CT = {".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime",
        ".m4v": "video/x-m4v", ".mkv": "video/x-matroska"}
@@ -89,6 +89,10 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as e:
             dst.unlink(missing_ok=True)
             return self._json(422, {"error": str(e)[:300]})
+        # starsie uploady prec — drzime len aktualne video (disk setri)
+        for old in UPLOADS.iterdir():
+            if old.is_file() and not old.name.startswith(vid):
+                old.unlink(missing_ok=True)
         self._json(200, {"id": vid, "media": f"/media/{vid}{ext}",
                          "duration_s": round(dur, 1)})
 
