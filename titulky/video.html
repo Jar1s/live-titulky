@@ -417,7 +417,7 @@ function drainCaptions() {
     stalled = false; if (v.paused && !v.ended) v.play();
     $("stattxt").textContent = "beží — titulky pripravené";
   }
-  const c2 = ct + capShift;      // posun platí pre všetky engine
+  const c2 = ct + (groups.length ? 0 : capShift); // lokál má presné časy — posun len pre cloud
   if (groups.length) {               // grindcast režim (lokálny engine)
     const g = groups.find(g => c2 >= g.s && c2 <= g.e);
     $("cap").innerHTML = g ? `<span class="w">${esc(g.t)}</span>` : "";
