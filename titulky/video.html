@@ -193,6 +193,11 @@ spracovanie dopredu). Titulky vznikajú na aktuálnom engine.</p>
         style="width:110px;accent-color:var(--blue)">
       <b id="capsizev" style="color:var(--ink)">100 %</b>
     </label>
+    <label style="display:flex;align-items:center;gap:6px" title="len cloud engine — doladenie synchronizácie">posun
+      <input type="range" id="capshift" min="-4" max="4" step="0.2" value="0"
+        style="width:110px;accent-color:var(--blue)">
+      <b id="capshiftv" style="color:var(--ink)">0.0 s</b>
+    </label>
   </div>
   <div id="transwrap">
     <div class="t">Prepis</div>
@@ -289,7 +294,7 @@ $("vid").addEventListener("loadedmetadata", fitCaption);
 window.addEventListener("resize", fitCaption);
 
 /* ── nastavenia titulkov: štýl / pozícia / veľkosť (localStorage) ── */
-let capScale = 1;
+let capScale = 1, capShift = 0;
 function applyCapPrefs() {
   const cap = $("cap");
   cap.className = $("capstyle").value;          // preset trieda (alebo nič)
@@ -298,19 +303,24 @@ function applyCapPrefs() {
   $("capposv").textContent = pos + " %";
   capScale = +$("capsize").value / 100;
   $("capsizev").textContent = $("capsize").value + " %";
+  capShift = +$("capshift").value;
+  $("capshiftv").textContent = capShift.toFixed(1) + " s";
   fitCaption();
   localStorage.setItem("capPrefs", JSON.stringify({
-    style: $("capstyle").value, pos, size: +$("capsize").value}));
+    style: $("capstyle").value, pos, size: +$("capsize").value,
+    shift: capShift}));
 }
 try {
   const p = JSON.parse(localStorage.getItem("capPrefs") || "{}");
   if (p.style !== undefined) $("capstyle").value = p.style;
   if (p.pos) $("cappos").value = p.pos;
   if (p.size) $("capsize").value = p.size;
+  if (p.shift !== undefined) $("capshift").value = p.shift;
 } catch(e) {}
 $("capstyle").onchange = applyCapPrefs;
 $("cappos").oninput = applyCapPrefs;
 $("capsize").oninput = applyCapPrefs;
+$("capshift").oninput = applyCapPrefs;
 applyCapPrefs();
 
 $("again").onclick = () => {          // replay zo záznamu, bez nového prepisu
@@ -386,12 +396,14 @@ function drainCaptions() {
     $("cap").innerHTML = g ? `<span class="w">${esc(g.t)}</span>` : "";
     return;
   }
-  /* fallback (cloud engine bez word časov): posledný update, max 3 slová */
-  if (capIdx > 0 && capLog[capIdx - 1] && capLog[capIdx - 1].t > ct + 0.05)
+  /* fallback (cloud engine bez word časov): posledný update, max 3 slová;
+     capShift = ručné doladenie synchronizácie (+ = titulky skôr) */
+  const c2 = ct + capShift;
+  if (capIdx > 0 && capLog[capIdx - 1] && capLog[capIdx - 1].t > c2 + 0.05)
     capIdx = 0;
-  while (capIdx < capLog.length && capLog[capIdx].t <= ct + 0.05) capIdx++;
+  while (capIdx < capLog.length && capLog[capIdx].t <= c2 + 0.05) capIdx++;
   const last = capIdx > 0 ? capLog[capIdx - 1] : null;
-  if (!last || ct - last.t > 2.5) { $("cap").innerHTML = ""; return; }
+  if (!last || c2 - last.t > 2.5) { $("cap").innerHTML = ""; return; }
   const ws = ((last.com || "") + " " + (last.dr || ""))
     .trim().split(/\s+/).filter(Boolean);
   $("cap").innerHTML = ws.slice(-3).map(w =>
@@ -512,8 +524,11 @@ function onUpdate(d) {
   if (!running && !$("trans").childElementCount) return;
   const com = d.committed || "", dr = d.draft || d.pending || "";
   if (running && feedT0) {
-    /* feed-čas príchodu = pozícia audia, ktorú update popisuje */
-    capLog.push({t: (performance.now() - feedT0) / 1000, com, dr});
+    /* audio pozícia, ktorú update popisuje: pozícia feedu mínus
+       odhad latencie cloud prepisu (~1.8 s) — update prichádza AŽ PO
+       vyslovení, bez korekcie by titulky išli pozadu za obrazom */
+    const at = feedPos > 0 ? feedPos : (performance.now() - feedT0) / 1000;
+    capLog.push({t: Math.max(0, at - 1.8), com, dr});
   }
   $("trans").innerHTML =
     `<span class="w">${esc(com)}</span> <span class="g">${esc(dr)}</span>`;
