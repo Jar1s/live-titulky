@@ -61,9 +61,9 @@
   <text x="380" y="548" fill="#fbbf24" font-size="10">nevyčistené audio, 100 ms chunky</text>
   <text x="380" y="564" fill="#fbbf24" font-size="10">konverzia: float32 → PCM16 16 kHz → base64 → JSON cez WSS</text>
   <text x="380" y="580" fill="#fbbf24" font-size="10">(formát vyžadovaný API; čistenie a VAD si robí provider na serveri)</text>
-  <polyline points="1360,164 1390,164 1390,246" fill="none" stroke="#34d399" stroke-width="2"/>
-  <polyline points="1360,296 1390,296 1390,246" fill="none" stroke="#34d399" stroke-width="2"/>
-  <line x1="1390" y1="246" x2="1420" y2="246" stroke="#34d399" stroke-width="2"/>
+  <polyline points="1360,164 1385,164 1385,246" fill="none" stroke="#34d399" stroke-width="2"/>
+  <polyline points="1350,296 1385,296 1385,246" fill="none" stroke="#34d399" stroke-width="2"/>
+  <line x1="1385" y1="246" x2="1420" y2="246" stroke="#34d399" stroke-width="2"/>
   <text x="900" y="384" fill="#64748b" font-size="9">výstup = biely committed (FINAL) + sivý draft chvost za hranicou · dedup slov na hranici</text>
   <line x1="1422" y1="246" x2="1476" y2="320" stroke="#34d399" stroke-width="2" marker-end="url(#arrG)"/>
   <rect x="1428" y="222" width="132" height="18" rx="4" fill="#020617"/>
@@ -128,12 +128,25 @@
   <text x="876" y="178" fill="#64748b" font-size="8">takto ho vidíš (sivý, mení sa):</text>
   <text x="876" y="200" fill="#94a3b8" font-size="12" font-style="italic">ahoj ako sa mas…</text>
   <text x="1110" y="235" fill="#a78bfa" font-size="10" font-weight="700" text-anchor="middle">bežia PARALELNE nad tým istým oknom</text>
-  <rect x="860" y="244" width="500" height="104" rx="6" fill="#0f172a"/><rect x="860" y="244" width="500" height="104" rx="6" fill="rgba(76,29,149,.4)" stroke="#a78bfa" stroke-width="1.5"/>
-  <text x="876" y="270" fill="#e2e8f0" font-size="12" font-weight="700">FINAL · potvrdený text</text>
-  <text x="876" y="288" fill="#94a3b8" font-size="9">kinit-turbo-sk (SK) · MLX GPU · LocalAgreement-2: 2 zhodné behy po sebe</text>
-  <text x="876" y="302" fill="#94a3b8" font-size="9">noise gate: slová bez reči von · potvrdzuje (commituje) slová draftu</text>
-  <text x="876" y="326" fill="#ffffff" font-size="12" font-weight="700">Ahoj, ako sa máš?</text>
-  <text x="1180" y="326" fill="#64748b" font-size="8">async korekcia OOV slov po commite</text>
+  <rect x="860" y="244" width="150" height="104" rx="6" fill="#0f172a"/><rect x="860" y="244" width="150" height="104" rx="6" fill="rgba(76,29,149,.4)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="870" y="266" fill="#e2e8f0" font-size="11" font-weight="700">FINAL · commit</text>
+  <text x="870" y="284" fill="#94a3b8" font-size="8">kinit-turbo-sk (SK) · MLX</text>
+  <text x="870" y="298" fill="#94a3b8" font-size="8">LocalAgreement-2: 2 behy</text>
+  <text x="870" y="312" fill="#94a3b8" font-size="8">noise gate: bez reči von</text>
+  <text x="870" y="334" fill="#ffffff" font-size="11" font-weight="700">Ahoj, ako sa máš?</text>
+  <line x1="1010" y1="296" x2="1026" y2="296" stroke="#a78bfa" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="1030" y="244" width="150" height="104" rx="6" fill="#0f172a"/><rect x="1030" y="244" width="150" height="104" rx="6" fill="rgba(76,29,149,.4)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="1040" y="266" fill="#e2e8f0" font-size="11" font-weight="700">SpellFix · slovník</text>
+  <text x="1040" y="284" fill="#94a3b8" font-size="8">3.0M SK tvarov</text>
+  <text x="1040" y="298" fill="#94a3b8" font-size="8">preklep ≤ 1 znak</text>
+  <text x="1040" y="312" fill="#64748b" font-size="8">hneď po commite</text>
+  <line x1="1180" y1="296" x2="1196" y2="296" stroke="#a78bfa" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="1200" y="244" width="150" height="104" rx="6" fill="#0f172a"/><rect x="1200" y="244" width="150" height="104" rx="6" fill="rgba(76,29,149,.4)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="1210" y="266" fill="#e2e8f0" font-size="11" font-weight="700">Azure korekcia</text>
+  <text x="1210" y="284" fill="#94a3b8" font-size="8">2. prepis toho istého zvuku</text>
+  <text x="1210" y="298" fill="#94a3b8" font-size="8">gaty: hunspell · Lev ≤ 2</text>
+  <text x="1210" y="312" fill="#94a3b8" font-size="8">opraví OOV halucinácie</text>
+  <text x="1210" y="330" fill="#64748b" font-size="8">async, bodovo, spätne</text>
 
   <!-- ===== 5b · CLOUD: dve alternatívy vedľa seba ===== -->
   <rect x="840" y="400" width="580" height="250" rx="12" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="8,4"/>
