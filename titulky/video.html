@@ -311,7 +311,18 @@ $("vid").addEventListener("loadedmetadata", fitCaption);
 window.addEventListener("resize", fitCaption);
 
 /* ── nastavenia titulkov: štýl / pozícia / veľkosť (localStorage) ── */
-let capScale = 1, capShift = 0;
+let capScale = 1, capShift = 0, engineKind = "local";
+/* posun per engine: lokál má presné časy (vždy 0), cloud/eleven vlastný profil */
+let shiftProf = {cloud: 0, eleven: 0};
+try { Object.assign(shiftProf,
+  JSON.parse(localStorage.getItem("capShiftProf") || "{}")); } catch(e) {}
+function syncShiftUI() {
+  const el = $("capshift"), lk = engineKind === "local";
+  el.disabled = lk;
+  el.value = lk ? 0 : (shiftProf[engineKind] || 0);
+  capShift = +el.value;
+  $("capshiftv").textContent = capShift.toFixed(1) + " s" + (lk ? " (lokál)" : "");
+}
 function applyCapPrefs() {
   const cap = $("cap");
   cap.className = $("capstyle").value;          // preset trieda (alebo nič)
@@ -321,6 +332,10 @@ function applyCapPrefs() {
   capScale = +$("capsize").value / 100;
   $("capsizev").textContent = $("capsize").value + " %";
   capShift = +$("capshift").value;
+  if (engineKind !== "local") {
+    shiftProf[engineKind] = capShift;
+    localStorage.setItem("capShiftProf", JSON.stringify(shiftProf));
+  }
   $("capshiftv").textContent = capShift.toFixed(1) + " s";
   cap.style.setProperty("--capcol", $("capcol").value);
   const bg = $("capbg").value;   // hex → rgba s priehľadnosťou pásu
@@ -346,6 +361,7 @@ $("capsize").oninput = applyCapPrefs;
 $("capshift").oninput = applyCapPrefs;
 $("capcol").oninput = applyCapPrefs;
 $("capbg").oninput = applyCapPrefs;
+syncShiftUI();
 applyCapPrefs();
 
 $("again").onclick = () => {          // replay zo záznamu, bez nového prepisu
@@ -416,7 +432,7 @@ function drainCaptions() {
     stalled = false; if (v.paused && !v.ended) v.play();
     $("stattxt").textContent = "beží — titulky pripravené";
   }
-  const c2 = ct + (groups.length ? 0 : capShift); // lokál má presné časy — posun len pre cloud
+  const c2 = ct + (engineKind === "local" ? 0 : capShift); // lokál presný, cloud/eleven per-engine posun
   if (groups.length) {               // grindcast režim (lokálny engine)
     const g = groups.find(g => c2 >= g.s && c2 <= g.e);
     $("cap").innerHTML = g ? `<span class="w">${esc(g.t)}</span>` : "";
@@ -506,6 +522,9 @@ function onEvent(e) {
       } else $("stattxt").textContent = msg;
     }, 100);
   } else if (e.t === "engine_state") {
+    engineKind = e.engine === "eleven" ? "eleven"
+               : e.engine === "cloud" ? "cloud" : "local";
+    syncShiftUI();
     // video stránka: mikrofón tu nemá čo robiť — pri prvom stave prepni
     // bežiaci (mikrofónový) engine do idle, zvuk pôjde až zo súboru
     if (!window._idled && !e.switching) {
