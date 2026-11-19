@@ -145,6 +145,8 @@ class CloudPipeline:
             for i in range(0, len(audio), chunk_n):
                 if not self.running:
                     return
+                while self.paused and self.running:
+                    await asyncio.sleep(0.1)   # pauza videa = pauza feedu
                 # reálny čas — simulácia live vstupu
                 target = i / SAMPLE_RATE
                 if target - last_fp >= 0.5:   # pozícia feedu pre buffer v UI

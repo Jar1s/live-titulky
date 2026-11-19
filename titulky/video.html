@@ -82,6 +82,8 @@ h1 { font-family: var(--font-d); font-size: clamp(30px, 2vw + 14px, 42px);
 #cap.st-grind { font-weight: 800; letter-spacing: .02em;
   text-shadow: 0 3px 14px rgba(0,0,0,.95), 0 0 4px rgba(0,0,0,.95); }
 #cap.st-tv { text-shadow: none; }
+#cap .w { background: var(--capbg, transparent); padding: .08em .34em;
+  border-radius: .12em; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 #cap.st-tv .w { background: var(--capbg, rgba(0,0,0,.75)); padding: .08em .34em;
   border-radius: .22em; box-decoration-break: clone;
   -webkit-box-decoration-break: clone; }
@@ -287,7 +289,8 @@ $("go").onclick = () => {
   }
   const v = $("vid");            // odomkni prehrávanie v rámci user gesture
   v.muted = true;
-  v.play().then(() => { v.pause(); v.currentTime = 0; v.muted = false; })
+  autoPause = true;
+  v.play().then(() => { v.pause(); v.currentTime = 0; v.muted = false; autoPause = false; })
           .catch(() => { v.muted = false; });
   running = true;
   $("go").disabled = true;
@@ -299,7 +302,7 @@ $("go").onclick = () => {
 };
 $("stopb").onclick = () => {
   ws.send(JSON.stringify({t: "video_stop"}));
-  const v = $("vid"); v.pause(); v.controls = true;
+  const v = $("vid"); autoPause = true; v.pause(); autoPause = false; v.controls = true;
   if (bufTimer) { clearInterval(bufTimer); bufTimer = null; }
   feedEof = true; running = false;
   $("stopb").style.display = "none";
@@ -351,7 +354,8 @@ function applyCapPrefs() {
   $("capshiftv").textContent = capShift.toFixed(1) + " s";
   cap.style.setProperty("--capcol", $("capcol").value);
   const bg = $("capbg").value;   // hex → rgba s priehľadnosťou pásu
-  cap.style.setProperty("--capbg", "rgba(" +
+  const bgOff = bg.toLowerCase() === "#000000" && $("capstyle").value !== "st-tv";
+  cap.style.setProperty("--capbg", bgOff ? "transparent" : "rgba(" +
     parseInt(bg.slice(1,3),16) + "," + parseInt(bg.slice(3,5),16) + "," +
     parseInt(bg.slice(5,7),16) + ",.75)");
   fitCaption();
@@ -389,6 +393,19 @@ $("eng").onchange = () => {
 let bufTimer = null, feedT0 = 0, capLog = [], capIdx = 0, drainTimer = null;
 /* GPT (bez časov slov): nové committed slová interpolujeme medzi updatmi */
 let cwLog = [], cwPrevCom = "", cwPrevAt = 0;
+let autoPause = false;   // programové pauzy (buffer, stop) nejdú na server
+/* pauza prehrávača = pauza prepisu na serveri; play = pokračuje */
+window.addEventListener("load", () => {
+  const v = $("vid");
+  v.addEventListener("pause", () => {
+    if (running && !feedEof && !autoPause && ws && ws.readyState === 1)
+      ws.send(JSON.stringify({t: "video_pause", on: true}));
+  });
+  v.addEventListener("play", () => {
+    if (running && !feedEof && ws && ws.readyState === 1)
+      ws.send(JSON.stringify({t: "video_pause", on: false}));
+  });
+});
 let feedEof = false, maxLag = 0, feedPos = 0, stalled = false;
 
 /* Titulky grindcast štýlom: committed slová s reálnymi časmi (vwords
@@ -436,7 +453,7 @@ function drainCaptions() {
     const lastE = wordLog.length ? wordLog[wordLog.length - 1].e : 0;
     const cover = Math.max(lastE, feedPos - (maxLag + 4));
     if (!stalled && !v.paused && ct > cover - 0.4) {
-      v.pause(); stalled = true;
+      autoPause = true; v.pause(); autoPause = false; stalled = true;
       $("stattxt").textContent = "dopĺňam titulky…";
     } else if (stalled && (cover > ct + 2)) {
       stalled = false; v.play();

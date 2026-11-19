@@ -201,6 +201,8 @@ async def handler(ws):
                                        d.get("model")),
                                  kwargs={"idle": bool(d.get("idle"))},
                                  daemon=True).start()
+            elif d.get("t") == "video_pause" and PIPE is not None:
+                PIPE.paused = bool(d.get("on"))
             elif d.get("t") == "video_stop":
                 # stop prepisu videa: pipeline do idle, mikrofón sa nespúšťa
                 threading.Thread(target=switch_engine,

@@ -159,6 +159,8 @@ class ElevenPipeline:
             for i in range(0, len(audio), chunk_n):
                 if not self.running:
                     return
+                while self.paused and self.running:
+                    await asyncio.sleep(0.1)   # pauza videa = pauza feedu
                 await self._push(ws, audio[i:i + chunk_n])
                 pos = (i + chunk_n) / SAMPLE_RATE
                 if pos - last_pos >= 0.5:

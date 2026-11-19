@@ -477,6 +477,8 @@ class TwoTierPipeline:
             chunk_frames = int(SAMPLE_RATE * 0.1)
             fed, last_pos = 0, 0.0
             while True:
+                while self.paused and self.running:
+                    time.sleep(0.1)        # pauza videa = pauza feedu
                 raw = wf.readframes(chunk_frames)
                 if not raw:
                     break
