@@ -327,16 +327,17 @@ window.addEventListener("resize", fitCaption);
 
 /* ── nastavenia titulkov: štýl / pozícia / veľkosť (localStorage) ── */
 let capScale = 1, capShift = 0, engineKind = "local";
-/* posun len pre cloud GPT (nemá časy slov); lokál aj eleven majú presné časy */
-let shiftProf = {cloud: 0};
+/* posun per engine (default 0) — presné časy netreba posúvať, ale ručné
+   doladenie musí fungovať vždy, keď ho užívateľ chce */
+let shiftProf = {local: 0, cloud: 0, eleven: 0};
 try { Object.assign(shiftProf,
   JSON.parse(localStorage.getItem("capShiftProf") || "{}")); } catch(e) {}
 function syncShiftUI() {
-  const el = $("capshift"), exact = engineKind !== "cloud";
-  el.disabled = exact;
-  el.value = exact ? 0 : (shiftProf.cloud || 0);
+  const el = $("capshift");
+  el.disabled = false;
+  el.value = shiftProf[engineKind] || 0;
   capShift = +el.value;
-  $("capshiftv").textContent = capShift.toFixed(1) + " s" + (exact ? " (presné časy)" : "");
+  $("capshiftv").textContent = capShift.toFixed(1) + " s";
 }
 function applyCapPrefs() {
   const cap = $("cap");
@@ -347,10 +348,8 @@ function applyCapPrefs() {
   capScale = +$("capsize").value / 100;
   $("capsizev").textContent = $("capsize").value + " %";
   capShift = +$("capshift").value;
-  if (engineKind === "cloud") {
-    shiftProf[engineKind] = capShift;
-    localStorage.setItem("capShiftProf", JSON.stringify(shiftProf));
-  }
+  shiftProf[engineKind] = capShift;
+  localStorage.setItem("capShiftProf", JSON.stringify(shiftProf));
   $("capshiftv").textContent = capShift.toFixed(1) + " s";
   cap.style.setProperty("--capcol", $("capcol").value);
   const bg = $("capbg").value;   // hex → rgba s priehľadnosťou pásu
@@ -463,7 +462,7 @@ function drainCaptions() {
     stalled = false; if (v.paused && !v.ended) v.play();
     $("stattxt").textContent = "beží — titulky pripravené";
   }
-  const c2 = ct + (engineKind === "cloud" ? capShift : 0); // posun len pre GPT bez časov
+  const c2 = ct + capShift;  // per-engine posun (default 0, + = titulky skôr)
   if (groups.length) {               // grindcast režim (lokálny engine)
     const g = groups.find(g => c2 >= g.s && c2 <= g.e);
     $("cap").innerHTML = g ? `<span class="w">${esc(g.t)}</span>` : "";
