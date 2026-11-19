@@ -202,12 +202,17 @@ spracovanie dopredu). Titulky vznikajú na aktuálnom engine.</p>
         style="width:76px;accent-color:var(--blue)">
       <b id="capposv" style="color:var(--ink);min-width:32px">6 %</b>
     </label>
+    <label style="display:flex;align-items:center;gap:5px" title="vodorovný posun titulkov">posun ↔
+      <input type="range" id="capx" min="-40" max="40" step="1" value="0"
+        style="width:76px;accent-color:var(--blue)">
+      <b id="capxv" style="color:var(--ink);min-width:32px">0 %</b>
+    </label>
     <label style="display:flex;align-items:center;gap:5px">veľkosť
       <input type="range" id="capsize" min="60" max="170" step="5" value="100"
         style="width:76px;accent-color:var(--blue)">
       <b id="capsizev" style="color:var(--ink);min-width:36px">100 %</b>
     </label>
-    <label style="display:flex;align-items:center;gap:5px" title="len cloud engine — doladenie synchronizácie">posun
+    <label style="display:flex;align-items:center;gap:5px" title="len cloud engine — doladenie synchronizácie">časovanie
       <input type="range" id="capshift" min="-4" max="4" step="0.2" value="0"
         style="width:76px;accent-color:var(--blue)">
       <b id="capshiftv" style="color:var(--ink);min-width:38px">0.0 s</b>
@@ -345,6 +350,12 @@ function applyCapPrefs() {
   const pos = +$("cappos").value;
   cap.style.bottom = pos + "%";
   $("capposv").textContent = pos + " %";
+  const x = +$("capx").value;             // vodorovný posun: − doľava, + doprava
+  const portrait = $("stage").classList.contains("portrait");
+  const mrg = portrait ? 6 : 4;
+  cap.style.left = (mrg + x) + "%";
+  cap.style.right = (mrg - x) + "%";
+  $("capxv").textContent = x + " %";
   capScale = +$("capsize").value / 100;
   $("capsizev").textContent = $("capsize").value + " %";
   capShift = +$("capshift").value;
@@ -360,13 +371,14 @@ function applyCapPrefs() {
   fitCaption();
   localStorage.setItem("capPrefs", JSON.stringify({
     style: $("capstyle").value, pos, size: +$("capsize").value,
-    col: $("capcol").value, bg}));
+    x, col: $("capcol").value, bg}));
 }
 try {
   const p = JSON.parse(localStorage.getItem("capPrefs") || "{}");
   if (p.style !== undefined) $("capstyle").value = p.style;
   if (p.pos) $("cappos").value = p.pos;
   if (p.size) $("capsize").value = p.size;
+  if (p.x !== undefined) $("capx").value = p.x;
   if (p.col) $("capcol").value = p.col;
   if (p.bg) $("capbg").value = p.bg;
 } catch(e) {}
@@ -374,6 +386,7 @@ $("capstyle").onchange = applyCapPrefs;
 $("cappos").oninput = applyCapPrefs;
 $("capsize").oninput = applyCapPrefs;
 $("capshift").oninput = applyCapPrefs;
+$("capx").oninput = applyCapPrefs;
 $("capcol").oninput = applyCapPrefs;
 $("capbg").oninput = applyCapPrefs;
 syncShiftUI();
