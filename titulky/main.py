@@ -141,7 +141,8 @@ def switch_engine(engine: str, model: str | None, file: str | None = None,
         with _state_lock:
             PIPE = pipe
             SESSION = sessions.new(engine, model)
-        ENGINE.update(engine=engine, model=model)
+        ENGINE.update(engine=engine, model=model,
+                      idle=bool(idle and not file))
         if file:
             broadcast({"event": {"t": "video_started"}})
             threading.Thread(target=_watch_video_eof, args=(pipe,),
@@ -201,6 +202,13 @@ async def handler(ws):
                                        d.get("model")),
                                  kwargs={"idle": bool(d.get("idle"))},
                                  daemon=True).start()
+            elif d.get("t") == "mic":
+                # studio/overlay si pyta mikrofon — zapni, ak je pipeline idle
+                if ENGINE.get("idle"):
+                    threading.Thread(target=switch_engine,
+                                     args=(ENGINE["engine"],
+                                           ENGINE["model"]),
+                                     daemon=True).start()
             elif d.get("t") == "video_pause" and PIPE is not None:
                 PIPE.paused = bool(d.get("on"))
             elif d.get("t") == "video_stop":

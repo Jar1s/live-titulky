@@ -665,6 +665,7 @@ function connect() {
   const ws = new WebSocket(`ws://${location.host}/ws`);
   wsRef = ws;
   ws.onopen = () => {
+    ws.send(JSON.stringify({t: "mic"}));
     connected = true;
     statsEl.innerHTML = '<b>pripojené</b>';
     updateEmptyState();

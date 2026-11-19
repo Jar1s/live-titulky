@@ -273,7 +273,7 @@ const CLOUD_RATE = {"gpt-live-transcribe": 0.017,
 /* ── websocket ─────────────────────────────────────────── */
 function connect() {
   ws = new WebSocket(`ws://${location.host}/ws`);
-  ws.onopen = () => { wsOk = true; setDot(); ws.send('{"t":"state"}'); };
+  ws.onopen = () => { wsOk = true; setDot(); ws.send('{"t":"state"}'); ws.send('{"t":"mic"}'); };
   ws.onclose = () => { wsOk = false; setDot(); setTimeout(connect, 1500); };
   ws.onmessage = m => { try { handle(JSON.parse(m.data)); } catch(e){} };
 }
